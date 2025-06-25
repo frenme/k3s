@@ -31,3 +31,13 @@ func TestHealthz(t *testing.T) {
 	}
 }
 
+func TestReadyzFailingCheck(t *testing.T) {
+	h := NewHealth()
+	h.Add("db", func(ctx context.Context) error { return errors.New("down") })
+	srv := newHealthServer(h)
+	defer srv.Close()
+	if got := status(t, srv.URL+"/readyz"); got != http.StatusServiceUnavailable {
+		t.Fatalf("status %d", got)
+	}
+}
+
