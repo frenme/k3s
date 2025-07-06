@@ -41,3 +41,23 @@ func TestReadyzFailingCheck(t *testing.T) {
 	}
 }
 
+func TestReadyzDraining(t *testing.T) {
+	h := NewHealth()
+	srv := newHealthServer(h)
+	defer srv.Close()
+	if got := status(t, srv.URL+"/readyz"); got != http.StatusOK {
+		t.Fatalf("status %d", got)
+	}
+	h.SetReady(false)
+	if got := status(t, srv.URL+"/readyz"); got != http.StatusServiceUnavailable {
+		t.Fatalf("status %d", got)
+	}
+}
+
+func TestVersion(t *testing.T) {
+	srv := newHealthServer(NewHealth())
+	defer srv.Close()
+	if got := status(t, srv.URL+"/version"); got != http.StatusOK {
+		t.Fatalf("status %d", got)
+	}
+}
