@@ -52,21 +52,71 @@ func Connect(ctx context.Context, c Config) (*pgxpool.Pool, error) {
 	return nil, fmt.Errorf("postgres unavailable: %w", err)
 }
 
-func Open(ctx context.Context, defaultSchema string, fsys fs.FS, dir string) (*pgxpool.Pool, error) {
+type Pools struct {
+	Write *pgxpool.Pool
+	Read  *pgxpool.Pool
+}
+
+func (p *Pools) Close() {
+	if p.Read != nil {
+		p.Read.Close()
+	}
+	p.Write.Close()
+}
+
+func Query[T any](p *Pools, fn func(*pgxpool.Pool) (T, error)) (T, error) {
+	if p.Read == nil {
+		return fn(p.Write)
+	}
+	v, err := fn(p.Read)
+	if err == nil {
+		return v, nil
+	}
+	return fn(p.Write)
+}
+
+func Open(ctx context.Context, defaultSchema string, fsys fs.FS, dir string) (*Pools, error) {
 	schema := config.String("DB_SCHEMA", defaultSchema)
-	pool, err := Connect(ctx, Config{
+	maxConns := int32(config.Int("DB_MAX_CONNS", 10))
+	write, err := Connect(ctx, Config{
 		URL:      config.String("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/app?sslmode=disable"),
 		Schema:   schema,
-		MaxConns: int32(config.Int("DB_MAX_CONNS", 10)),
+		MaxConns: maxConns,
 	})
 	if err != nil {
 		return nil, err
 	}
-	if err := Migrate(ctx, pool, schema, fsys, dir); err != nil {
-		pool.Close()
+	if err := Migrate(ctx, write, schema, fsys, dir); err != nil {
+		write.Close()
 		return nil, err
 	}
-	return pool, nil
+	pools := &Pools{Write: write}
+	if url := config.String("DATABASE_READ_URL", ""); url != "" {
+		read, err := connectLazy(ctx, Config{URL: url, Schema: schema, MaxConns: maxConns})
+		if err != nil {
+			write.Close()
+			return nil, err
+		}
+		pools.Read = read
+	}
+	return pools, nil
+}
+
+func connectLazy(ctx context.Context, c Config) (*pgxpool.Pool, error) {
+	cfg, err := pgxpool.ParseConfig(c.URL)
+	if err != nil {
+		return nil, err
+	}
+	if c.Schema != "" {
+		cfg.ConnConfig.RuntimeParams["search_path"] = c.Schema
+	}
+	if c.MaxConns > 0 {
+		cfg.MaxConns = c.MaxConns
+	}
+	cfg.ConnConfig.ConnectTimeout = 2 * time.Second
+	cfg.MaxConnLifetime = 30 * time.Minute
+	cfg.HealthCheckPeriod = 30 * time.Second
+	return pgxpool.NewWithConfig(ctx, cfg)
 }
 
 func Migrate(ctx context.Context, pool *pgxpool.Pool, schema string, fsys fs.FS, dir string) error {
