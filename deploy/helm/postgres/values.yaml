@@ -7,6 +7,10 @@ database: app
 
 superuserPassword: change-me
 
+replication:
+  user: replicator
+  password: change-me
+
 services: {}
 
 persistence:
@@ -26,10 +30,22 @@ config:
   effective_cache_size: 384MB
   wal_level: replica
   max_wal_size: 1GB
+  max_wal_senders: "10"
+  max_replication_slots: "10"
+  wal_keep_size: 512MB
+  hot_standby: "on"
+  hot_standby_feedback: "on"
 
 nodeSelector: {}
 
 tolerations: []
+
+replica:
+  enabled: false
+  replicas: 1
+  nodeSelector: {}
+  tolerations: []
+  resources: {}
 
 backup:
   enabled: true
