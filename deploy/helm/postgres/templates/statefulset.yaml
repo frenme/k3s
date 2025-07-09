@@ -67,6 +67,10 @@ spec:
           secret:
             secretName: postgres
             items:
+              - key: 05-replication.sql
+                path: 05-replication.sql
+              - key: 06-replication.sh
+                path: 06-replication.sh
               - key: 10-services.sql
                 path: 10-services.sql
       {{- with .Values.nodeSelector }}
