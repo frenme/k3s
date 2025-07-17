@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/egor/k3s-base/internal/platform/pg"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -32,11 +33,11 @@ type Store interface {
 }
 
 type PgStore struct {
-	pool *pgxpool.Pool
+	pools *pg.Pools
 }
 
-func NewPgStore(pool *pgxpool.Pool) *PgStore {
-	return &PgStore{pool: pool}
+func NewPgStore(pools *pg.Pools) *PgStore {
+	return &PgStore{pools: pools}
 }
 
 const orderColumns = `id::text, user_id::text, item, amount_cents, created_at`
@@ -48,20 +49,22 @@ func (s *PgStore) List(ctx context.Context, userID string, limit int) ([]Order, 
 		query = `SELECT ` + orderColumns + ` FROM orders WHERE user_id = $2 ORDER BY created_at DESC LIMIT $1`
 		args = append(args, userID)
 	}
-	rows, err := s.pool.Query(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []Order{}
-	for rows.Next() {
-		var o Order
-		if err := rows.Scan(&o.ID, &o.UserID, &o.Item, &o.AmountCents, &o.CreatedAt); err != nil {
+	return pg.Query(s.pools, func(pool *pgxpool.Pool) ([]Order, error) {
+		rows, err := pool.Query(ctx, query, args...)
+		if err != nil {
 			return nil, err
 		}
-		out = append(out, o)
-	}
-	return out, rows.Err()
+		defer rows.Close()
+		out := []Order{}
+		for rows.Next() {
+			var o Order
+			if err := rows.Scan(&o.ID, &o.UserID, &o.Item, &o.AmountCents, &o.CreatedAt); err != nil {
+				return nil, err
+			}
+			out = append(out, o)
+		}
+		return out, rows.Err()
+	})
 }
 
 func (s *PgStore) Create(ctx context.Context, o Order, key string) (Order, bool, error) {
@@ -70,7 +73,7 @@ func (s *PgStore) Create(ctx context.Context, o Order, key string) (Order, bool,
 		idem = &key
 	}
 	var out Order
-	err := s.pool.QueryRow(ctx, `
+	err := s.pools.Write.QueryRow(ctx, `
 		INSERT INTO orders (user_id, item, amount_cents, idempotency_key)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
@@ -82,15 +85,18 @@ func (s *PgStore) Create(ctx context.Context, o Order, key string) (Order, bool,
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return Order{}, false, err
 	}
-	err = s.pool.QueryRow(ctx, `SELECT `+orderColumns+` FROM orders WHERE idempotency_key = $1`, key).
+	err = s.pools.Write.QueryRow(ctx, `SELECT `+orderColumns+` FROM orders WHERE idempotency_key = $1`, key).
 		Scan(&out.ID, &out.UserID, &out.Item, &out.AmountCents, &out.CreatedAt)
 	return out, false, err
 }
 
 func (s *PgStore) Get(ctx context.Context, id string) (Order, error) {
-	var o Order
-	err := s.pool.QueryRow(ctx, `SELECT `+orderColumns+` FROM orders WHERE id = $1`, id).
-		Scan(&o.ID, &o.UserID, &o.Item, &o.AmountCents, &o.CreatedAt)
+	o, err := pg.Query(s.pools, func(pool *pgxpool.Pool) (Order, error) {
+		var o Order
+		err := pool.QueryRow(ctx, `SELECT `+orderColumns+` FROM orders WHERE id = $1`, id).
+			Scan(&o.ID, &o.UserID, &o.Item, &o.AmountCents, &o.CreatedAt)
+		return o, err
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Order{}, ErrNotFound
 	}

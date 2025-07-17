@@ -27,18 +27,18 @@ func main() {
 }
 
 func run(ctx context.Context, log *slog.Logger) error {
-	pool, err := pg.Open(ctx, "orders", orders.Migrations, orders.MigrationsDir)
+	pools, err := pg.Open(ctx, "orders", orders.Migrations, orders.MigrationsDir)
 	if err != nil {
 		return err
 	}
-	defer pool.Close()
+	defer pools.Close()
 
 	health := httpx.NewHealth()
-	health.Add("postgres", pool.Ping)
+	health.Add("postgres", pools.Write.Ping)
 
 	mux := http.NewServeMux()
 	health.Mount(mux)
-	orders.NewHandler(orders.NewPgStore(pool), orders.NewUsersClient(config.String("USERS_URL", "http://users:8080")), log).Mount(mux)
+	orders.NewHandler(orders.NewPgStore(pools), orders.NewUsersClient(config.String("USERS_URL", "http://users:8080")), log).Mount(mux)
 
 	return httpx.Serve(ctx, log, health, mux)
 }
