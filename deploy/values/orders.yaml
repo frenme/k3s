@@ -8,6 +8,7 @@ env:
 
 secretEnv:
   DATABASE_URL: postgres://orders_svc:dev-orders-password@postgres:5432/app?sslmode=disable
+  DATABASE_READ_URL: postgres://orders_svc:dev-orders-password@postgres-ro:5432/app?sslmode=disable
 
 nodeSelector:
   role: core

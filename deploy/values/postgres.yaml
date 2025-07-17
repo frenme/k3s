@@ -2,6 +2,9 @@ database: app
 
 superuserPassword: dev-superuser-password
 
+replication:
+  password: dev-replication-password
+
 services:
   users:
     password: dev-users-password
@@ -10,3 +13,8 @@ services:
 
 nodeSelector:
   role: core
+
+replica:
+  enabled: true
+  nodeSelector:
+    role: edge
