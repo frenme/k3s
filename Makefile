@@ -16,7 +16,7 @@ file_flag = $$([ -f $(1) ] && echo -f $(1))
 overlay = $(if $(ENV),$(call file_flag,deploy/values/$(ENV)/$(1).yaml)) $(call file_flag,deploy/values/$(1).secret.yaml)
 values = -f deploy/values/$(1).yaml $(call overlay,$(1))
 
-.PHONY: help fmt vet test lint helm-lint tidy build images import cluster-up cluster-down deploy deploy-infra deploy-apps undeploy smoke loadtest up down status logs restart psql backup-now port-forward clean
+.PHONY: help fmt vet test lint helm-lint tidy build images import cluster-up cluster-down deploy deploy-infra deploy-apps undeploy smoke replica-check loadtest up down status logs restart psql backup-now port-forward clean
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
@@ -72,6 +72,9 @@ undeploy: ## remove all releases
 
 smoke: ## live checks against the ingress
 	./scripts/smoke.sh
+
+replica-check: ## verify the read replica
+	./scripts/replica-check.sh
 
 loadtest: ## load test: make loadtest N=2000
 	./scripts/loadtest.sh $(N)
