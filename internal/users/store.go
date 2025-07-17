@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/egor/k3s-base/internal/platform/pg"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -35,34 +36,39 @@ type Store interface {
 }
 
 type PgStore struct {
-	pool *pgxpool.Pool
+	pools *pg.Pools
 }
 
-func NewPgStore(pool *pgxpool.Pool) *PgStore {
-	return &PgStore{pool: pool}
+func NewPgStore(pools *pg.Pools) *PgStore {
+	return &PgStore{pools: pools}
 }
 
 func (s *PgStore) List(ctx context.Context, limit int) ([]User, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id::text, email, name, created_at FROM users ORDER BY created_at DESC LIMIT $1`, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []User{}
-	for rows.Next() {
-		var u User
-		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt); err != nil {
+	return pg.Query(s.pools, func(pool *pgxpool.Pool) ([]User, error) {
+		rows, err := pool.Query(ctx, `SELECT id::text, email, name, created_at FROM users ORDER BY created_at DESC LIMIT $1`, limit)
+		if err != nil {
 			return nil, err
 		}
-		out = append(out, u)
-	}
-	return out, rows.Err()
+		defer rows.Close()
+		out := []User{}
+		for rows.Next() {
+			var u User
+			if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt); err != nil {
+				return nil, err
+			}
+			out = append(out, u)
+		}
+		return out, rows.Err()
+	})
 }
 
 func (s *PgStore) Get(ctx context.Context, id string) (User, error) {
-	var u User
-	err := s.pool.QueryRow(ctx, `SELECT id::text, email, name, created_at FROM users WHERE id = $1`, id).
-		Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt)
+	u, err := pg.Query(s.pools, func(pool *pgxpool.Pool) (User, error) {
+		var u User
+		err := pool.QueryRow(ctx, `SELECT id::text, email, name, created_at FROM users WHERE id = $1`, id).
+			Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt)
+		return u, err
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
@@ -71,7 +77,7 @@ func (s *PgStore) Get(ctx context.Context, id string) (User, error) {
 
 func (s *PgStore) Create(ctx context.Context, email, name string) (User, error) {
 	var u User
-	err := s.pool.QueryRow(ctx, `INSERT INTO users (email, name) VALUES ($1, $2) RETURNING id::text, email, name, created_at`, email, name).
+	err := s.pools.Write.QueryRow(ctx, `INSERT INTO users (email, name) VALUES ($1, $2) RETURNING id::text, email, name, created_at`, email, name).
 		Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
