@@ -82,3 +82,47 @@ func RequestID() Middleware {
 	}
 }
 
+func Recover(log *slog.Logger) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if rec := recover(); rec != nil {
+					log.Error("panic", "panic", rec, "stack", string(debug.Stack()), "request_id", RequestIDFrom(r.Context()))
+					WriteError(w, http.StatusInternalServerError, "internal error")
+				}
+			}()
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func Observe(log *slog.Logger) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			sw := &statusWriter{ResponseWriter: w}
+			next.ServeHTTP(sw, r)
+			if sw.status == 0 {
+				sw.status = http.StatusOK
+			}
+			route := r.Pattern
+			if route == "" {
+				route = "unmatched"
+			}
+			elapsed := time.Since(start)
+			requestsTotal.WithLabelValues(r.Method, route, statusLabel(sw.status)).Inc()
+			requestDuration.WithLabelValues(r.Method, route).Observe(elapsed.Seconds())
+			if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" || r.URL.Path == "/metrics" {
+				return
+			}
+			log.Info("request",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"status", sw.status,
+				"duration_ms", elapsed.Milliseconds(),
+				"request_id", RequestIDFrom(r.Context()),
+			)
+		})
+	}
+}
+
