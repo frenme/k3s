@@ -126,3 +126,6 @@ func Observe(log *slog.Logger) Middleware {
 	}
 }
 
+func statusLabel(code int) string {
+	return string(rune('0'+code/100)) + "xx"
+}
