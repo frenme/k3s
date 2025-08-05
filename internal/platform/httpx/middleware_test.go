@@ -57,3 +57,11 @@ func TestObserveKeepsStatus(t *testing.T) {
 	}
 }
 
+func TestStatusLabel(t *testing.T) {
+	cases := map[int]string{200: "2xx", 404: "4xx", 503: "5xx"}
+	for code, want := range cases {
+		if got := statusLabel(code); got != want {
+			t.Fatalf("%d: got %s", code, got)
+		}
+	}
+}
