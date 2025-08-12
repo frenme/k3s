@@ -51,3 +51,76 @@ func Connect(ctx context.Context, c Config) (*pgxpool.Pool, error) {
 	return nil, fmt.Errorf("postgres unavailable: %w", err)
 }
 
+func Migrate(ctx context.Context, pool *pgxpool.Pool, schema string, fsys fs.FS, dir string) error {
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(schema))
+	lockID := int64(h.Sum64() >> 1)
+	if _, err := conn.Exec(ctx, "SELECT pg_advisory_lock($1)", lockID); err != nil {
+		return err
+	}
+	defer conn.Exec(context.Background(), "SELECT pg_advisory_unlock($1)", lockID)
+
+	var exists bool
+	if err := conn.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1)", schema).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		if _, err := conn.Exec(ctx, "CREATE SCHEMA "+pgx.Identifier{schema}.Sanitize()); err != nil {
+			return err
+		}
+	}
+	if _, err := conn.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
+		version text PRIMARY KEY,
+		applied_at timestamptz NOT NULL DEFAULT now()
+	)`); err != nil {
+		return err
+	}
+
+	entries, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		return err
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".sql") {
+			names = append(names, e.Name())
+		}
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		var applied bool
+		if err := conn.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = $1)", name).Scan(&applied); err != nil {
+			return err
+		}
+		if applied {
+			continue
+		}
+		body, err := fs.ReadFile(fsys, dir+"/"+name)
+		if err != nil {
+			return err
+		}
+		tx, err := conn.Begin(ctx)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, string(body)); err != nil {
+			_ = tx.Rollback(ctx)
+			return fmt.Errorf("migration %s: %w", name, err)
+		}
+		if _, err := tx.Exec(ctx, "INSERT INTO schema_migrations (version) VALUES ($1)", name); err != nil {
+			_ = tx.Rollback(ctx)
+			return err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
