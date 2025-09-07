@@ -44,3 +44,41 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
+	u, err := h.store.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, u)
+}
+
+type createRequest struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
+
+func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
+	var req createRequest
+	if err := httpx.ReadJSON(r, &req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	req.Name = strings.TrimSpace(req.Name)
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid email")
+		return
+	}
+	if req.Name == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	u, err := h.store.Create(r.Context(), req.Email, req.Name)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, u)
+}
+
