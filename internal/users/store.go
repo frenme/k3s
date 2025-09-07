@@ -59,3 +59,23 @@ func (s *PgStore) List(ctx context.Context, limit int) ([]User, error) {
 	return out, rows.Err()
 }
 
+func (s *PgStore) Get(ctx context.Context, id string) (User, error) {
+	var u User
+	err := s.pool.QueryRow(ctx, `SELECT id::text, email, name, created_at FROM users WHERE id = $1`, id).
+		Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	return u, err
+}
+
+func (s *PgStore) Create(ctx context.Context, email, name string) (User, error) {
+	var u User
+	err := s.pool.QueryRow(ctx, `INSERT INTO users (email, name) VALUES ($1, $2) RETURNING id::text, email, name, created_at`, email, name).
+		Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return User{}, ErrDuplicate
+	}
+	return u, err
+}
