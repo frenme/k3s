@@ -82,3 +82,14 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, u)
 }
 
+func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, ErrNotFound):
+		httpx.WriteError(w, http.StatusNotFound, err.Error())
+	case errors.Is(err, ErrDuplicate):
+		httpx.WriteError(w, http.StatusConflict, err.Error())
+	default:
+		h.log.Error("users handler", "err", err, "request_id", httpx.RequestIDFrom(r.Context()))
+		httpx.WriteError(w, http.StatusInternalServerError, "internal error")
+	}
+}
