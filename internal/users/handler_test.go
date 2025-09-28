@@ -43,3 +43,9 @@ func (f *fakeStore) Create(ctx context.Context, email, name string) (User, error
 	return u, nil
 }
 
+func newServer() *httptest.Server {
+	mux := http.NewServeMux()
+	NewHandler(&fakeStore{items: map[string]User{}}, slog.New(slog.NewTextHandler(io.Discard, nil))).Mount(mux)
+	return httptest.NewServer(mux)
+}
+
