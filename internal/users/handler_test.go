@@ -83,3 +83,28 @@ func TestCreateAndGet(t *testing.T) {
 	}
 }
 
+func TestValidation(t *testing.T) {
+	srv := newServer()
+	defer srv.Close()
+
+	cases := []string{`{"email":"nope","name":"x"}`, `{"email":"a@b.co","name":""}`, `{bad`}
+	for _, body := range cases {
+		if resp := post(t, srv.URL+"/users", body); resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("%s: status %d", body, resp.StatusCode)
+		}
+	}
+}
+
+func TestDuplicateAndNotFound(t *testing.T) {
+	srv := newServer()
+	defer srv.Close()
+
+	post(t, srv.URL+"/users", `{"email":"a@b.co","name":"x"}`)
+	if resp := post(t, srv.URL+"/users", `{"email":"a@b.co","name":"y"}`); resp.StatusCode != http.StatusConflict {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	resp, _ := http.Get(srv.URL + "/users/missing")
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+}
