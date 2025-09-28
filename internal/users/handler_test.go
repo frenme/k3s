@@ -49,3 +49,37 @@ func newServer() *httptest.Server {
 	return httptest.NewServer(mux)
 }
 
+func post(t *testing.T, url, body string) *http.Response {
+	t.Helper()
+	resp, err := http.Post(url, "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp
+}
+
+func TestCreateAndGet(t *testing.T) {
+	srv := newServer()
+	defer srv.Close()
+
+	resp := post(t, srv.URL+"/users", `{"email":"A@Example.com","name":"Ann"}`)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	var u User
+	if err := json.NewDecoder(resp.Body).Decode(&u); err != nil {
+		t.Fatal(err)
+	}
+	if u.Email != "a@example.com" {
+		t.Fatalf("email %q", u.Email)
+	}
+
+	got, err := http.Get(srv.URL + "/users/" + u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.StatusCode != http.StatusOK {
+		t.Fatalf("status %d", got.StatusCode)
+	}
+}
+
