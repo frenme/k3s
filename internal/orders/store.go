@@ -61,3 +61,26 @@ func (s *PgStore) List(ctx context.Context, userID string, limit int) ([]Order, 
 	return out, rows.Err()
 }
 
+func (s *PgStore) Create(ctx context.Context, o Order, key string) (Order, bool, error) {
+	var idem *string
+	if key != "" {
+		idem = &key
+	}
+	var out Order
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO orders (user_id, item, amount_cents, idempotency_key)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
+		RETURNING `+orderColumns, o.UserID, o.Item, o.AmountCents, idem).
+		Scan(&out.ID, &out.UserID, &out.Item, &out.AmountCents, &out.CreatedAt)
+	if err == nil {
+		return out, true, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return Order{}, false, err
+	}
+	err = s.pool.QueryRow(ctx, `SELECT `+orderColumns+` FROM orders WHERE idempotency_key = $1`, key).
+		Scan(&out.ID, &out.UserID, &out.Item, &out.AmountCents, &out.CreatedAt)
+	return out, false, err
+}
+
