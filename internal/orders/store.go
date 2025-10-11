@@ -23,3 +23,16 @@ type Order struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type Store interface {
+	List(ctx context.Context, userID string, limit int) ([]Order, error)
+	Create(ctx context.Context, o Order, idempotencyKey string) (Order, bool, error)
+}
+
+type PgStore struct {
+	pool *pgxpool.Pool
+}
+
+func NewPgStore(pool *pgxpool.Pool) *PgStore {
+	return &PgStore{pool: pool}
+}
+
