@@ -15,6 +15,8 @@ var Migrations embed.FS
 
 const MigrationsDir = "migrations"
 
+var ErrNotFound = errors.New("order not found")
+
 type Order struct {
 	ID          string    `json:"id"`
 	UserID      string    `json:"user_id"`
@@ -25,6 +27,7 @@ type Order struct {
 
 type Store interface {
 	List(ctx context.Context, userID string, limit int) ([]Order, error)
+	Get(ctx context.Context, id string) (Order, error)
 	Create(ctx context.Context, o Order, idempotencyKey string) (Order, bool, error)
 }
 
@@ -84,3 +87,12 @@ func (s *PgStore) Create(ctx context.Context, o Order, key string) (Order, bool,
 	return out, false, err
 }
 
+func (s *PgStore) Get(ctx context.Context, id string) (Order, error) {
+	var o Order
+	err := s.pool.QueryRow(ctx, `SELECT `+orderColumns+` FROM orders WHERE id = $1`, id).
+		Scan(&o.ID, &o.UserID, &o.Item, &o.AmountCents, &o.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Order{}, ErrNotFound
+	}
+	return o, err
+}
