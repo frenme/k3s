@@ -1,6 +1,7 @@
 package orders
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -22,6 +23,7 @@ func NewHandler(store Store, users UserChecker, log *slog.Logger) *Handler {
 func (h *Handler) Mount(mux *http.ServeMux) {
 	mux.HandleFunc("GET /orders", h.list)
 	mux.HandleFunc("POST /orders", h.create)
+	mux.HandleFunc("GET /orders/{id}", h.get)
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
@@ -40,6 +42,19 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
+	o, err := h.store.Get(r.Context(), r.PathValue("id"))
+	if errors.Is(err, ErrNotFound) {
+		httpx.WriteError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if err != nil {
+		h.internal(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, o)
 }
 
 type createRequest struct {
