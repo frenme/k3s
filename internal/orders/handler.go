@@ -42,3 +42,46 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+type createRequest struct {
+	UserID      string `json:"user_id"`
+	Item        string `json:"item"`
+	AmountCents int64  `json:"amount_cents"`
+}
+
+func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
+	var req createRequest
+	if err := httpx.ReadJSON(r, &req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	req.Item = strings.TrimSpace(req.Item)
+	if req.UserID == "" || req.Item == "" || req.AmountCents < 0 {
+		httpx.WriteError(w, http.StatusBadRequest, "user_id, item and non-negative amount_cents are required")
+		return
+	}
+	ok, err := h.users.Exists(r.Context(), req.UserID)
+	if err != nil {
+		h.log.Error("users lookup", "err", err, "request_id", httpx.RequestIDFrom(r.Context()))
+		httpx.WriteError(w, http.StatusBadGateway, "users service unavailable")
+		return
+	}
+	if !ok {
+		httpx.WriteError(w, http.StatusUnprocessableEntity, "user does not exist")
+		return
+	}
+	order, created, err := h.store.Create(r.Context(), Order{
+		UserID:      req.UserID,
+		Item:        req.Item,
+		AmountCents: req.AmountCents,
+	}, r.Header.Get("Idempotency-Key"))
+	if err != nil {
+		h.internal(w, r, err)
+		return
+	}
+	status := http.StatusCreated
+	if !created {
+		status = http.StatusOK
+	}
+	httpx.WriteJSON(w, status, order)
+}
+
