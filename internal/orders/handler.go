@@ -85,3 +85,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, status, order)
 }
 
+func (h *Handler) internal(w http.ResponseWriter, r *http.Request, err error) {
+	h.log.Error("orders handler", "err", err, "request_id", httpx.RequestIDFrom(r.Context()))
+	httpx.WriteError(w, http.StatusInternalServerError, "internal error")
+}
