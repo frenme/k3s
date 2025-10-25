@@ -51,3 +51,27 @@ func newServer() *httptest.Server {
 	return httptest.NewServer(mux)
 }
 
+func send(t *testing.T, url, body, key string) *http.Response {
+	t.Helper()
+	req, _ := http.NewRequest(http.MethodPost, url, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if key != "" {
+		req.Header.Set("Idempotency-Key", key)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp
+}
+
+func TestCreateOrder(t *testing.T) {
+	srv := newServer()
+	defer srv.Close()
+
+	resp := send(t, srv.URL+"/orders", `{"user_id":"u1","item":"book","amount_cents":1500}`, "")
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+}
+
