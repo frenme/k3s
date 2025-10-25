@@ -85,3 +85,16 @@ func TestUnknownUser(t *testing.T) {
 	}
 }
 
+func TestIdempotency(t *testing.T) {
+	srv := newServer()
+	defer srv.Close()
+
+	body := `{"user_id":"u1","item":"book","amount_cents":1}`
+	if resp := send(t, srv.URL+"/orders", body, "k1"); resp.StatusCode != http.StatusCreated {
+		t.Fatalf("first status %d", resp.StatusCode)
+	}
+	if resp := send(t, srv.URL+"/orders", body, "k1"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("second status %d", resp.StatusCode)
+	}
+}
+
