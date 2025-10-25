@@ -98,3 +98,14 @@ func TestIdempotency(t *testing.T) {
 	}
 }
 
+func TestValidation(t *testing.T) {
+	srv := newServer()
+	defer srv.Close()
+
+	for _, body := range []string{`{"user_id":"u1","item":"","amount_cents":1}`, `{"user_id":"u1","item":"x","amount_cents":-1}`, `nope`} {
+		if resp := send(t, srv.URL+"/orders", body, ""); resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("%s: status %d", body, resp.StatusCode)
+		}
+	}
+}
+
