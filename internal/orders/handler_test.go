@@ -2,6 +2,7 @@ package orders
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -18,6 +19,15 @@ type fakeStore struct {
 
 func (f *fakeStore) List(ctx context.Context, userID string, limit int) ([]Order, error) {
 	return nil, nil
+}
+
+func (f *fakeStore) Get(ctx context.Context, id string) (Order, error) {
+	for _, o := range f.byKey {
+		if o.ID == id {
+			return o, nil
+		}
+	}
+	return Order{}, ErrNotFound
 }
 
 func (f *fakeStore) Create(ctx context.Context, o Order, key string) (Order, bool, error) {
@@ -106,5 +116,27 @@ func TestValidation(t *testing.T) {
 		if resp := send(t, srv.URL+"/orders", body, ""); resp.StatusCode != http.StatusBadRequest {
 			t.Fatalf("%s: status %d", body, resp.StatusCode)
 		}
+	}
+}
+
+func TestGetOrder(t *testing.T) {
+	srv := newServer()
+	defer srv.Close()
+
+	resp := send(t, srv.URL+"/orders", `{"user_id":"u1","item":"book","amount_cents":5}`, "k-get")
+	var created Order
+	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
+		t.Fatal(err)
+	}
+	got, err := http.Get(srv.URL + "/orders/" + created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.StatusCode != http.StatusOK {
+		t.Fatalf("status %d", got.StatusCode)
+	}
+	missing, _ := http.Get(srv.URL + "/orders/nope")
+	if missing.StatusCode != http.StatusNotFound {
+		t.Fatalf("status %d", missing.StatusCode)
 	}
 }
