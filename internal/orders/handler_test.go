@@ -75,3 +75,13 @@ func TestCreateOrder(t *testing.T) {
 	}
 }
 
+func TestUnknownUser(t *testing.T) {
+	srv := newServer()
+	defer srv.Close()
+
+	resp := send(t, srv.URL+"/orders", `{"user_id":"nope","item":"book","amount_cents":1}`, "")
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+}
+
