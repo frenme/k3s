@@ -24,3 +24,29 @@ func TestParseRoutes(t *testing.T) {
 	}
 }
 
+func TestProxyRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, r.URL.Path+"?"+r.URL.RawQuery)
+	}))
+	defer upstream.Close()
+	target, _ := url.Parse(upstream.URL)
+
+	h := NewProxy(map[string]*url.URL{"users": target}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/api/users/abc?limit=2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if string(body) != "/users/abc?limit=2" {
+		t.Fatalf("body %q", body)
+	}
+
+	resp, _ = http.Get(srv.URL + "/api/nothing")
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+}
+
