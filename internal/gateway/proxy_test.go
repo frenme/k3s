@@ -50,3 +50,12 @@ func TestProxyRoutes(t *testing.T) {
 	}
 }
 
+func TestLimiterDisabledPassesThrough(t *testing.T) {
+	var l *Limiter
+	called := false
+	h := l.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true }))
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+	if !called {
+		t.Fatal("handler not called")
+	}
+}
