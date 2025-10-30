@@ -41,7 +41,7 @@ func NewProxy(routes map[string]*url.URL, log *slog.Logger) http.Handler {
 		proxies[name] = &httputil.ReverseProxy{
 			Rewrite: func(pr *httputil.ProxyRequest) {
 				pr.SetURL(target)
-				pr.Out.URL.Path = "/" + strings.TrimPrefix(strings.TrimPrefix(pr.In.URL.Path, "/api/"), "")
+				pr.Out.URL.Path = "/" + strings.TrimPrefix(pr.In.URL.Path, "/api/")
 				pr.Out.URL.RawPath = ""
 				pr.SetXForwarded()
 			},
