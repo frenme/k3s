@@ -31,3 +31,31 @@ func TestLimiterBlocksAfterLimit(t *testing.T) {
 	}
 }
 
+func TestLimiterIsPerClient(t *testing.T) {
+	mr := miniredis.RunT(t)
+	l := NewLimiter(rds.New(mr.Addr()), 1, time.Minute)
+	h := l.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+
+	for _, ip := range []string{"1.1.1.1", "2.2.2.2"} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("X-Forwarded-For", ip)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: status %d", ip, rec.Code)
+		}
+	}
+}
+
+func TestLimiterFailsOpen(t *testing.T) {
+	mr := miniredis.RunT(t)
+	l := NewLimiter(rds.New(mr.Addr()), 1, time.Minute)
+	mr.Close()
+	h := l.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+}
+
