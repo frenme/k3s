@@ -59,3 +59,14 @@ func TestLimiterFailsOpen(t *testing.T) {
 	}
 }
 
+func TestClientIP(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "10.0.0.1:1234"
+	if got := clientIP(req); got != "10.0.0.1" {
+		t.Fatalf("got %s", got)
+	}
+	req.Header.Set("X-Forwarded-For", "5.5.5.5, 6.6.6.6")
+	if got := clientIP(req); got != "5.5.5.5" {
+		t.Fatalf("got %s", got)
+	}
+}
