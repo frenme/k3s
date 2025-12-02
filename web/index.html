@@ -18,3 +18,13 @@
       </form>
       <ul id="users"></ul>
     </section>
+    <section>
+      <h2>Orders</h2>
+      <form id="order-form">
+        <select name="user_id" required></select>
+        <input name="item" placeholder="item" required>
+        <input name="amount" type="number" min="0" step="0.01" placeholder="amount" required>
+        <button>Add order</button>
+      </form>
+      <ul id="orders"></ul>
+    </section>
