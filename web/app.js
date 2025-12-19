@@ -8,3 +8,8 @@ const api = (path, options = {}) =>
     return body;
   });
 
+const statusEl = document.getElementById("status");
+const usersEl = document.getElementById("users");
+const ordersEl = document.getElementById("orders");
+const userSelect = document.querySelector("#order-form select");
+
