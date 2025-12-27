@@ -40,3 +40,16 @@ async function refresh() {
   );
 }
 
+document.getElementById("user-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const data = new FormData(e.target);
+  try {
+    await api("/users/users", { method: "POST", body: JSON.stringify({ email: data.get("email"), name: data.get("name") }) });
+    e.target.reset();
+    setStatus("");
+    await refresh();
+  } catch (err) {
+    setStatus(err.message);
+  }
+});
+
