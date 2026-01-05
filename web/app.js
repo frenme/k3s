@@ -53,3 +53,24 @@ document.getElementById("user-form").addEventListener("submit", async (e) => {
   }
 });
 
+document.getElementById("order-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const data = new FormData(e.target);
+  try {
+    await api("/orders/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+      body: JSON.stringify({
+        user_id: data.get("user_id"),
+        item: data.get("item"),
+        amount_cents: Math.round(Number(data.get("amount")) * 100),
+      }),
+    });
+    e.target.reset();
+    setStatus("");
+    await refresh();
+  } catch (err) {
+    setStatus(err.message);
+  }
+});
+
