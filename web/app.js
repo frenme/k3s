@@ -27,7 +27,7 @@ const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 async function refresh() {
-  const [users, orders] = await Promise.all([api("/users/users"), api("/orders/orders")]);
+  const [users, orders] = await Promise.all([api("/users"), api("/orders")]);
   usersEl.replaceChildren(...users.items.map((u) => li(`${esc(u.name)} <small>${esc(u.email)}</small>`)));
   userSelect.replaceChildren(
     ...users.items.map((u) => new Option(`${u.name} (${u.email})`, u.id)),
@@ -44,7 +44,7 @@ document.getElementById("user-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const data = new FormData(e.target);
   try {
-    await api("/users/users", { method: "POST", body: JSON.stringify({ email: data.get("email"), name: data.get("name") }) });
+    await api("/users", { method: "POST", body: JSON.stringify({ email: data.get("email"), name: data.get("name") }) });
     e.target.reset();
     setStatus("");
     await refresh();
@@ -57,7 +57,7 @@ document.getElementById("order-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const data = new FormData(e.target);
   try {
-    await api("/orders/orders", {
+    await api("/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
       body: JSON.stringify({
@@ -74,3 +74,4 @@ document.getElementById("order-form").addEventListener("submit", async (e) => {
   }
 });
 
+refresh().catch((err) => setStatus(err.message));
