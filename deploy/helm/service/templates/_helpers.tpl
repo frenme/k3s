@@ -17,3 +17,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/version: {{ .Values.image.tag | quote }}
 {{- end }}
 
+{{- define "service.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "service.fullname" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
