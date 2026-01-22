@@ -47,3 +47,14 @@ tolerations: []
 
 affinity: {}
 
+spread:
+  enabled: false
+  topologyKey: kubernetes.io/hostname
+  maxSkew: 1
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
