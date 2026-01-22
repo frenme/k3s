@@ -20,3 +20,11 @@ env: {}
 
 secretEnv: {}
 
+probes:
+  liveness:
+    path: /healthz
+  readiness:
+    path: /readyz
+  startup:
+    path: /healthz
+
