@@ -28,3 +28,22 @@ probes:
   startup:
     path: /healthz
 
+resources:
+  requests:
+    cpu: 25m
+    memory: 32Mi
+  limits:
+    memory: 128Mi
+
+terminationGracePeriodSeconds: 30
+
+strategy:
+  maxUnavailable: 0
+  maxSurge: 1
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
