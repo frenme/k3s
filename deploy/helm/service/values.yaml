@@ -1,0 +1,18 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: k3s-base/service
+  tag: dev
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicaCount: 1
+
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 8080
+
