@@ -102,3 +102,12 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.spread.enabled }}
+      topologySpreadConstraints:
+        - maxSkew: {{ .Values.spread.maxSkew }}
+          topologyKey: {{ .Values.spread.topologyKey }}
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "service.selectorLabels" . | nindent 14 }}
+      {{- end }}
