@@ -78,3 +78,19 @@ networkPolicy:
   allowFromPods: []
   allowFromNamespaces: []
 
+podAnnotations: {}
+
+podLabels: {}
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+extraVolumes: []
+
+extraVolumeMounts: []
