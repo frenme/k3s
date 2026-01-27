@@ -62,3 +62,21 @@ spec:
             - secretRef:
                 name: {{ include "service.fullname" . }}
           {{- end }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.probes.startup.path }}
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.path }}
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path }}
+              port: http
+            periodSeconds: 3
+            timeoutSeconds: 2
