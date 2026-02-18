@@ -15,3 +15,21 @@ spec:
   tls:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - {{- if .host }}
+      host: {{ .host | quote }}
+      {{- end }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "service.fullname" $ }}
+                port:
+                  name: http
+          {{- end }}
+    {{- end }}
+{{- end }}
