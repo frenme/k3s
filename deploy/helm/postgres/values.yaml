@@ -1,0 +1,9 @@
+image:
+  repository: postgres
+  tag: 17-alpine
+  pullPolicy: IfNotPresent
+
+database: app
+
+superuserPassword: change-me
+
