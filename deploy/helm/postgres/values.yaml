@@ -13,3 +13,26 @@ persistence:
   size: 5Gi
   storageClass: ""
 
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+config:
+  max_connections: "200"
+  shared_buffers: 128MB
+  effective_cache_size: 384MB
+  wal_level: replica
+  max_wal_size: 1GB
+
+nodeSelector: {}
+
+tolerations: []
+
+backup:
+  enabled: true
+  schedule: "0 3 * * *"
+  retentionDays: 7
+  size: 5Gi
