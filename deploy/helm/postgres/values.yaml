@@ -7,3 +7,9 @@ database: app
 
 superuserPassword: change-me
 
+services: {}
+
+persistence:
+  size: 5Gi
+  storageClass: ""
+
