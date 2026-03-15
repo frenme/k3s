@@ -8,5 +8,5 @@ data:
   postgresql.conf: |
     listen_addresses = '*'
     {{- range $k, $v := .Values.config }}
-    {{ $k }} = {{ $v | quote }}
+    {{ $k }} = {{ $v | squote }}
     {{- end }}
