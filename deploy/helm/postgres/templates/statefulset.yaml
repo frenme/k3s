@@ -38,3 +38,14 @@ spec:
                 secretKeyRef:
                   name: postgres
                   key: POSTGRES_PASSWORD
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", {{ .Values.database | quote }}]
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", {{ .Values.database | quote }}]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
