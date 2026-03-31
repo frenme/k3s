@@ -14,3 +14,50 @@ spec:
     requests:
       storage: {{ .Values.backup.size }}
 ---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  labels:
+    {{- include "postgres.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              env:
+                - name: PGHOST
+                  value: postgres
+                - name: PGUSER
+                  value: postgres
+                - name: PGDATABASE
+                  value: {{ .Values.database | quote }}
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres
+                      key: POSTGRES_PASSWORD
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  pg_dump -Fc -f /backups/{{ .Values.database }}-$(date +%Y%m%d-%H%M%S).dump
+                  find /backups -name '*.dump' -mtime +{{ .Values.backup.retentionDays }} -delete
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: postgres-backups
+{{- end }}
