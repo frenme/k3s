@@ -3,3 +3,15 @@ image:
   tag: 7-alpine
   pullPolicy: IfNotPresent
 
+maxmemory: 64mb
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 32Mi
+  limits:
+    memory: 96Mi
+
+nodeSelector: {}
+
+tolerations: []
