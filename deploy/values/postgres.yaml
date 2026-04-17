@@ -1,0 +1,12 @@
+database: app
+
+superuserPassword: dev-superuser-password
+
+services:
+  users:
+    password: dev-users-password
+  orders:
+    password: dev-orders-password
+
+nodeSelector:
+  role: core
