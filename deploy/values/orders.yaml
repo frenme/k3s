@@ -14,3 +14,9 @@ secretEnv:
 nodeSelector:
   role: core
 
+spread:
+  enabled: true
+
+pdb:
+  enabled: true
+
