@@ -1,0 +1,11 @@
+image:
+  repository: k3s-base/gateway
+
+replicaCount: 2
+
+env:
+  ROUTES: users=http://users:8080,orders=http://orders:8080
+  REDIS_ADDR: redis:6379
+  RATE_LIMIT: "120"
+  RATE_WINDOW: 1m
+
