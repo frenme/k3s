@@ -1,0 +1,16 @@
+image:
+  repository: k3s-base/orders
+
+replicaCount: 2
+
+env:
+  DB_SCHEMA: orders
+  DB_MAX_CONNS: "10"
+  USERS_URL: http://users:8080
+
+secretEnv:
+  DATABASE_URL: postgres://orders_svc:dev-orders-password@postgres:5432/app?sslmode=disable
+
+nodeSelector:
+  role: core
+
