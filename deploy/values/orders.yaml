@@ -20,3 +20,7 @@ spread:
 pdb:
   enabled: true
 
+networkPolicy:
+  enabled: true
+  allowFromPods:
+    - gateway
