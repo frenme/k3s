@@ -1,0 +1,15 @@
+image:
+  repository: k3s-base/users
+
+replicaCount: 2
+
+env:
+  DB_SCHEMA: users
+  DB_MAX_CONNS: "10"
+
+secretEnv:
+  DATABASE_URL: postgres://users_svc:dev-users-password@postgres:5432/app?sslmode=disable
+
+nodeSelector:
+  role: core
+
