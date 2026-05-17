@@ -9,3 +9,9 @@ env:
   RATE_LIMIT: "120"
   RATE_WINDOW: 1m
 
+nodeSelector:
+  role: edge
+
+spread:
+  enabled: true
+
