@@ -15,3 +15,16 @@ nodeSelector:
 spread:
   enabled: true
 
+pdb:
+  enabled: true
+
+autoscaling:
+  enabled: false
+
+ingress:
+  enabled: true
+  hosts:
+    - host: ""
+      paths:
+        - path: /api
+          pathType: Prefix
