@@ -8,6 +8,9 @@ env:
   REDIS_ADDR: redis:6379
   RATE_LIMIT: "120"
   RATE_WINDOW: 1m
+  DRAIN_DELAY: 5s
+
+terminationGracePeriodSeconds: 90
 
 nodeSelector:
   role: edge
