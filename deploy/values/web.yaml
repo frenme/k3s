@@ -1,0 +1,8 @@
+image:
+  repository: k3s-base/web
+
+replicaCount: 2
+
+nodeSelector:
+  role: edge
+
