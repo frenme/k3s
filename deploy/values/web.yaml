@@ -6,3 +6,10 @@ replicaCount: 2
 nodeSelector:
   role: edge
 
+ingress:
+  enabled: true
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix
