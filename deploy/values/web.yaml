@@ -11,6 +11,10 @@ securityContext:
   runAsGroup: 101
   readOnlyRootFilesystem: false
 
+probes:
+  readiness:
+    path: /healthz
+
 ingress:
   enabled: true
   hosts:
