@@ -6,6 +6,11 @@ replicaCount: 2
 nodeSelector:
   role: edge
 
+securityContext:
+  runAsUser: 101
+  runAsGroup: 101
+  readOnlyRootFilesystem: false
+
 ingress:
   enabled: true
   hosts:
