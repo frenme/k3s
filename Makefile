@@ -8,7 +8,7 @@ GO_SERVICES := gateway users orders
 SERVICES := $(GO_SERVICES) web
 SECRET_VALUES = $(wildcard deploy/values/$(1).secret.yaml)
 
-.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra
+.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
@@ -42,4 +42,16 @@ import: ## load images into local cluster
 deploy-infra: ## deploy postgres and redis
 	helm upgrade --install postgres deploy/helm/postgres -n $(NAMESPACE) -f deploy/values/postgres.yaml $(addprefix -f ,$(call SECRET_VALUES,postgres)) --wait --timeout 3m
 	helm upgrade --install redis deploy/helm/redis -n $(NAMESPACE) -f deploy/values/redis.yaml --wait --timeout 2m
+
+deploy-apps: ## deploy services
+	@for s in users orders gateway web; do \
+		helm upgrade --install $$s deploy/helm/service -n $(NAMESPACE) \
+			-f deploy/values/$$s.yaml $(addprefix -f ,$(call SECRET_VALUES,$$s)) \
+			--set image.repository=$(REGISTRY)/$$s --set image.tag=$(TAG) --wait --timeout 3m || exit 1; \
+	done
+
+deploy: deploy-infra deploy-apps ## deploy everything
+
+undeploy: ## remove all releases
+	-@for r in web gateway orders users redis postgres; do helm uninstall $$r -n $(NAMESPACE); done
 
