@@ -4,3 +4,22 @@ metadata:
   name: k3s-base
 servers: 1
 agents: 2
+ports:
+  - port: 8080:80
+    nodeFilters:
+      - loadbalancer
+options:
+  k3s:
+    nodeLabels:
+      - label: role=core
+        nodeFilters:
+          - server:0
+      - label: role=edge
+        nodeFilters:
+          - agent:*
+      - label: topology.kubernetes.io/region=local-a
+        nodeFilters:
+          - agent:0
+      - label: topology.kubernetes.io/region=local-b
+        nodeFilters:
+          - agent:1
