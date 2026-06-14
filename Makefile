@@ -8,7 +8,7 @@ GO_SERVICES := gateway users orders
 SERVICES := $(GO_SERVICES) web
 SECRET_VALUES = $(wildcard deploy/values/$(1).secret.yaml)
 
-.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke
+.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke up
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
@@ -57,4 +57,6 @@ undeploy: ## remove all releases
 
 smoke: ## live checks against the ingress
 	./scripts/smoke.sh
+
+up: images cluster-up import deploy ## build, create cluster and deploy
 
