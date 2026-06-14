@@ -8,7 +8,7 @@ GO_SERVICES := gateway users orders
 SERVICES := $(GO_SERVICES) web
 SECRET_VALUES = $(wildcard deploy/values/$(1).secret.yaml)
 
-.PHONY: help fmt vet test build images cluster-up
+.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
@@ -32,4 +32,14 @@ images: ## build container images
 cluster-up: ## create local k3s cluster (k3d)
 	k3d cluster create --config infra/k3d/cluster.yaml --wait
 	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+
+cluster-down: ## delete local cluster
+	k3d cluster delete $(CLUSTER)
+
+import: ## load images into local cluster
+	k3d image import -c $(CLUSTER) $(addprefix $(REGISTRY)/,$(addsuffix :$(TAG),$(SERVICES)))
+
+deploy-infra: ## deploy postgres and redis
+	helm upgrade --install postgres deploy/helm/postgres -n $(NAMESPACE) -f deploy/values/postgres.yaml $(addprefix -f ,$(call SECRET_VALUES,postgres)) --wait --timeout 3m
+	helm upgrade --install redis deploy/helm/redis -n $(NAMESPACE) -f deploy/values/redis.yaml --wait --timeout 2m
 
