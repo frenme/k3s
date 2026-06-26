@@ -8,7 +8,7 @@ GO_SERVICES := gateway users orders
 SERVICES := $(GO_SERVICES) web
 SECRET_VALUES = $(wildcard deploy/values/$(1).secret.yaml)
 
-.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke up down status
+.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke up down status logs
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
@@ -64,4 +64,7 @@ down: cluster-down ## tear everything down
 
 status: ## show pods
 	kubectl get pods -n $(NAMESPACE) -o wide
+
+logs: ## tail logs: make logs s=users
+	kubectl logs -n $(NAMESPACE) -l app.kubernetes.io/name=$(s) -f --tail=100
 
