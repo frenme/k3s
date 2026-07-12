@@ -38,3 +38,6 @@ key="smoke-$SUFFIX"
 order="{\"user_id\":\"$user_id\",\"item\":\"widget\",\"amount_cents\":1999}"
 resp=$(curl -s -w '\n%{http_code}' -X POST "$BASE/api/orders" -H 'Content-Type: application/json' -H "Idempotency-Key: $key" -d "$order")
 expect_status 201 "$(tail -n1 <<<"$resp")" "create order"
+order_id=$(sed -n 's/.*"id":"\([^"]*\)".*/\1/p' <<<"$(head -n1 <<<"$resp")")
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/orders/$order_id")
+expect_status 200 "$code" "get order"
