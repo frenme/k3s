@@ -8,7 +8,7 @@ GO_SERVICES := gateway users orders
 SERVICES := $(GO_SERVICES) web
 SECRET_VALUES = $(wildcard deploy/values/$(1).secret.yaml)
 
-.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke up down status logs
+.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke up down status logs restart psql
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
@@ -67,4 +67,11 @@ status: ## show pods
 
 logs: ## tail logs: make logs s=users
 	kubectl logs -n $(NAMESPACE) -l app.kubernetes.io/name=$(s) -f --tail=100
+
+restart: ## rolling restart: make restart s=gateway
+	kubectl rollout restart deployment/$(s) -n $(NAMESPACE)
+	kubectl rollout status deployment/$(s) -n $(NAMESPACE)
+
+psql: ## open psql in the database
+	kubectl exec -it -n $(NAMESPACE) postgres-0 -- psql -U postgres -d app
 
