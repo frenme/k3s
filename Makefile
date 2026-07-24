@@ -8,7 +8,7 @@ GO_SERVICES := gateway users orders
 SERVICES := $(GO_SERVICES) web
 SECRET_VALUES = $(wildcard deploy/values/$(1).secret.yaml)
 
-.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke up down status logs restart psql
+.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke up down status logs restart psql backup-now
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
@@ -74,4 +74,7 @@ restart: ## rolling restart: make restart s=gateway
 
 psql: ## open psql in the database
 	kubectl exec -it -n $(NAMESPACE) postgres-0 -- psql -U postgres -d app
+
+backup-now: ## run a database backup immediately
+	kubectl create job -n $(NAMESPACE) --from=cronjob/postgres-backup backup-$$(date +%s)
 
