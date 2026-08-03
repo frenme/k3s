@@ -8,7 +8,7 @@ GO_SERVICES := gateway users orders
 SERVICES := $(GO_SERVICES) web
 SECRET_VALUES = $(wildcard deploy/values/$(1).secret.yaml)
 
-.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke up down status logs restart psql backup-now port-forward
+.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke up down status logs restart psql backup-now port-forward loadtest
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
@@ -80,4 +80,7 @@ backup-now: ## run a database backup immediately
 
 port-forward: ## forward postgres to localhost:5432
 	kubectl port-forward -n $(NAMESPACE) postgres-0 5432:5432
+
+loadtest: ## simple load test: make loadtest N=500
+	./scripts/loadtest.sh $(N)
 
