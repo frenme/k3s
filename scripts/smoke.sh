@@ -41,3 +41,17 @@ expect_status 201 "$(tail -n1 <<<"$resp")" "create order"
 order_id=$(sed -n 's/.*"id":"\([^"]*\)".*/\1/p' <<<"$(head -n1 <<<"$resp")")
 code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/orders/$order_id")
 expect_status 200 "$code" "get order"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/orders/00000000-0000-0000-0000-000000000000")
+expect_status 404 "$code" "get missing order"
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/orders" -H 'Content-Type: application/json' -H "Idempotency-Key: $key" -d "$order")
+expect_status 200 "$code" "idempotent replay"
+
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/orders" -H 'Content-Type: application/json' \
+  -d '{"user_id":"00000000-0000-0000-0000-000000000000","item":"x","amount_cents":1}')
+expect_status 422 "$code" "order for unknown user"
+
+count=$(curl -s "$BASE/api/orders?user_id=$user_id" | grep -o '"id"' | wc -l | tr -d ' ')
+[ "$count" = "1" ] || fail "expected exactly 1 order, got $count"
+echo "ok   order dedup"
+
+echo "all smoke checks passed"
