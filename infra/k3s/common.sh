@@ -10,3 +10,10 @@ require_root() {
   fi
 }
 
+public_ip() {
+  if [ -n "${PUBLIC_IP:-}" ]; then
+    echo "$PUBLIC_IP"
+    return
+  fi
+  curl -fsS https://api.ipify.org
+}
