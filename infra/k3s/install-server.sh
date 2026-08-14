@@ -22,3 +22,8 @@ curl -sfL https://get.k3s.io | \
     --node-label topology.kubernetes.io/region=${REGION}" \
   sh -
 
+echo
+echo "join token:"
+cat /var/lib/rancher/k3s/server/node-token
+echo
+echo "server url: https://${IP}:6443"
