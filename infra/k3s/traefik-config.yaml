@@ -8,7 +8,3 @@ spec:
     service:
       spec:
         externalTrafficPolicy: Local
-    additionalArguments:
-      - "--entryPoints.web.forwardedHeaders.insecure=false"
-    deployment:
-      kind: DaemonSet
