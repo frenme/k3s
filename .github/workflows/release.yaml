@@ -4,3 +4,15 @@ on:
   push:
     tags: ["v*"]
 
+env:
+  REGISTRY: ghcr.io/${{ github.repository }}
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: [gateway, users, orders, web]
