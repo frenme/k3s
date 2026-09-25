@@ -1,0 +1,27 @@
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+
+env:
+  RATE_LIMIT: "300"
+
+ingress:
+  hosts:
+    - host: api.example.com
+      paths:
+        - path: /api
+          pathType: Prefix
+  tls:
+    - secretName: api-example-com-tls
+      hosts:
+        - api.example.com
