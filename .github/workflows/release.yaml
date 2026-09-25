@@ -16,3 +16,18 @@ jobs:
     strategy:
       matrix:
         service: [gateway, users, orders, web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service == 'web' && 'build/web.Dockerfile' || 'build/go.Dockerfile' }}
+          build-args: SERVICE=${{ matrix.service }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.ref_name }}
