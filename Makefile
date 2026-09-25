@@ -8,7 +8,7 @@ GO_SERVICES := gateway users orders
 SERVICES := $(GO_SERVICES) web
 SECRET_VALUES = $(wildcard deploy/values/$(1).secret.yaml)
 
-.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke up down status logs restart psql backup-now port-forward loadtest
+.PHONY: help fmt vet test build images cluster-up cluster-down import deploy-infra deploy-apps deploy undeploy smoke up down status logs restart psql backup-now port-forward loadtest clean tidy
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
@@ -83,4 +83,10 @@ port-forward: ## forward postgres to localhost:5432
 
 loadtest: ## simple load test: make loadtest N=500
 	./scripts/loadtest.sh $(N)
+
+clean: ## remove build output
+	rm -rf bin
+
+tidy: ## tidy go modules
+	go mod tidy
 
