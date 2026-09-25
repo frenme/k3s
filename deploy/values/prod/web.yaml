@@ -1,0 +1,19 @@
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 32Mi
+  limits:
+    memory: 128Mi
+
+ingress:
+  hosts:
+    - host: example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: example-com-tls
+      hosts:
+        - example.com
