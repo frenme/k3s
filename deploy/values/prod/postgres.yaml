@@ -1,0 +1,22 @@
+persistence:
+  size: 50Gi
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    memory: 4Gi
+
+config:
+  max_connections: "300"
+  shared_buffers: 1GB
+  effective_cache_size: 3GB
+  wal_level: replica
+  max_wal_size: 4GB
+
+backup:
+  enabled: true
+  schedule: "0 3 * * *"
+  retentionDays: 14
+  size: 50Gi
