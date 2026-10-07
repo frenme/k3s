@@ -3,6 +3,7 @@ SHELL := /bin/bash
 CLUSTER ?= k3s-base
 NAMESPACE ?= app
 TAG ?= dev
+ENV ?=
 REGISTRY ?= k3s-base
 GO_SERVICES := gateway users orders
 SERVICES := $(GO_SERVICES) web
@@ -40,13 +41,13 @@ import: ## load images into local cluster
 	k3d image import -c $(CLUSTER) $(addprefix $(REGISTRY)/,$(addsuffix :$(TAG),$(SERVICES)))
 
 deploy-infra: ## deploy postgres and redis
-	helm upgrade --install postgres deploy/helm/postgres -n $(NAMESPACE) -f deploy/values/postgres.yaml $(addprefix -f ,$(call SECRET_VALUES,postgres)) --wait --timeout 3m
-	helm upgrade --install redis deploy/helm/redis -n $(NAMESPACE) -f deploy/values/redis.yaml --wait --timeout 2m
+	helm upgrade --install postgres deploy/helm/postgres -n $(NAMESPACE) -f deploy/values/postgres.yaml $(if $(ENV),-f deploy/values/$(ENV)/postgres.yaml) $(addprefix -f ,$(call SECRET_VALUES,postgres)) --wait --timeout 3m
+	helm upgrade --install redis deploy/helm/redis -n $(NAMESPACE) -f deploy/values/redis.yaml $(if $(ENV),-f deploy/values/$(ENV)/redis.yaml) --wait --timeout 2m
 
 deploy-apps: ## deploy services
 	@for s in users orders gateway web; do \
 		helm upgrade --install $$s deploy/helm/service -n $(NAMESPACE) \
-			-f deploy/values/$$s.yaml $(addprefix -f ,$(call SECRET_VALUES,$$s)) \
+			-f deploy/values/$$s.yaml $(if $(ENV),-f deploy/values/$(ENV)/$$s.yaml) $(addprefix -f ,$(call SECRET_VALUES,$$s)) \
 			--set image.repository=$(REGISTRY)/$$s --set image.tag=$(TAG) --wait --timeout 3m || exit 1; \
 	done
 
