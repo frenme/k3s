@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/egor/k3s-base/internal/platform/config"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -49,6 +50,23 @@ func Connect(ctx context.Context, c Config) (*pgxpool.Pool, error) {
 		}
 	}
 	return nil, fmt.Errorf("postgres unavailable: %w", err)
+}
+
+func Open(ctx context.Context, defaultSchema string, fsys fs.FS, dir string) (*pgxpool.Pool, error) {
+	schema := config.String("DB_SCHEMA", defaultSchema)
+	pool, err := Connect(ctx, Config{
+		URL:      config.String("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/app?sslmode=disable"),
+		Schema:   schema,
+		MaxConns: int32(config.Int("DB_MAX_CONNS", 10)),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := Migrate(ctx, pool, schema, fsys, dir); err != nil {
+		pool.Close()
+		return nil, err
+	}
+	return pool, nil
 }
 
 func Migrate(ctx context.Context, pool *pgxpool.Pool, schema string, fsys fs.FS, dir string) error {
