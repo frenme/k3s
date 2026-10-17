@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 )
 
 func TestParseRoutes(t *testing.T) {
@@ -31,7 +32,7 @@ func TestProxyRoutes(t *testing.T) {
 	defer upstream.Close()
 	target, _ := url.Parse(upstream.URL)
 
-	h := NewProxy(map[string]*url.URL{"users": target}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := NewProxy(map[string]*url.URL{"users": target}, slog.New(slog.NewTextHandler(io.Discard, nil)), time.Second)
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
