@@ -15,10 +15,14 @@ type Limiter struct {
 	client *redis.Client
 	limit  int
 	window time.Duration
+	hops   int
 }
 
-func NewLimiter(client *redis.Client, limit int, window time.Duration) *Limiter {
-	return &Limiter{client: client, limit: limit, window: window}
+func NewLimiter(client *redis.Client, limit int, window time.Duration, trustedHops int) *Limiter {
+	if window < time.Second {
+		window = time.Second
+	}
+	return &Limiter{client: client, limit: limit, window: window, hops: trustedHops}
 }
 
 func (l *Limiter) Middleware() httpx.Middleware {
@@ -28,7 +32,7 @@ func (l *Limiter) Middleware() httpx.Middleware {
 		}
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			bucket := time.Now().Unix() / int64(l.window.Seconds())
-			key := "rl:" + clientIP(r) + ":" + strconv.FormatInt(bucket, 10)
+			key := "rl:" + clientIP(r, l.hops) + ":" + strconv.FormatInt(bucket, 10)
 			pipe := l.client.Pipeline()
 			incr := pipe.Incr(r.Context(), key)
 			pipe.Expire(r.Context(), key, l.window*2)
@@ -46,9 +50,19 @@ func (l *Limiter) Middleware() httpx.Middleware {
 	}
 }
 
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
+func clientIP(r *http.Request, trustedHops int) string {
+	if trustedHops > 0 {
+		var chain []string
+		for _, v := range r.Header.Values("X-Forwarded-For") {
+			for _, part := range strings.Split(v, ",") {
+				if part = strings.TrimSpace(part); part != "" {
+					chain = append(chain, part)
+				}
+			}
+		}
+		if len(chain) >= trustedHops {
+			return chain[len(chain)-trustedHops]
+		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {

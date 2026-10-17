@@ -12,7 +12,7 @@ import (
 
 func TestLimiterBlocksAfterLimit(t *testing.T) {
 	mr := miniredis.RunT(t)
-	l := NewLimiter(rds.New(mr.Addr()), 3, time.Minute)
+	l := NewLimiter(rds.New(mr.Addr()), 3, time.Minute, 1)
 	h := l.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 
 	codes := []int{}
@@ -33,7 +33,7 @@ func TestLimiterBlocksAfterLimit(t *testing.T) {
 
 func TestLimiterIsPerClient(t *testing.T) {
 	mr := miniredis.RunT(t)
-	l := NewLimiter(rds.New(mr.Addr()), 1, time.Minute)
+	l := NewLimiter(rds.New(mr.Addr()), 1, time.Minute, 1)
 	h := l.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 
 	for _, ip := range []string{"1.1.1.1", "2.2.2.2"} {
@@ -49,7 +49,7 @@ func TestLimiterIsPerClient(t *testing.T) {
 
 func TestLimiterFailsOpen(t *testing.T) {
 	mr := miniredis.RunT(t)
-	l := NewLimiter(rds.New(mr.Addr()), 1, time.Minute)
+	l := NewLimiter(rds.New(mr.Addr()), 1, time.Minute, 1)
 	mr.Close()
 	h := l.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	rec := httptest.NewRecorder()
@@ -62,11 +62,28 @@ func TestLimiterFailsOpen(t *testing.T) {
 func TestClientIP(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.RemoteAddr = "10.0.0.1:1234"
-	if got := clientIP(req); got != "10.0.0.1" {
+	if got := clientIP(req, 1); got != "10.0.0.1" {
 		t.Fatalf("got %s", got)
 	}
-	req.Header.Set("X-Forwarded-For", "5.5.5.5, 6.6.6.6")
-	if got := clientIP(req); got != "5.5.5.5" {
+	req.Header.Set("X-Forwarded-For", "6.6.6.6, 5.5.5.5")
+	if got := clientIP(req, 1); got != "5.5.5.5" {
+		t.Fatalf("got %s", got)
+	}
+	if got := clientIP(req, 2); got != "6.6.6.6" {
+		t.Fatalf("got %s", got)
+	}
+	if got := clientIP(req, 0); got != "10.0.0.1" {
+		t.Fatalf("got %s", got)
+	}
+	if got := clientIP(req, 5); got != "10.0.0.1" {
+		t.Fatalf("got %s", got)
+	}
+}
+
+func TestClientIPSpoofedFirstEntryIgnored(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Forwarded-For", "1.2.3.4, 7.7.7.7")
+	if got := clientIP(req, 1); got != "7.7.7.7" {
 		t.Fatalf("got %s", got)
 	}
 }
