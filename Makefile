@@ -8,7 +8,7 @@ ENV ?=
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 
 GO_SERVICES := $(notdir $(wildcard cmd/*))
-IMAGES := $(GO_SERVICES) web
+IMAGES := $(GO_SERVICES)
 INFRA := postgres redis
 APPS := $(filter-out $(INFRA),$(basename $(notdir $(wildcard deploy/values/*.yaml))))
 
@@ -44,7 +44,6 @@ build: ## build go binaries into bin/
 
 images: ## build container images
 	@for s in $(GO_SERVICES); do docker build -q -f build/go.Dockerfile --build-arg SERVICE=$$s --build-arg VERSION=$(TAG) --build-arg COMMIT=$(COMMIT) -t $(REGISTRY)/$$s:$(TAG) . || exit 1; done
-	docker build -q -f build/web.Dockerfile -t $(REGISTRY)/web:$(TAG) .
 
 cluster-up: ## create local k3s cluster (k3d)
 	k3d cluster create --config infra/k3d/cluster.yaml --wait

@@ -15,7 +15,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        service: [gateway, users, orders, web]
+        service: [gateway, users, orders]
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -27,7 +27,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: ${{ matrix.service == 'web' && 'build/web.Dockerfile' || 'build/go.Dockerfile' }}
+          file: build/go.Dockerfile
           build-args: SERVICE=${{ matrix.service }}
           push: true
           tags: ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.ref_name }}
