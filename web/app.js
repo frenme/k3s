@@ -59,7 +59,7 @@ document.getElementById("order-form").addEventListener("submit", async (e) => {
   try {
     await api("/orders", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+      headers: { "Content-Type": "application/json", "Idempotency-Key": (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`) },
       body: JSON.stringify({
         user_id: data.get("user_id"),
         item: data.get("item"),
