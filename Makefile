@@ -49,6 +49,7 @@ images: ## build container images
 cluster-up: ## create local k3s cluster (k3d)
 	k3d cluster create --config infra/k3d/cluster.yaml --wait
 	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -f infra/k3s/traefik-config.yaml
 
 cluster-down: ## delete local cluster
 	k3d cluster delete $(CLUSTER)
