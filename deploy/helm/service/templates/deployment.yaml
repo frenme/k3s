@@ -34,6 +34,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
@@ -51,8 +52,10 @@ spec:
           env:
             - name: HTTP_ADDR
               value: ":{{ .Values.containerPort }}"
+            - name: DRAIN_DELAY
+              value: {{ .Values.drainDelay | quote }}
             - name: GRACE_TIMEOUT
-              value: "{{ sub (int .Values.terminationGracePeriodSeconds) 10 }}s"
+              value: "{{ max 5 (sub (int .Values.terminationGracePeriodSeconds) 10) }}s"
             {{- range $k, $v := .Values.env }}
             - name: {{ $k }}
               value: {{ $v | quote }}

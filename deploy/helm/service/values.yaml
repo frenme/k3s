@@ -30,12 +30,16 @@ probes:
 
 resources:
   requests:
-    cpu: 25m
+    cpu: 50m
     memory: 32Mi
   limits:
     memory: 128Mi
 
 terminationGracePeriodSeconds: 30
+
+drainDelay: 5s
+
+automountServiceAccountToken: false
 
 strategy:
   maxUnavailable: 0
@@ -57,6 +61,8 @@ autoscaling:
   minReplicas: 2
   maxReplicas: 6
   targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 0
+  scaleDownStabilizationSeconds: 120
 
 pdb:
   enabled: false
