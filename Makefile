@@ -30,9 +30,10 @@ vet: ## static checks
 test: ## unit tests
 	go test -race -count=1 ./...
 
-helm-lint: ## lint and render all charts
-	@for c in service postgres redis; do helm lint deploy/helm/$$c || exit 1; done
-	@for s in $(APPS); do helm template $$s deploy/helm/service $(call values,$$s) >/dev/null || exit 1; done
+helm-lint: ## lint and render all charts with their values
+	@helm lint deploy/helm/postgres $(call values,postgres) >/dev/null && echo ok postgres
+	@helm lint deploy/helm/redis $(call values,redis) >/dev/null && echo ok redis
+	@for s in $(APPS); do helm lint deploy/helm/service $(call values,$$s) >/dev/null && helm template $$s deploy/helm/service $(call values,$$s) >/dev/null && echo ok $$s || exit 1; done
 
 lint: vet helm-lint ## vet and helm lint
 
