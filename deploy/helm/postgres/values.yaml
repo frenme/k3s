@@ -33,6 +33,7 @@ config:
   max_wal_senders: "10"
   max_replication_slots: "10"
   wal_keep_size: 512MB
+  max_slot_wal_keep_size: 2GB
   hot_standby: "on"
   hot_standby_feedback: "on"
 
