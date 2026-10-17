@@ -5,10 +5,14 @@ require_root
 
 ufw default deny incoming
 ufw default allow outgoing
+ufw default allow routed
 ufw allow 22/tcp
 
 ufw allow 80/tcp
 ufw allow 443/tcp
+ufw allow in on cni0
+ufw allow in on flannel-wg
+ufw allow in on flannel-wg-v6
 
 for peer in "$@"; do
   ufw allow from "$peer" to any port 6443 proto tcp
