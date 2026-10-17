@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/egor/k3s-base/internal/platform/config"
 )
 
 type ServerConfig struct {
@@ -17,15 +19,20 @@ type ServerConfig struct {
 	IdleTimeout  time.Duration
 }
 
-func DefaultServerConfig(addr string) ServerConfig {
+func ServerConfigFromEnv() ServerConfig {
 	return ServerConfig{
-		Addr:         addr,
-		DrainDelay:   5 * time.Second,
-		GraceTimeout: 20 * time.Second,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:         config.String("HTTP_ADDR", ":8080"),
+		DrainDelay:   config.Duration("DRAIN_DELAY", 5*time.Second),
+		GraceTimeout: config.Duration("GRACE_TIMEOUT", 20*time.Second),
+		ReadTimeout:  config.Duration("READ_TIMEOUT", 10*time.Second),
+		WriteTimeout: config.Duration("WRITE_TIMEOUT", 30*time.Second),
+		IdleTimeout:  config.Duration("IDLE_TIMEOUT", 60*time.Second),
 	}
+}
+
+func Serve(ctx context.Context, log *slog.Logger, health *Health, mux http.Handler) error {
+	handler := Chain(mux, RequestID(), Recover(log), Observe(log))
+	return Run(ctx, ServerConfigFromEnv(), handler, health, log)
 }
 
 func Run(ctx context.Context, cfg ServerConfig, handler http.Handler, health *Health, log *slog.Logger) error {
