@@ -28,3 +28,6 @@ jobs:
           done
           helm template postgres deploy/helm/postgres -f deploy/values/postgres.yaml > /dev/null
           helm template redis deploy/helm/redis -f deploy/values/redis.yaml > /dev/null
+          for s in users orders gateway web; do
+            helm template $s deploy/helm/service -f deploy/values/$s.yaml -f deploy/values/prod/$s.yaml > /dev/null
+          done
