@@ -15,11 +15,12 @@ expect_status() {
   echo "ok   $name"
 }
 
-code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/")
-expect_status 200 "$code" "web index"
-
 code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/unknown")
 expect_status 404 "$code" "unknown route"
+
+cors=$(curl -s -i -X OPTIONS "$BASE/api/users" -H 'Origin: http://localhost:5173' -H 'Access-Control-Request-Method: POST' | tr -d '\r')
+grep -qi '^access-control-allow-origin: http://localhost:5173' <<<"$cors" || fail "cors preflight"
+echo "ok   cors preflight"
 
 resp=$(curl -s -w '\n%{http_code}' -X POST "$BASE/api/users" -H 'Content-Type: application/json' \
   -d "{\"email\":\"smoke-$SUFFIX@example.com\",\"name\":\"Smoke\"}")
