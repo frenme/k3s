@@ -14,7 +14,6 @@ import (
 	"github.com/egor/k3s-base/internal/platform/config"
 	"github.com/egor/k3s-base/internal/platform/httpx"
 	"github.com/egor/k3s-base/internal/platform/logx"
-	"github.com/egor/k3s-base/internal/platform/rds"
 )
 
 func main() {
@@ -34,23 +33,13 @@ func run(ctx context.Context, log *slog.Logger) error {
 		return err
 	}
 
-	var limiter *gateway.Limiter
-	if addr := config.String("REDIS_ADDR", ""); addr != "" {
-		client := rds.New(addr)
-		defer client.Close()
-		limiter = gateway.NewLimiter(client,
-			config.Int("RATE_LIMIT", 120),
-			config.Duration("RATE_WINDOW", time.Minute),
-			config.Int("TRUSTED_PROXY_HOPS", 1))
-	}
-
 	health := httpx.NewHealth()
 	proxy := gateway.NewProxy(routes, log, config.Duration("UPSTREAM_TIMEOUT", 10*time.Second))
+	cors := gateway.NewCORS(strings.Split(config.String("CORS_ORIGINS", ""), ","))
 
 	mux := http.NewServeMux()
 	health.Mount(mux)
-	cors := gateway.NewCORS(strings.Split(config.String("CORS_ORIGINS", ""), ","))
-	mux.Handle("/api/", httpx.Chain(proxy, cors.Middleware(), limiter.Middleware()))
+	mux.Handle("/api/", httpx.Chain(proxy, cors.Middleware()))
 
 	return httpx.Serve(ctx, log, health, mux)
 }
