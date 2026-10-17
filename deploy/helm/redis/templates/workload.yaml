@@ -1,15 +1,22 @@
+{{- $daemon := eq .Values.mode "daemonset" }}
 apiVersion: apps/v1
-kind: DaemonSet
+kind: {{ if $daemon }}DaemonSet{{ else }}Deployment{{ end }}
 metadata:
   name: {{ .Release.Name }}
   labels:
     app.kubernetes.io/name: redis
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
+  {{- if $daemon }}
   updateStrategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 1
+  {{- else }}
+  replicas: 1
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: redis
@@ -19,7 +26,10 @@ spec:
       labels:
         app.kubernetes.io/name: redis
         app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        checksum/config: {{ toYaml .Values | sha256sum }}
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
@@ -39,7 +49,30 @@ spec:
             - --maxmemory
             - {{ .Values.maxmemory | quote }}
             - --maxmemory-policy
-            - allkeys-lru
+            - {{ .Values.maxmemoryPolicy | quote }}
+            - --lazyfree-lazy-eviction
+            - "yes"
+            - --lazyfree-lazy-expire
+            - "yes"
+            - --tcp-keepalive
+            - "60"
+            {{- if .Values.auth.password }}
+            - --requirepass
+            - $(REDIS_PASSWORD)
+            {{- end }}
+          {{- if .Values.auth.password }}
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}
+                  key: password
+            - name: REDISCLI_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}
+                  key: password
+          {{- end }}
           ports:
             - name: redis
               containerPort: 6379
@@ -54,6 +87,7 @@ spec:
             periodSeconds: 10
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
           resources:

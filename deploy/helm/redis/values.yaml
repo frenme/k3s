@@ -3,14 +3,21 @@ image:
   tag: 7-alpine
   pullPolicy: IfNotPresent
 
-maxmemory: 64mb
+mode: deployment
+
+auth:
+  password: ""
+
+maxmemory: 256mb
+
+maxmemoryPolicy: allkeys-lru
 
 resources:
   requests:
-    cpu: 20m
-    memory: 32Mi
+    cpu: 50m
+    memory: 128Mi
   limits:
-    memory: 96Mi
+    memory: 320Mi
 
 nodeSelector: {}
 

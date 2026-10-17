@@ -1,8 +1,8 @@
-maxmemory: 256mb
+maxmemory: 512mb
 
 resources:
   requests:
-    cpu: 50m
-    memory: 128Mi
+    cpu: 100m
+    memory: 256Mi
   limits:
-    memory: 320Mi
+    memory: 640Mi

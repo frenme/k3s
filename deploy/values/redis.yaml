@@ -1,2 +1,7 @@
+mode: deployment
+
+auth:
+  password: dev-redis-password
+
 nodeSelector:
-  role: edge
+  role: core
