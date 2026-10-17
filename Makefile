@@ -5,6 +5,7 @@ NAMESPACE ?= app
 TAG ?= dev
 ENV ?=
 REGISTRY ?= k3s-base
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 GO_SERVICES := gateway users orders
 SERVICES := $(GO_SERVICES) web
 SECRET_VALUES = $(wildcard deploy/values/$(1).secret.yaml)
@@ -27,7 +28,7 @@ build: ## build go binaries into bin/
 	@for s in $(GO_SERVICES); do CGO_ENABLED=0 go build -o bin/$$s ./cmd/$$s || exit 1; done
 
 images: ## build container images
-	@for s in $(GO_SERVICES); do docker build -q -f build/go.Dockerfile --build-arg SERVICE=$$s -t $(REGISTRY)/$$s:$(TAG) . || exit 1; done
+	@for s in $(GO_SERVICES); do docker build -q -f build/go.Dockerfile --build-arg SERVICE=$$s --build-arg VERSION=$(TAG) --build-arg COMMIT=$(COMMIT) -t $(REGISTRY)/$$s:$(TAG) . || exit 1; done
 	docker build -q -f build/web.Dockerfile -t $(REGISTRY)/web:$(TAG) .
 
 cluster-up: ## create local k3s cluster (k3d)
