@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,32 +21,34 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	routes, err := gateway.ParseRoutes(config.String("ROUTES", "users=http://users:8080,orders=http://orders:8080"))
-	if err != nil {
-		log.Error("routes", "err", err)
+	if err := run(ctx, log); err != nil {
+		log.Error("fatal", "err", err)
 		os.Exit(1)
 	}
+}
 
-	health := httpx.NewHealth()
+func run(ctx context.Context, log *slog.Logger) error {
+	routes, err := gateway.ParseRoutes(config.String("ROUTES", "users=http://users:8080,orders=http://orders:8080"))
+	if err != nil {
+		return err
+	}
+
 	var limiter *gateway.Limiter
 	if addr := config.String("REDIS_ADDR", ""); addr != "" {
 		client := rds.New(addr)
 		defer client.Close()
-		limiter = gateway.NewLimiter(client, config.Int("RATE_LIMIT", 120), config.Duration("RATE_WINDOW", time.Minute))
+		limiter = gateway.NewLimiter(client,
+			config.Int("RATE_LIMIT", 120),
+			config.Duration("RATE_WINDOW", time.Minute),
+			config.Int("TRUSTED_PROXY_HOPS", 1))
 	}
+
+	health := httpx.NewHealth()
+	proxy := gateway.NewProxy(routes, log, config.Duration("UPSTREAM_TIMEOUT", 10*time.Second))
 
 	mux := http.NewServeMux()
 	health.Mount(mux)
-	mux.Handle("/api/", httpx.Chain(gateway.NewProxy(routes, log), limiter.Middleware()))
+	mux.Handle("/api/", httpx.Chain(proxy, limiter.Middleware()))
 
-	handler := httpx.Chain(mux, httpx.RequestID(), httpx.Recover(log), httpx.Observe(log))
-	cfg := httpx.DefaultServerConfig(config.String("HTTP_ADDR", ":8080"))
-	cfg.DrainDelay = config.Duration("DRAIN_DELAY", cfg.DrainDelay)
-	cfg.GraceTimeout = config.Duration("GRACE_TIMEOUT", cfg.GraceTimeout)
-	cfg.WriteTimeout = config.Duration("WRITE_TIMEOUT", cfg.WriteTimeout)
-
-	if err := httpx.Run(ctx, cfg, handler, health, log); err != nil {
-		log.Error("server", "err", err)
-		os.Exit(1)
-	}
+	return httpx.Serve(ctx, log, health, mux)
 }
