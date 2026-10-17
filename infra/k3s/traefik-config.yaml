@@ -8,3 +8,5 @@ spec:
     service:
       spec:
         externalTrafficPolicy: Local
+    deployment:
+      kind: DaemonSet
