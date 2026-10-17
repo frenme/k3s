@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/egor/k3s-base/internal/platform/cache"
 	"github.com/egor/k3s-base/internal/platform/pg"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -16,6 +17,8 @@ import (
 var Migrations embed.FS
 
 const MigrationsDir = "migrations"
+
+const userCacheTTL = time.Minute
 
 var (
 	ErrNotFound  = errors.New("user not found")
@@ -37,10 +40,11 @@ type Store interface {
 
 type PgStore struct {
 	pools *pg.Pools
+	cache *cache.Cache
 }
 
-func NewPgStore(pools *pg.Pools) *PgStore {
-	return &PgStore{pools: pools}
+func NewPgStore(pools *pg.Pools, c *cache.Cache) *PgStore {
+	return &PgStore{pools: pools, cache: c}
 }
 
 func (s *PgStore) List(ctx context.Context, limit int) ([]User, error) {
@@ -63,6 +67,12 @@ func (s *PgStore) List(ctx context.Context, limit int) ([]User, error) {
 }
 
 func (s *PgStore) Get(ctx context.Context, id string) (User, error) {
+	return cache.Fetch(ctx, s.cache, id, userCacheTTL, func() (User, error) {
+		return s.load(ctx, id)
+	})
+}
+
+func (s *PgStore) load(ctx context.Context, id string) (User, error) {
 	u, err := pg.Query(s.pools, func(pool *pgxpool.Pool) (User, error) {
 		var u User
 		err := pool.QueryRow(ctx, `SELECT id::text, email, name, created_at FROM users WHERE id = $1`, id).

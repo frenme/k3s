@@ -8,10 +8,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/egor/k3s-base/internal/platform/cache"
 	"github.com/egor/k3s-base/internal/platform/config"
 	"github.com/egor/k3s-base/internal/platform/httpx"
 	"github.com/egor/k3s-base/internal/platform/logx"
 	"github.com/egor/k3s-base/internal/platform/pg"
+	"github.com/egor/k3s-base/internal/platform/rds"
 	"github.com/egor/k3s-base/internal/users"
 )
 
@@ -38,7 +40,15 @@ func run(ctx context.Context, log *slog.Logger) error {
 
 	mux := http.NewServeMux()
 	health.Mount(mux)
-	users.NewHandler(users.NewPgStore(pools), log).Mount(mux)
+	users.NewHandler(users.NewPgStore(pools, userCache()), log).Mount(mux)
 
 	return httpx.Serve(ctx, log, health, mux)
+}
+
+func userCache() *cache.Cache {
+	addr := config.String("REDIS_ADDR", "")
+	if addr == "" {
+		return nil
+	}
+	return cache.New(rds.New(addr, config.String("REDIS_PASSWORD", "")), "users")
 }
