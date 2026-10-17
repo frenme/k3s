@@ -1,14 +1,11 @@
 image:
   repository: k3s-base/gateway
 
-replicaCount: 2
-
 env:
   ROUTES: users=http://users:8080,orders=http://orders:8080
   REDIS_ADDR: redis:6379
   RATE_LIMIT: "120"
   RATE_WINDOW: 1m
-  DRAIN_DELAY: 5s
 
 terminationGracePeriodSeconds: 90
 
@@ -21,9 +18,6 @@ spread:
 pdb:
   enabled: true
 
-autoscaling:
-  enabled: false
-
 ingress:
   enabled: true
   hosts:
@@ -31,3 +25,9 @@ ingress:
       paths:
         - path: /api
           pathType: Prefix
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70

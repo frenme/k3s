@@ -1,8 +1,6 @@
 image:
   repository: k3s-base/web
 
-replicaCount: 2
-
 nodeSelector:
   role: edge
 
@@ -22,3 +20,9 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70

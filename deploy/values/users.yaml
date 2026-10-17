@@ -1,8 +1,6 @@
 image:
   repository: k3s-base/users
 
-replicaCount: 2
-
 env:
   DB_SCHEMA: users
   DB_MAX_CONNS: "10"
@@ -24,3 +22,9 @@ networkPolicy:
   allowFromPods:
     - gateway
     - orders
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
