@@ -7,6 +7,10 @@ IP="$(public_ip)"
 NODE_NAME="${NODE_NAME:-core-1}"
 REGION="${REGION:-core}"
 
+MANIFESTS=/var/lib/rancher/k3s/server/manifests
+mkdir -p "$MANIFESTS"
+cp "$(dirname "$0")/traefik-config.yaml" "$MANIFESTS/traefik-config.yaml"
+
 curl -sfL https://get.k3s.io | \
   INSTALL_K3S_VERSION="$K3S_VERSION" \
   INSTALL_K3S_EXEC="server \
