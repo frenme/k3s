@@ -10,15 +10,24 @@ autoscaling:
   maxReplicas: 10
 
 env:
-  RATE_LIMIT: "300"
   CORS_ORIGINS: https://example.com
 
 ingress:
   hosts:
     - host: api.example.com
       paths:
-        - path: /api
+        - path: /api/users
           pathType: Prefix
+          rateLimit:
+            average: 600
+            period: 1m
+            burst: 200
+        - path: /api/orders
+          pathType: Prefix
+          rateLimit:
+            average: 300
+            period: 1m
+            burst: 100
   tls:
     - secretName: api-example-com-tls
       hosts:

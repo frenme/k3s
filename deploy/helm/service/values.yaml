@@ -78,6 +78,7 @@ ingress:
         - path: /
           pathType: Prefix
   tls: []
+  rateLimitIPDepth: 0
 
 networkPolicy:
   enabled: false

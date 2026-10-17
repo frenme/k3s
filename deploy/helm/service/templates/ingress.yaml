@@ -1,35 +1,60 @@
 {{- if .Values.ingress.enabled }}
+{{- $root := . }}
+{{- range $hi, $h := .Values.ingress.hosts }}
+{{- range $pi, $p := $h.paths }}
+{{- $name := printf "%s-%d-%d" (include "service.fullname" $root) $hi $pi }}
+{{- if $p.rateLimit }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "service.labels" $root | nindent 4 }}
+spec:
+  rateLimit:
+    average: {{ $p.rateLimit.average }}
+    period: {{ default "1s" $p.rateLimit.period }}
+    burst: {{ default $p.rateLimit.average $p.rateLimit.burst }}
+    sourceCriterion:
+      ipStrategy:
+        depth: {{ $root.Values.ingress.rateLimitIPDepth }}
+---
+{{- end }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "service.fullname" . }}
+  name: {{ $name }}
   labels:
-    {{- include "service.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+    {{- include "service.labels" $root | nindent 4 }}
+  {{- if or $root.Values.ingress.annotations $p.rateLimit }}
   annotations:
+    {{- with $root.Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if $p.rateLimit }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ $root.Release.Namespace }}-{{ $name }}@kubernetescrd
+    {{- end }}
   {{- end }}
 spec:
-  ingressClassName: {{ .Values.ingress.className }}
-  {{- with .Values.ingress.tls }}
+  ingressClassName: {{ $root.Values.ingress.className }}
+  {{- with $root.Values.ingress.tls }}
   tls:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.hosts }}
-    - {{- if .host }}
-      host: {{ .host | quote }}
+    - {{- if $h.host }}
+      host: {{ $h.host | quote }}
       {{- end }}
       http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            pathType: {{ .pathType }}
+          - path: {{ $p.path }}
+            pathType: {{ default "Prefix" $p.pathType }}
             backend:
               service:
-                name: {{ include "service.fullname" $ }}
+                name: {{ include "service.fullname" $root }}
                 port:
                   name: http
-          {{- end }}
-    {{- end }}
+---
+{{- end }}
+{{- end }}
 {{- end }}

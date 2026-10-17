@@ -3,9 +3,6 @@ image:
 
 env:
   ROUTES: users=http://users:8080,orders=http://orders:8080
-  REDIS_ADDR: redis:6379
-  RATE_LIMIT: "120"
-  RATE_WINDOW: 1m
   CORS_ORIGINS: http://localhost:5173,http://localhost:3000
 
 terminationGracePeriodSeconds: 90
@@ -24,8 +21,18 @@ ingress:
   hosts:
     - host: ""
       paths:
-        - path: /api
+        - path: /api/users
           pathType: Prefix
+          rateLimit:
+            average: 120
+            period: 1m
+            burst: 40
+        - path: /api/orders
+          pathType: Prefix
+          rateLimit:
+            average: 60
+            period: 1m
+            burst: 20
 
 autoscaling:
   enabled: true
