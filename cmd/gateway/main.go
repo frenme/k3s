@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -48,7 +49,8 @@ func run(ctx context.Context, log *slog.Logger) error {
 
 	mux := http.NewServeMux()
 	health.Mount(mux)
-	mux.Handle("/api/", httpx.Chain(proxy, limiter.Middleware()))
+	cors := gateway.NewCORS(strings.Split(config.String("CORS_ORIGINS", ""), ","))
+	mux.Handle("/api/", httpx.Chain(proxy, cors.Middleware(), limiter.Middleware()))
 
 	return httpx.Serve(ctx, log, health, mux)
 }

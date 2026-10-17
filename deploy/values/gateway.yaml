@@ -6,6 +6,7 @@ env:
   REDIS_ADDR: redis:6379
   RATE_LIMIT: "120"
   RATE_WINDOW: 1m
+  CORS_ORIGINS: http://localhost:5173,http://localhost:3000
 
 terminationGracePeriodSeconds: 90
 

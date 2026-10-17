@@ -11,6 +11,7 @@ autoscaling:
 
 env:
   RATE_LIMIT: "300"
+  CORS_ORIGINS: https://example.com
 
 ingress:
   hosts:
