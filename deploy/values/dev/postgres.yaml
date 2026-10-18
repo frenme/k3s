@@ -1,0 +1,8 @@
+persistence:
+  size: 10Gi
+
+backup:
+  enabled: true
+  schedule: "0 3 * * *"
+  retentionDays: 3
+  size: 10Gi
