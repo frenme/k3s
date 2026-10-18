@@ -20,6 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: helmfile/helmfile-action@v2
+      - uses: actions/setup-go@v5
         with:
-          helmfile-args: -f deploy/helmfile.yaml.gotmpl -e local lint
+          go-version: stable
+      - uses: azure/setup-helm@v4
+      - run: go install github.com/helmfile/helmfile@v1.8.2
+      - run: helmfile -f deploy/helmfile.yaml.gotmpl -e local lint
