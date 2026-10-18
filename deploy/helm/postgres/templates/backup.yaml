@@ -1,65 +1,45 @@
-{{- if .Values.backup.enabled }}
-apiVersion: v1
-kind: PersistentVolumeClaim
+{{- if or .Values.backup.enabled .Values.restore.enabled }}
+{{- if not (and .Values.backup.destinationPath .Values.backup.endpointURL) }}
+{{- fail "backup.destinationPath and backup.endpointURL must be set" }}
+{{- end }}
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
 metadata:
-  name: postgres-backups
+  name: {{ .Values.name }}-backup
   labels:
     {{- include "postgres.labels" . | nindent 4 }}
-  annotations:
-    helm.sh/hook: pre-install
 spec:
-  accessModes: ["ReadWriteOnce"]
-  {{- if .Values.persistence.storageClass }}
-  storageClassName: {{ .Values.persistence.storageClass }}
-  {{- end }}
-  resources:
-    requests:
-      storage: {{ .Values.backup.size }}
+  retentionPolicy: {{ .Values.backup.retention | quote }}
+  configuration:
+    destinationPath: {{ .Values.backup.destinationPath }}
+    endpointURL: {{ .Values.backup.endpointURL }}
+    s3Credentials:
+      accessKeyId:
+        name: {{ .Values.name }}-s3
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: {{ .Values.name }}-s3
+        key: ACCESS_SECRET_KEY
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
+{{- end }}
+{{- if .Values.backup.enabled }}
 ---
-apiVersion: batch/v1
-kind: CronJob
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
 metadata:
-  name: postgres-backup
+  name: {{ .Values.name }}-daily
   labels:
     {{- include "postgres.labels" . | nindent 4 }}
 spec:
   schedule: {{ .Values.backup.schedule | quote }}
-  concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 2
-  failedJobsHistoryLimit: 2
-  jobTemplate:
-    spec:
-      backoffLimit: 1
-      template:
-        spec:
-          restartPolicy: Never
-          containers:
-            - name: backup
-              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              env:
-                - name: PGHOST
-                  value: postgres
-                - name: PGUSER
-                  value: postgres
-                - name: PGDATABASE
-                  value: {{ .Values.database | quote }}
-                - name: PGPASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: postgres
-                      key: POSTGRES_PASSWORD
-              command:
-                - sh
-                - -c
-                - |
-                  set -e
-                  pg_dump -Fc -f /backups/{{ .Values.database }}-$(date +%Y%m%d-%H%M%S).dump
-                  find /backups -name '*.dump' -mtime +{{ .Values.backup.retentionDays }} -delete
-              volumeMounts:
-                - name: backups
-                  mountPath: /backups
-          volumes:
-            - name: backups
-              persistentVolumeClaim:
-                claimName: postgres-backups
+  immediate: true
+  backupOwnerReference: self
+  cluster:
+    name: {{ .Values.name }}
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
 {{- end }}
