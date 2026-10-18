@@ -40,24 +40,19 @@ spec:
         - name: redis
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args:
-            - redis-server
-            - --save
-            - ""
-            - --appendonly
-            - "no"
-            - --maxmemory
-            - {{ .Values.maxmemory | quote }}
-            - --maxmemory-policy
-            - {{ .Values.maxmemoryPolicy | quote }}
-            - --lazyfree-lazy-eviction
-            - "yes"
-            - --lazyfree-lazy-expire
-            - "yes"
-            - --tcp-keepalive
-            - "60"
-            - --requirepass
-            - $(REDIS_PASSWORD)
+          command:
+            - sh
+            - -c
+            - >-
+              exec redis-server
+              --save ""
+              --appendonly no
+              --maxmemory {{ .Values.maxmemory | quote }}
+              --maxmemory-policy {{ .Values.maxmemoryPolicy | quote }}
+              --lazyfree-lazy-eviction yes
+              --lazyfree-lazy-expire yes
+              --tcp-keepalive 60
+              --requirepass "$REDIS_PASSWORD"
           env:
             - name: REDIS_PASSWORD
               valueFrom:
