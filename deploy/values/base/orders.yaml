@@ -1,6 +1,3 @@
-image:
-  repository: k3s-base/orders
-
 env:
   DB_SCHEMA: orders
   DB_MAX_CONNS: "10"

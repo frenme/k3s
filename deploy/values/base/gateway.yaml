@@ -1,6 +1,3 @@
-image:
-  repository: k3s-base/gateway
-
 env:
   ROUTES: users=http://users:8080,orders=http://orders:8080
   CORS_ORIGINS: ""
