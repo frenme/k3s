@@ -1,0 +1,10 @@
+superuserPassword: REPLACE_ME
+
+replication:
+  password: REPLACE_ME
+
+services:
+  users:
+    password: REPLACE_ME
+  orders:
+    password: REPLACE_ME

@@ -1,0 +1,4 @@
+secretEnv:
+  DATABASE_URL: postgres://users_svc:REPLACE_ME@postgres:5432/app?sslmode=disable
+  DATABASE_READ_URL: postgres://users_svc:REPLACE_ME@postgres-ro:5432/app?sslmode=disable
+  REDIS_PASSWORD: REPLACE_ME
