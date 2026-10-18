@@ -1,0 +1,6 @@
+traefik:
+  externalTrafficPolicy: Local
+  daemonSet: true
+
+acme:
+  email: ""

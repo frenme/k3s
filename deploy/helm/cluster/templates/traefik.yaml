@@ -1,0 +1,14 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    service:
+      spec:
+        externalTrafficPolicy: {{ .Values.traefik.externalTrafficPolicy }}
+    {{- if .Values.traefik.daemonSet }}
+    deployment:
+      kind: DaemonSet
+    {{- end }}
