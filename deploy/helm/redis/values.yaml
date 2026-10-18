@@ -22,3 +22,7 @@ resources:
 nodeSelector: {}
 
 tolerations: []
+
+networkPolicy:
+  enabled: true
+  allowFromPods: []
