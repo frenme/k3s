@@ -1,0 +1,77 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    {{- include "postgres.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.instances }}
+  imageName: {{ .Values.image }}
+  primaryUpdateStrategy: unsupervised
+  enableSuperuserAccess: false
+  storage:
+    size: {{ .Values.storage.size }}
+    {{- with .Values.storage.storageClass }}
+    storageClass: {{ . }}
+    {{- end }}
+  resources:
+    {{- toYaml .Values.resources | nindent 4 }}
+  postgresql:
+    parameters:
+      {{- range $k, $v := .Values.parameters }}
+      {{ $k }}: {{ $v | quote }}
+      {{- end }}
+  bootstrap:
+    {{- if .Values.restore.enabled }}
+    recovery:
+      source: origin
+      database: {{ .Values.database }}
+      owner: {{ .Values.database }}
+    {{- else }}
+    initdb:
+      database: {{ .Values.database }}
+      owner: {{ .Values.database }}
+    {{- end }}
+  {{- if .Values.restore.enabled }}
+  externalClusters:
+    - name: origin
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: {{ .Values.name }}-backup
+          serverName: {{ .Values.restore.serverName }}
+  {{- end }}
+  {{- with .Values.services }}
+  managed:
+    roles:
+      {{- range $svc, $cfg := . }}
+      - name: {{ $svc }}_svc
+        ensure: present
+        login: true
+        passwordSecret:
+          name: {{ $.Values.name }}-{{ $svc }}
+      {{- end }}
+  {{- end }}
+  {{- if .Values.backup.enabled }}
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: {{ .Values.name }}-backup
+  {{- end }}
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: {{ .Values.placement.antiAffinity }}
+    topologyKey: kubernetes.io/hostname
+    {{- with .Values.placement.preferredNodeLabels }}
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              {{- range $k, $v := . }}
+              - key: {{ $k }}
+                operator: In
+                values: [{{ $v | quote }}]
+              {{- end }}
+    {{- end }}

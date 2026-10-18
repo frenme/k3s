@@ -1,19 +1,14 @@
-image:
-  repository: postgres
-  tag: 17-alpine
-  pullPolicy: IfNotPresent
+name: postgres
+
+instances: 2
+
+image: ghcr.io/cloudnative-pg/postgresql:17
 
 database: app
 
-superuserPassword: ""
-
-replication:
-  user: replicator
-  password: ""
-
 services: {}
 
-persistence:
+storage:
   size: 5Gi
   storageClass: ""
 
@@ -24,32 +19,30 @@ resources:
   limits:
     memory: 1Gi
 
-config:
+parameters:
   max_connections: "200"
   shared_buffers: 128MB
   effective_cache_size: 384MB
-  wal_level: replica
-  max_wal_size: 1GB
-  max_wal_senders: "10"
-  max_replication_slots: "10"
-  wal_keep_size: 512MB
   max_slot_wal_keep_size: 2GB
-  hot_standby: "on"
-  hot_standby_feedback: "on"
 
-nodeSelector: {}
-
-tolerations: []
-
-replica:
-  enabled: false
-  replicas: 1
-  nodeSelector: {}
-  tolerations: []
-  resources: {}
+placement:
+  preferredNodeLabels: {}
+  antiAffinity: required
 
 backup:
+  enabled: false
+  destinationPath: ""
+  endpointURL: ""
+  retention: 7d
+  schedule: "0 0 3 * * *"
+  accessKeyId: ""
+  secretAccessKey: ""
+
+restore:
+  enabled: false
+  serverName: postgres
+
+networkPolicy:
   enabled: true
-  schedule: "0 3 * * *"
-  retentionDays: 7
-  size: 5Gi
+  operatorNamespace: cnpg-system
+  allowFromPods: []

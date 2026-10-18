@@ -1,0 +1,19 @@
+{{- if .Values.services }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ .Values.name }}-{{ .Values.database }}
+  labels:
+    {{- include "postgres.labels" . | nindent 4 }}
+spec:
+  name: {{ .Values.database }}
+  owner: {{ .Values.database }}
+  cluster:
+    name: {{ .Values.name }}
+  schemas:
+    {{- range $svc, $cfg := .Values.services }}
+    - name: {{ $svc }}
+      owner: {{ $svc }}_svc
+      ensure: present
+    {{- end }}
+{{- end }}
