@@ -6,6 +6,8 @@ autoscaling:
   maxReplicas: 3
 
 ingress:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
   hosts:
     - host: api.dev.example.com
       paths:
@@ -31,3 +33,6 @@ ingress:
     - secretName: api-dev-example-com-tls
       hosts:
         - api.dev.example.com
+
+pdb:
+  enabled: false

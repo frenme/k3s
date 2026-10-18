@@ -5,3 +5,6 @@ secretEnv:
 autoscaling:
   minReplicas: 1
   maxReplicas: 4
+
+pdb:
+  enabled: false
