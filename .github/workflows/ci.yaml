@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
-      - run: make helm-lint ENV=local
-      - run: make helm-lint ENV=dev
-      - run: make helm-lint ENV=prod
+      - uses: helmfile/helmfile-action@v2
+        with:
+          helmfile-args: -f deploy/helmfile.yaml.gotmpl -e local lint
