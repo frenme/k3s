@@ -24,7 +24,8 @@ local-only:
 fmt: ## format go code
 	gofmt -w cmd internal
 
-vet: ## static checks
+vet: ## formatting and static checks
+	@test -z "$$(gofmt -l cmd internal)" || { gofmt -l cmd internal; exit 1; }
 	go vet ./...
 
 test: ## unit tests
