@@ -28,6 +28,12 @@ ingress:
             average: 300
             period: 1m
             burst: 100
+        - path: /api
+          pathType: Prefix
+          rateLimit:
+            average: 1200
+            period: 1m
+            burst: 400
   tls:
     - secretName: api-example-com-tls
       hosts:

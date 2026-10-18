@@ -33,6 +33,12 @@ ingress:
             average: 60
             period: 1m
             burst: 20
+        - path: /api
+          pathType: Prefix
+          rateLimit:
+            average: 300
+            period: 1m
+            burst: 100
 
 autoscaling:
   enabled: true
