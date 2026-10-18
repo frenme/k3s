@@ -8,11 +8,14 @@ resources:
 autoscaling:
   minReplicas: 3
   maxReplicas: 10
+  scaleDownStabilizationSeconds: 300
 
 env:
   CORS_ORIGINS: https://example.com
 
 ingress:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
     - host: api.example.com
       paths:

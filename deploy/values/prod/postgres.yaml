@@ -25,3 +25,5 @@ backup:
 replica:
   enabled: true
   replicas: 1
+  nodeSelector:
+    role: edge
