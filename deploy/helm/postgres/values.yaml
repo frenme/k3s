@@ -5,11 +5,11 @@ image:
 
 database: app
 
-superuserPassword: change-me
+superuserPassword: ""
 
 replication:
   user: replicator
-  password: change-me
+  password: ""
 
 services: {}
 
