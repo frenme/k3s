@@ -31,7 +31,7 @@ test: ## unit tests
 	go test -race -count=1 ./...
 
 lint: vet ## vet and lint every release of ENV
-	$(HELMFILE) lint
+	$(if $(filter local,$(ENV)),,REGISTRY=lint.invalid TAG=lint) $(HELMFILE) lint
 
 build: ## build go binaries into bin/
 	@for s in $(GO_SERVICES); do CGO_ENABLED=0 go build -o bin/$$s ./cmd/$$s || exit 1; done
