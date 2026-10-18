@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/egor/k3s-base/internal/platform/cache"
-	"github.com/egor/k3s-base/internal/platform/pg"
+	"github.com/egor/k3s-base/internal/lib/cache"
+	"github.com/egor/k3s-base/internal/lib/pg"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"

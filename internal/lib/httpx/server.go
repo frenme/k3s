@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/egor/k3s-base/internal/platform/config"
+	"github.com/egor/k3s-base/internal/lib/config"
 )
 
 type ServerConfig struct {

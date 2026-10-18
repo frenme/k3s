@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/egor/k3s-base/internal/platform/httpx"
+	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
 func ParseRoutes(spec string) (map[string]*url.URL, error) {

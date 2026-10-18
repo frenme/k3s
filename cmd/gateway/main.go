@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/egor/k3s-base/internal/gateway"
-	"github.com/egor/k3s-base/internal/platform/config"
-	"github.com/egor/k3s-base/internal/platform/httpx"
-	"github.com/egor/k3s-base/internal/platform/logx"
+	"github.com/egor/k3s-base/internal/lib/config"
+	"github.com/egor/k3s-base/internal/lib/httpx"
+	"github.com/egor/k3s-base/internal/lib/logx"
 )
 
 func main() {

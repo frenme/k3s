@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/egor/k3s-base/internal/platform/httpx"
+	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
 type UserChecker interface {

@@ -9,10 +9,10 @@ import (
 	"syscall"
 
 	"github.com/egor/k3s-base/internal/orders"
-	"github.com/egor/k3s-base/internal/platform/config"
-	"github.com/egor/k3s-base/internal/platform/httpx"
-	"github.com/egor/k3s-base/internal/platform/logx"
-	"github.com/egor/k3s-base/internal/platform/pg"
+	"github.com/egor/k3s-base/internal/lib/config"
+	"github.com/egor/k3s-base/internal/lib/httpx"
+	"github.com/egor/k3s-base/internal/lib/logx"
+	"github.com/egor/k3s-base/internal/lib/pg"
 )
 
 func main() {

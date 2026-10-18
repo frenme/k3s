@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/egor/k3s-base/internal/platform/config"
+	"github.com/egor/k3s-base/internal/lib/config"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

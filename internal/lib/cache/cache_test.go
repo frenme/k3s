@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/egor/k3s-base/internal/platform/rds"
+	"github.com/egor/k3s-base/internal/lib/rds"
 )
 
 type item struct {

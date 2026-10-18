@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/egor/k3s-base/internal/platform/httpx"
+	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
 type CORS struct {

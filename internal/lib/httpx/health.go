@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/egor/k3s-base/internal/platform/version"
+	"github.com/egor/k3s-base/internal/lib/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
