@@ -1,4 +1,6 @@
 secretEnv:
   DATABASE_URL: postgres://users_svc:{{ .Values.secrets.postgres.users }}@postgres-rw:5432/app?sslmode=require
+  {{- if gt (int .Values.postgres.instances) 1 }}
   DATABASE_READ_URL: postgres://users_svc:{{ .Values.secrets.postgres.users }}@postgres-ro:5432/app?sslmode=require
+  {{- end }}
   REDIS_PASSWORD: {{ .Values.secrets.redis | quote }}

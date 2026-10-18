@@ -2,6 +2,9 @@ namespace: app-prod
 kubeContext: k3s-prod
 acmeEmail: admin@example.com
 
+postgres:
+  instances: 2
+
 backup:
   destinationPath: s3://k3s-backups/prod/
   endpointURL: https://s3.example.com

@@ -1,3 +1,5 @@
+instances: {{ .Values.postgres.instances }}
+
 services:
   {{- range $svc, $password := .Values.secrets.postgres }}
   {{ $svc }}:

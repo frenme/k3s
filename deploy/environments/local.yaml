@@ -2,6 +2,9 @@ namespace: app
 kubeContext: k3d-k3s-base
 acmeEmail: ""
 
+postgres:
+  instances: 2
+
 backup:
   destinationPath: s3://backups/
   endpointURL: http://s3-local:8333

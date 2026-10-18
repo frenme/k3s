@@ -2,6 +2,9 @@ namespace: app-dev
 kubeContext: k3s-dev
 acmeEmail: admin@example.com
 
+postgres:
+  instances: 1
+
 backup:
   destinationPath: s3://k3s-backups/dev/
   endpointURL: https://s3.example.com

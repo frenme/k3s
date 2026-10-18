@@ -40,7 +40,7 @@ templates:
     values:
       - values/base/{{`{{ .Release.Name }}`}}.yaml
       - values/{{`{{ .Environment.Name }}`}}/{{`{{ .Release.Name }}`}}.yaml
-      - values/secrets/{{`{{ .Release.Name }}`}}.yaml.gotmpl
+      - values/from-env/{{`{{ .Release.Name }}`}}.yaml.gotmpl
   app:
     inherit:
       - template: layered
@@ -77,7 +77,7 @@ releases:
     namespace: kube-system
     chart: ./helm/cluster
     values:
-      - values/secrets/cluster.yaml.gotmpl
+      - values/from-env/cluster.yaml.gotmpl
     needs:
       - cert-manager/cert-manager
 

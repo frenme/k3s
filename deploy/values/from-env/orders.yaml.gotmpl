@@ -1,3 +1,5 @@
 secretEnv:
   DATABASE_URL: postgres://orders_svc:{{ .Values.secrets.postgres.orders }}@postgres-rw:5432/app?sslmode=require
+  {{- if gt (int .Values.postgres.instances) 1 }}
   DATABASE_READ_URL: postgres://orders_svc:{{ .Values.secrets.postgres.orders }}@postgres-ro:5432/app?sslmode=require
+  {{- end }}
