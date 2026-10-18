@@ -1,7 +1,7 @@
 mode: deployment
 
 auth:
-  password: dev-redis-password
+  password: ""
 
 nodeSelector:
   role: core

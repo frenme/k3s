@@ -1,0 +1,15 @@
+database: app
+
+superuserPassword: ""
+
+replication:
+  password: ""
+
+services:
+  users:
+    password: ""
+  orders:
+    password: ""
+
+nodeSelector:
+  role: core

@@ -3,7 +3,7 @@ image:
 
 env:
   ROUTES: users=http://users:8080,orders=http://orders:8080
-  CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+  CORS_ORIGINS: ""
 
 terminationGracePeriodSeconds: 90
 

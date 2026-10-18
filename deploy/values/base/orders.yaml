@@ -1,0 +1,31 @@
+image:
+  repository: k3s-base/orders
+
+env:
+  DB_SCHEMA: orders
+  DB_MAX_CONNS: "10"
+  USERS_URL: http://users:8080
+
+secretEnv:
+  DATABASE_URL: ""
+  DATABASE_READ_URL: ""
+
+nodeSelector:
+  role: core
+
+spread:
+  enabled: true
+
+pdb:
+  enabled: true
+
+networkPolicy:
+  enabled: true
+  allowFromPods:
+    - gateway
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
