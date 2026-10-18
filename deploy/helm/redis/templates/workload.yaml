@@ -40,30 +40,17 @@ spec:
         - name: redis
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command:
-            - sh
-            - -c
-            - >-
-              exec redis-server
-              --save ""
-              --appendonly no
-              --maxmemory {{ .Values.maxmemory | quote }}
-              --maxmemory-policy {{ .Values.maxmemoryPolicy | quote }}
-              --lazyfree-lazy-eviction yes
-              --lazyfree-lazy-expire yes
-              --tcp-keepalive 60
-              --requirepass "$REDIS_PASSWORD"
+          args: ["redis-server", "/etc/redis/redis.conf"]
           env:
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Release.Name }}
-                  key: password
             - name: REDISCLI_AUTH
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}
                   key: password
+          volumeMounts:
+            - name: config
+              mountPath: /etc/redis
+              readOnly: true
           ports:
             - name: redis
               containerPort: 6379
@@ -83,6 +70,13 @@ spec:
               drop: [ALL]
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          secret:
+            secretName: {{ .Release.Name }}
+            items:
+              - key: redis.conf
+                path: redis.conf
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
