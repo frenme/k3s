@@ -56,11 +56,8 @@ spec:
             - "yes"
             - --tcp-keepalive
             - "60"
-            {{- if .Values.auth.password }}
             - --requirepass
             - $(REDIS_PASSWORD)
-            {{- end }}
-          {{- if .Values.auth.password }}
           env:
             - name: REDIS_PASSWORD
               valueFrom:
@@ -72,7 +69,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}
                   key: password
-          {{- end }}
           ports:
             - name: redis
               containerPort: 6379
