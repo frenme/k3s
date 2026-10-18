@@ -1,0 +1,16 @@
+namespace: app
+kubeContext: k3d-k3s-base
+acmeEmail: ""
+
+backup:
+  destinationPath: s3://backups/
+  endpointURL: http://s3-local:8333
+
+secrets:
+  postgres:
+    users: dev-users-password
+    orders: dev-orders-password
+  redis: dev-redis-password
+  s3:
+    accessKeyId: local-access
+    secretAccessKey: local-secret-key

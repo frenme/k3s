@@ -1,0 +1,7 @@
+namespace: app-dev
+kubeContext: k3s-dev
+acmeEmail: admin@example.com
+
+backup:
+  destinationPath: s3://k3s-backups/dev/
+  endpointURL: https://s3.example.com

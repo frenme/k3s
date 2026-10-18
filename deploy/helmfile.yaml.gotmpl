@@ -1,0 +1,115 @@
+environments:
+  local:
+    values:
+      - environments/local.yaml
+  dev:
+    values:
+      - environments/dev.yaml
+      - environments/secrets.yaml.gotmpl
+  prod:
+    values:
+      - environments/prod.yaml
+      - environments/secrets.yaml.gotmpl
+
+---
+
+repositories:
+  - name: jetstack
+    url: https://charts.jetstack.io
+  - name: cnpg
+    url: https://cloudnative-pg.github.io/charts
+
+helmDefaults:
+  kubeContext: {{ .Values.kubeContext }}
+  wait: true
+  timeout: 600
+  createNamespace: true
+
+missingFileHandler: Debug
+
+{{- $local := eq .Environment.Name "local" }}
+{{- $registry := env "REGISTRY" | default "k3s-base" }}
+{{- $tag := env "TAG" | default "dev" }}
+{{- if and (not $local) (or (eq $registry "k3s-base") (eq $tag "dev")) }}
+{{- fail (printf "environment %s needs REGISTRY and TAG" .Environment.Name) }}
+{{- end }}
+
+templates:
+  layered:
+    namespace: {{ .Values.namespace }}
+    values:
+      - values/base/{{`{{ .Release.Name }}`}}.yaml
+      - values/{{`{{ .Environment.Name }}`}}/{{`{{ .Release.Name }}`}}.yaml
+      - values/secrets/{{`{{ .Release.Name }}`}}.yaml.gotmpl
+  app:
+    inherit:
+      - template: layered
+    chart: ./helm/service
+    needs:
+      - postgres
+      - redis
+    values:
+      - values/image.yaml.gotmpl
+
+releases:
+  - name: cert-manager
+    namespace: cert-manager
+    chart: jetstack/cert-manager
+    version: v1.21.2
+    set:
+      - name: crds.enabled
+        value: true
+
+  - name: cnpg
+    namespace: cnpg-system
+    chart: cnpg/cloudnative-pg
+    version: 0.29.1
+
+  - name: barman-cloud
+    namespace: cnpg-system
+    chart: cnpg/plugin-barman-cloud
+    version: 0.8.1
+    needs:
+      - cert-manager/cert-manager
+      - cnpg-system/cnpg
+
+  - name: cluster
+    namespace: kube-system
+    chart: ./helm/cluster
+    values:
+      - values/secrets/cluster.yaml.gotmpl
+    needs:
+      - cert-manager/cert-manager
+
+  - name: s3-local
+    installed: {{ $local }}
+    inherit:
+      - template: layered
+    chart: ./helm/s3-local
+
+  - name: postgres
+    inherit:
+      - template: layered
+    chart: ./helm/postgres
+    needs:
+      - cnpg-system/barman-cloud
+      {{- if $local }}
+      - s3-local
+      {{- end }}
+
+  - name: redis
+    inherit:
+      - template: layered
+    chart: ./helm/redis
+
+  - name: users
+    inherit:
+      - template: app
+
+  - name: orders
+    inherit:
+      - template: app
+
+  - name: gateway
+    inherit:
+      - template: app
