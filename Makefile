@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 ENV ?= local
 CLUSTER ?= k3s-base
-NAMESPACE ?= app
+NAMESPACE ?= $(if $(filter local,$(ENV)),app,app-$(ENV))
 TAG ?= dev
 REGISTRY ?= k3s-base
 CONTEXT ?=
@@ -77,11 +77,11 @@ secrets-init: ## create <ENV> secret files from examples (fill them in, they are
 
 deploy-infra: guard ## deploy postgres and redis
 	$(HELM) upgrade --install postgres deploy/helm/postgres -n $(NAMESPACE) --create-namespace $(call values,postgres) --wait --timeout 5m
-	$(HELM) upgrade --install redis deploy/helm/redis -n $(NAMESPACE) $(call values,redis) --wait --timeout 3m
+	$(HELM) upgrade --install redis deploy/helm/redis -n $(NAMESPACE) --create-namespace $(call values,redis) --wait --timeout 3m
 
 deploy-apps: guard ## deploy services (one release per deploy/values/base/<name>.yaml)
 	@for s in $(APPS); do \
-		$(HELM) upgrade --install $$s deploy/helm/service -n $(NAMESPACE) $(call values,$$s) \
+		$(HELM) upgrade --install $$s deploy/helm/service -n $(NAMESPACE) --create-namespace $(call values,$$s) \
 			--set image.repository=$(REGISTRY)/$$s --set image.tag=$(TAG) --wait --timeout 5m || exit 1; \
 	done
 
