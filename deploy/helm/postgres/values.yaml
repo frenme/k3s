@@ -31,6 +31,7 @@ placement:
 
 backup:
   enabled: false
+  serverName: ""
   destinationPath: ""
   endpointURL: ""
   retention: 7d

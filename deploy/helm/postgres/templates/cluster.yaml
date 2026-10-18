@@ -58,6 +58,7 @@ spec:
       isWALArchiver: true
       parameters:
         barmanObjectName: {{ .Values.name }}-backup
+        serverName: {{ default .Values.name .Values.backup.serverName }}
   {{- end }}
   affinity:
     enablePodAntiAffinity: true
