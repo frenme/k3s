@@ -1,6 +1,3 @@
-secretEnv:
-  DATABASE_READ_URL: null
-
 autoscaling:
   minReplicas: 1
   maxReplicas: 3

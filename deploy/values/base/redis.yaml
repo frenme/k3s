@@ -1,7 +1,8 @@
 mode: deployment
 
-auth:
-  password: ""
-
 nodeSelector:
   role: core
+
+networkPolicy:
+  allowFromPods:
+    - users

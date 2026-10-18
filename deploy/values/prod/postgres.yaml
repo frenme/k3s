@@ -1,4 +1,4 @@
-persistence:
+storage:
   size: 50Gi
 
 resources:
@@ -8,22 +8,12 @@ resources:
   limits:
     memory: 4Gi
 
-config:
+parameters:
   max_connections: "300"
   shared_buffers: 1GB
   effective_cache_size: 3GB
-  wal_level: replica
   max_wal_size: 4GB
   max_slot_wal_keep_size: 10GB
 
 backup:
-  enabled: true
-  schedule: "0 3 * * *"
-  retentionDays: 14
-  size: 50Gi
-
-replica:
-  enabled: true
-  replicas: 1
-  nodeSelector:
-    role: edge
+  retention: 30d

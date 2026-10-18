@@ -1,15 +1,10 @@
-database: app
+instances: 2
 
-superuserPassword: ""
+placement:
+  preferredNodeLabels:
+    role: core
 
-replication:
-  password: ""
-
-services:
-  users:
-    password: ""
-  orders:
-    password: ""
-
-nodeSelector:
-  role: core
+networkPolicy:
+  allowFromPods:
+    - users
+    - orders

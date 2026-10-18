@@ -6,11 +6,6 @@ env:
   DB_MAX_CONNS: "10"
   REDIS_ADDR: redis:6379
 
-secretEnv:
-  DATABASE_URL: ""
-  DATABASE_READ_URL: ""
-  REDIS_PASSWORD: ""
-
 nodeSelector:
   role: core
 

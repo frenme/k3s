@@ -1,15 +1,2 @@
-superuserPassword: dev-superuser-password
-
-replication:
-  password: dev-replication-password
-
-services:
-  users:
-    password: dev-users-password
-  orders:
-    password: dev-orders-password
-
-replica:
-  enabled: true
-  nodeSelector:
-    role: edge
+storage:
+  size: 2Gi

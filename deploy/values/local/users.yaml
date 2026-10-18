@@ -1,8 +1,3 @@
-secretEnv:
-  DATABASE_URL: postgres://users_svc:dev-users-password@postgres:5432/app?sslmode=disable
-  DATABASE_READ_URL: postgres://users_svc:dev-users-password@postgres-ro:5432/app?sslmode=disable
-  REDIS_PASSWORD: dev-redis-password
-
 autoscaling:
   minReplicas: 1
   maxReplicas: 4
