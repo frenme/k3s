@@ -95,6 +95,7 @@ releases:
       - values/from-env/upgrades.yaml.gotmpl
     needs:
       - cattle-system/system-upgrade-controller
+      - {{ .Values.namespace }}/gateway
 
   - name: cert-manager
     namespace: cert-manager

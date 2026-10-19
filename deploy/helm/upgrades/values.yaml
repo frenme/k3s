@@ -3,3 +3,8 @@ plans:
   version: ""
   serviceAccountName: system-upgrade-controller
   image: rancher/k3s-upgrade
+  window:
+    days: ["sunday"]
+    startTime: "03:00"
+    endTime: "06:00"
+    timeZone: UTC

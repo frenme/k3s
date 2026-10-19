@@ -11,6 +11,10 @@ spec:
   cordon: true
   version: {{ .Values.plans.version }}
   serviceAccountName: {{ .Values.plans.serviceAccountName }}
+  {{- with .Values.plans.window }}
+  window:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   nodeSelector:
     matchExpressions:
       - key: node-role.kubernetes.io/control-plane
@@ -29,6 +33,10 @@ spec:
   concurrency: 1
   version: {{ .Values.plans.version }}
   serviceAccountName: {{ .Values.plans.serviceAccountName }}
+  {{- with .Values.plans.window }}
+  window:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   nodeSelector:
     matchExpressions:
       - key: node-role.kubernetes.io/control-plane
