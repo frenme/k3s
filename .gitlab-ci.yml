@@ -1,0 +1,88 @@
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  REGISTRY: $CI_REGISTRY_IMAGE
+  HELMFILE: helmfile -f deploy/helmfile.yaml.gotmpl
+
+go:
+  stage: test
+  image: golang:1.26
+  script:
+    - test -z "$(gofmt -l .)"
+    - go vet ./...
+    - go vet -tags e2e ./e2e
+    - go test -race -count=1 ./...
+
+helm:
+  stage: test
+  image:
+    name: ghcr.io/helmfile/helmfile:v1.8.2
+    entrypoint: [""]
+  variables:
+    REGISTRY: lint.invalid
+    TAG: lint
+  script:
+    - $HELMFILE -e local lint
+    - if [ -n "$SOPS_AGE_KEY" ]; then $HELMFILE -e dev lint && $HELMFILE -e prod lint; fi
+
+terraform:
+  stage: test
+  image:
+    name: hashicorp/terraform:1.16
+    entrypoint: [""]
+  script:
+    - cd infra/terraform
+    - terraform fmt -check -recursive
+    - terraform init -backend=false -input=false
+    - terraform validate
+
+images:
+  stage: build
+  image: docker:28
+  services:
+    - docker:28-dind
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+  parallel:
+    matrix:
+      - SERVICE: [gateway, users, orders]
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - docker buildx create --use
+    - >-
+      docker buildx build --push
+      --platform linux/amd64,linux/arm64
+      --file build/go.Dockerfile
+      --build-arg SERVICE=$SERVICE
+      --build-arg VERSION=$CI_COMMIT_TAG
+      --build-arg COMMIT=$CI_COMMIT_SHA
+      --tag $REGISTRY/$SERVICE:$CI_COMMIT_TAG .
+
+.deploy:
+  stage: deploy
+  image:
+    name: ghcr.io/helmfile/helmfile:v1.8.2
+    entrypoint: [""]
+  variables:
+    TAG: $CI_COMMIT_TAG
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+  script:
+    - $HELMFILE -e $CI_ENVIRONMENT_NAME sync
+
+deploy-dev:
+  extends: .deploy
+  environment:
+    name: dev
+
+deploy-prod:
+  extends: .deploy
+  needs: [deploy-dev]
+  environment:
+    name: prod
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+      when: manual
