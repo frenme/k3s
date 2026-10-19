@@ -8,6 +8,7 @@ services:
 
 backup:
   enabled: true
+  serverName: {{ dig "backupServerName" "" .Values.postgres | quote }}
   destinationPath: {{ .Values.backup.destinationPath }}
   endpointURL: {{ .Values.backup.endpointURL }}
   accessKeyId: {{ .Values.secrets.s3.accessKeyId | quote }}

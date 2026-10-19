@@ -6,6 +6,7 @@ grafanaHost: ""
 k3sVersion: ""
 
 postgres:
+  backupServerName: postgres
   instances: 2
 
 backup:
