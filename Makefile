@@ -18,7 +18,7 @@ DURATION ?= 1m
 SSH_USER ?= root
 TOOLS := go docker kubectl helm helmfile sops age k3d terraform kubectl-cnpg
 
-.PHONY: help doctor remote-only infra-init infra-plan infra-apply infra-destroy e2e grafana local-only fmt vet test lint build images cluster-up cluster-down import deploy template destroy up down loadtest status db-status logs restart psql backup-now kubeconfig clean
+.PHONY: help doctor remote-only infra-init infra-plan infra-apply infra-destroy e2e grafana local-only fmt vet test lint build images cluster-up cluster-down import deploy template destroy up down loadtest status db-status db-promote logs restart psql backup-now kubeconfig clean
 
 help:
 	@grep -E '^[a-z0-9-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
@@ -109,6 +109,9 @@ logs: ## tail logs: make logs s=users
 restart: ## rolling restart: make restart s=gateway
 	$(KUBECTL) rollout restart deployment/$(s)
 	$(KUBECTL) rollout status deployment/$(s)
+
+db-promote: ## move the primary to an instance: make db-promote ENV=prod INSTANCE=postgres-1
+	kubectl cnpg --context $(CONTEXT) -n $(NAMESPACE) promote postgres $(INSTANCE)
 
 psql: ## psql on the primary
 	kubectl cnpg --context $(CONTEXT) -n $(NAMESPACE) psql postgres -- -d app
