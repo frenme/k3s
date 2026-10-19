@@ -12,14 +12,24 @@ NAMESPACE := $(if $(filter local,$(ENV)),app,app-$(ENV))
 CONTEXT := $(if $(filter local,$(ENV)),k3d-$(CLUSTER),k3s-$(ENV))
 KUBECTL := kubectl --context $(CONTEXT) -n $(NAMESPACE)
 HELMFILE := helmfile -f deploy/helmfile.yaml.gotmpl -e $(ENV)
+TERRAFORM := terraform -chdir=infra/terraform
+RATE ?= 200
+DURATION ?= 1m
+TOOLS := go docker kubectl helm helmfile sops age k3d terraform kubectl-cnpg
 
-.PHONY: help local-only fmt vet test lint build images cluster-up cluster-down import deploy template destroy up down smoke loadtest status db-status logs restart psql backup-now kubeconfig clean
+.PHONY: help doctor remote-only infra-init infra-plan infra-apply infra-destroy e2e grafana local-only fmt vet test lint build images cluster-up cluster-down import deploy template destroy up down loadtest status db-status logs restart psql backup-now kubeconfig clean
 
 help:
-	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-12s %s\n", $$1, $$2}'
+	@grep -E '^[a-z0-9-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
 
 local-only:
 	@[ "$(ENV)" = local ] || { echo "this target works only with ENV=local"; exit 1; }
+
+remote-only:
+	@[ "$(ENV)" != local ] || { echo "this target needs ENV=dev or ENV=prod"; exit 1; }
+
+doctor: ## check that every required tool is installed
+	@missing=0; for t in $(TOOLS); do command -v $$t >/dev/null && echo "ok      $$t" || { echo "missing $$t"; missing=1; }; done; exit $$missing
 
 fmt: ## format go code
 	gofmt -w cmd internal
@@ -62,11 +72,29 @@ up: local-only images cluster-up import deploy ## build, create the local cluste
 
 down: local-only cluster-down ## tear the local cluster down
 
-smoke: local-only ## live checks against the local ingress
-	./scripts/smoke.sh
+e2e: local-only ## end to end tests against the local ingress
+	go test -tags e2e -count=1 ./e2e
 
-loadtest: local-only ## load test: make loadtest N=2000
-	./scripts/loadtest.sh $(N)
+loadtest: ## k6 load test from inside the cluster: make loadtest RATE=300 DURATION=2m
+	$(KUBECTL) run k6 --rm -i --restart=Never --image=grafana/k6:1.8.2 -- run -e RATE=$(RATE) -e DURATION=$(DURATION) - < test/load/api.js
+
+grafana: ## open grafana on http://localhost:3000
+	kubectl --context $(CONTEXT) -n monitoring port-forward svc/monitoring-grafana 3000:80
+
+infra-init: ## init terraform providers
+	$(TERRAFORM) init
+
+infra-plan: remote-only ## plan servers of ENV
+	$(TERRAFORM) workspace select -or-create $(ENV)
+	$(TERRAFORM) plan -var-file=envs/$(ENV).tfvars
+
+infra-apply: remote-only ## create or update servers of ENV
+	$(TERRAFORM) workspace select -or-create $(ENV)
+	$(TERRAFORM) apply -var-file=envs/$(ENV).tfvars
+
+infra-destroy: remote-only ## destroy servers of ENV
+	$(TERRAFORM) workspace select -or-create $(ENV)
+	$(TERRAFORM) destroy -var-file=envs/$(ENV).tfvars
 
 status: ## pods and autoscalers
 	$(KUBECTL) get pods,hpa -o wide
