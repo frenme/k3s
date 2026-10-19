@@ -15,6 +15,7 @@ HELMFILE := helmfile -f deploy/helmfile.yaml.gotmpl -e $(ENV)
 TERRAFORM := terraform -chdir=infra/terraform
 RATE ?= 200
 DURATION ?= 1m
+SSH_USER ?= root
 TOOLS := go docker kubectl helm helmfile sops age k3d terraform kubectl-cnpg
 
 .PHONY: help doctor remote-only infra-init infra-plan infra-apply infra-destroy e2e grafana local-only fmt vet test lint build images cluster-up cluster-down import deploy template destroy up down loadtest status db-status logs restart psql backup-now kubeconfig clean
@@ -115,8 +116,8 @@ psql: ## psql on the primary
 backup-now: ## take a database backup immediately
 	kubectl cnpg --context $(CONTEXT) -n $(NAMESPACE) backup postgres -m plugin --plugin-name barman-cloud.cloudnative-pg.io
 
-kubeconfig: ## fetch kubeconfig of a server: make kubeconfig HOST=1.2.3.4 ENV=prod
-	ssh $(HOST) sudo cat /etc/rancher/k3s/k3s.yaml | sed -e "s/127.0.0.1/$(HOST)/" -e "s/: default$$/: $(CONTEXT)/" > kubeconfig-$(ENV).yaml
+kubeconfig: remote-only ## fetch kubeconfig of a server: make kubeconfig ENV=prod HOST=1.2.3.4
+	set -o pipefail; ssh $(SSH_USER)@$(HOST) cat /etc/rancher/k3s/k3s.yaml | sed -e "s/127.0.0.1/$(HOST)/" -e "s/: default$$/: $(CONTEXT)/" > kubeconfig-$(ENV).yaml
 	@echo "KUBECONFIG=$$PWD/kubeconfig-$(ENV).yaml"
 
 clean: ## remove build output

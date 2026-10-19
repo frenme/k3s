@@ -7,5 +7,5 @@ output "agent_ips" {
 }
 
 output "kubeconfig_command" {
-  value = "make kubeconfig ENV=${var.environment} HOST=root@${hcloud_server.server.ipv4_address}"
+  value = "make kubeconfig ENV=${var.environment} HOST=${hcloud_server.server.ipv4_address}"
 }
