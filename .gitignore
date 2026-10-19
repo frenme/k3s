@@ -10,3 +10,4 @@ kubeconfig*
 *.tfstate
 *.tfstate.*
 terraform.tfstate.d/
+.gitlab-ci-local/
