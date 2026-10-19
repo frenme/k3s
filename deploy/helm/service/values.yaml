@@ -80,13 +80,10 @@ ingress:
   enabled: false
   className: traefik
   annotations: {}
-  hosts:
-    - host: ""
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
+  host: ""
+  tlsSecretName: ""
   rateLimitIPDepth: 0
+  routes: {}
 
 networkPolicy:
   enabled: false

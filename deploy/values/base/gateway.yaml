@@ -15,27 +15,25 @@ pdb:
 
 ingress:
   enabled: true
-  hosts:
-    - host: ""
-      paths:
-        - path: /api/users
-          pathType: Prefix
-          rateLimit:
-            average: 120
-            period: 1m
-            burst: 40
-        - path: /api/orders
-          pathType: Prefix
-          rateLimit:
-            average: 60
-            period: 1m
-            burst: 20
-        - path: /api
-          pathType: Prefix
-          rateLimit:
-            average: 300
-            period: 1m
-            burst: 100
+  routes:
+    users:
+      path: /api/users
+      rateLimit:
+        average: 120
+        period: 1m
+        burst: 40
+    orders:
+      path: /api/orders
+      rateLimit:
+        average: 60
+        period: 1m
+        burst: 20
+    api:
+      path: /api
+      rateLimit:
+        average: 300
+        period: 1m
+        burst: 100
 
 autoscaling:
   enabled: true

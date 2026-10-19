@@ -8,31 +8,8 @@ autoscaling:
 ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-staging
-  hosts:
-    - host: api.dev.example.com
-      paths:
-        - path: /api/users
-          pathType: Prefix
-          rateLimit:
-            average: 120
-            period: 1m
-            burst: 40
-        - path: /api/orders
-          pathType: Prefix
-          rateLimit:
-            average: 60
-            period: 1m
-            burst: 20
-        - path: /api
-          pathType: Prefix
-          rateLimit:
-            average: 300
-            period: 1m
-            burst: 100
-  tls:
-    - secretName: api-dev-example-com-tls
-      hosts:
-        - api.dev.example.com
+  host: api.dev.example.com
+  tlsSecretName: api-dev-example-com-tls
 
 pdb:
   enabled: false

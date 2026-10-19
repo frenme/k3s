@@ -16,28 +16,18 @@ env:
 ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-  hosts:
-    - host: api.example.com
-      paths:
-        - path: /api/users
-          pathType: Prefix
-          rateLimit:
-            average: 600
-            period: 1m
-            burst: 200
-        - path: /api/orders
-          pathType: Prefix
-          rateLimit:
-            average: 300
-            period: 1m
-            burst: 100
-        - path: /api
-          pathType: Prefix
-          rateLimit:
-            average: 1200
-            period: 1m
-            burst: 400
-  tls:
-    - secretName: api-example-com-tls
-      hosts:
-        - api.example.com
+  host: api.example.com
+  tlsSecretName: api-example-com-tls
+  routes:
+    users:
+      rateLimit:
+        average: 600
+        burst: 200
+    orders:
+      rateLimit:
+        average: 300
+        burst: 100
+    api:
+      rateLimit:
+        average: 1200
+        burst: 400

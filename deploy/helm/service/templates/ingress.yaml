@@ -1,9 +1,9 @@
 {{- if .Values.ingress.enabled }}
 {{- $root := . }}
-{{- range $hi, $h := .Values.ingress.hosts }}
-{{- range $pi, $p := $h.paths }}
-{{- $name := printf "%s-%d-%d" (include "service.fullname" $root) $hi $pi }}
-{{- if $p.rateLimit }}
+{{- $ingress := .Values.ingress }}
+{{- range $route, $r := $ingress.routes }}
+{{- $name := printf "%s-%s" (include "service.fullname" $root) $route }}
+{{- if $r.rateLimit }}
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -12,12 +12,12 @@ metadata:
     {{- include "service.labels" $root | nindent 4 }}
 spec:
   rateLimit:
-    average: {{ $p.rateLimit.average }}
-    period: {{ default "1s" $p.rateLimit.period }}
-    burst: {{ default $p.rateLimit.average $p.rateLimit.burst }}
+    average: {{ $r.rateLimit.average }}
+    period: {{ default "1s" $r.rateLimit.period }}
+    burst: {{ default $r.rateLimit.average $r.rateLimit.burst }}
     sourceCriterion:
       ipStrategy:
-        depth: {{ $root.Values.ingress.rateLimitIPDepth }}
+        depth: {{ $ingress.rateLimitIPDepth }}
 ---
 {{- end }}
 apiVersion: networking.k8s.io/v1
@@ -26,35 +26,36 @@ metadata:
   name: {{ $name }}
   labels:
     {{- include "service.labels" $root | nindent 4 }}
-  {{- if or $root.Values.ingress.annotations $p.rateLimit }}
+  {{- if or $ingress.annotations $r.rateLimit }}
   annotations:
-    {{- with $root.Values.ingress.annotations }}
+    {{- with $ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-    {{- if $p.rateLimit }}
+    {{- if $r.rateLimit }}
     traefik.ingress.kubernetes.io/router.middlewares: {{ $root.Release.Namespace }}-{{ $name }}@kubernetescrd
     {{- end }}
   {{- end }}
 spec:
-  ingressClassName: {{ $root.Values.ingress.className }}
-  {{- with $root.Values.ingress.tls }}
+  ingressClassName: {{ $ingress.className }}
+  {{- if and $ingress.tlsSecretName $ingress.host }}
   tls:
-    {{- toYaml . | nindent 4 }}
+    - secretName: {{ $ingress.tlsSecretName }}
+      hosts:
+        - {{ $ingress.host | quote }}
   {{- end }}
   rules:
-    - {{- if $h.host }}
-      host: {{ $h.host | quote }}
+    - {{- with $ingress.host }}
+      host: {{ . | quote }}
       {{- end }}
       http:
         paths:
-          - path: {{ $p.path }}
-            pathType: {{ default "Prefix" $p.pathType }}
+          - path: {{ $r.path }}
+            pathType: {{ default "Prefix" $r.pathType }}
             backend:
               service:
                 name: {{ include "service.fullname" $root }}
                 port:
                   name: http
 ---
-{{- end }}
 {{- end }}
 {{- end }}
