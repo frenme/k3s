@@ -40,3 +40,24 @@ func TestReadJSONRejectsUnknownFields(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestQueryInt(t *testing.T) {
+	cases := []struct {
+		query string
+		want  int
+		ok    bool
+	}{
+		{"", 50, true},
+		{"limit=10", 10, true},
+		{"limit=0", 0, false},
+		{"limit=501", 0, false},
+		{"limit=abc", 0, false},
+	}
+	for _, c := range cases {
+		r := httptest.NewRequest(http.MethodGet, "/?"+c.query, nil)
+		got, err := QueryInt(r, "limit", 50, 1, 500)
+		if (err == nil) != c.ok || (c.ok && got != c.want) {
+			t.Fatalf("%q: got %d err %v", c.query, got, err)
+		}
+	}
+}

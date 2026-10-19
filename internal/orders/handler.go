@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/egor/k3s-base/internal/lib/httpx"
@@ -27,14 +26,10 @@ func (h *Handler) Mount(mux *http.ServeMux) {
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
-	limit := 50
-	if v := r.URL.Query().Get("limit"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil || n < 1 || n > 500 {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid limit")
-			return
-		}
-		limit = n
+	limit, err := httpx.QueryInt(r, "limit", 50, 1, 500)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 	items, err := h.store.List(r.Context(), r.URL.Query().Get("user_id"), limit)
 	if err != nil {
