@@ -1,0 +1,16 @@
+{{- if and .Values.exporter.enabled .Values.exporter.podMonitor }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  podMetricsEndpoints:
+    - port: metrics
+{{- end }}

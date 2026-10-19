@@ -6,3 +6,6 @@ networkPolicy:
   allowFromPods:
     - users
     - orders
+
+monitoring:
+  podMonitor: true

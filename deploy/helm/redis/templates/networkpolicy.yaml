@@ -23,4 +23,15 @@ spec:
       ports:
         - port: 6379
           protocol: TCP
+    {{- if .Values.networkPolicy.metricsFromNamespaces }}
+    - from:
+        {{- range .Values.networkPolicy.metricsFromNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . }}
+        {{- end }}
+      ports:
+        - port: 9121
+          protocol: TCP
+    {{- end }}
 {{- end }}

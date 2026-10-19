@@ -6,3 +6,9 @@ nodeSelector:
 networkPolicy:
   allowFromPods:
     - users
+  metricsFromNamespaces:
+    - monitoring
+
+exporter:
+  enabled: true
+  podMonitor: true

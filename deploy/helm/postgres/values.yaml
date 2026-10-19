@@ -43,6 +43,9 @@ restore:
   enabled: false
   serverName: postgres
 
+monitoring:
+  podMonitor: false
+
 networkPolicy:
   enabled: true
   operatorNamespace: cnpg-system

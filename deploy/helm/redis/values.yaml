@@ -23,6 +23,12 @@ nodeSelector: {}
 
 tolerations: []
 
+exporter:
+  enabled: false
+  image: oliver006/redis_exporter:v1.94.0
+  podMonitor: false
+
 networkPolicy:
   enabled: true
   allowFromPods: []
+  metricsFromNamespaces: []
