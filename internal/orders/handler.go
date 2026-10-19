@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/egor/k3s-base/internal/lib/httpx"
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -31,22 +32,32 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	items, err := h.store.List(r.Context(), r.URL.Query().Get("user_id"), limit)
+	userID := r.URL.Query().Get("user_id")
+	if userID != "" && uuid.Validate(userID) != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid user_id")
+		return
+	}
+	items, err := h.store.List(r.Context(), userID, limit)
 	if err != nil {
-		h.internal(w, r, err)
+		h.respondError(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
-	o, err := h.store.Get(r.Context(), r.PathValue("id"))
+	id := r.PathValue("id")
+	if uuid.Validate(id) != nil {
+		httpx.WriteError(w, http.StatusNotFound, ErrNotFound.Error())
+		return
+	}
+	o, err := h.store.Get(r.Context(), id)
 	if errors.Is(err, ErrNotFound) {
 		httpx.WriteError(w, http.StatusNotFound, err.Error())
 		return
 	}
 	if err != nil {
-		h.internal(w, r, err)
+		h.respondError(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, o)
@@ -69,6 +80,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "user_id, item and non-negative amount_cents are required")
 		return
 	}
+	if uuid.Validate(req.UserID) != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid user_id")
+		return
+	}
 	ok, err := h.users.Exists(r.Context(), req.UserID)
 	if err != nil {
 		h.log.Error("users lookup", "err", err, "request_id", httpx.RequestIDFrom(r.Context()))
@@ -85,7 +100,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		AmountCents: req.AmountCents,
 	}, r.Header.Get("Idempotency-Key"))
 	if err != nil {
-		h.internal(w, r, err)
+		h.respondError(w, r, err)
 		return
 	}
 	status := http.StatusCreated
@@ -95,7 +110,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, status, order)
 }
 
-func (h *Handler) internal(w http.ResponseWriter, r *http.Request, err error) {
+func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, err error) {
 	h.log.Error("orders handler", "err", err, "request_id", httpx.RequestIDFrom(r.Context()))
 	httpx.WriteError(w, http.StatusInternalServerError, "internal error")
 }

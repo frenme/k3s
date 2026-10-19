@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/egor/k3s-base/internal/lib/httpx"
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -33,16 +34,21 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.store.List(r.Context(), limit)
 	if err != nil {
-		h.fail(w, r, err)
+		h.respondError(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
-	u, err := h.store.Get(r.Context(), r.PathValue("id"))
+	id := r.PathValue("id")
+	if uuid.Validate(id) != nil {
+		h.respondError(w, r, ErrNotFound)
+		return
+	}
+	u, err := h.store.Get(r.Context(), id)
 	if err != nil {
-		h.fail(w, r, err)
+		h.respondError(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, u)
@@ -71,13 +77,13 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := h.store.Create(r.Context(), req.Email, req.Name)
 	if err != nil {
-		h.fail(w, r, err)
+		h.respondError(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusCreated, u)
 }
 
-func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
+func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, ErrNotFound):
 		httpx.WriteError(w, http.StatusNotFound, err.Error())

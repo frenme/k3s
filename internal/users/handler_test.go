@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type fakeStore struct {
@@ -38,7 +40,7 @@ func (f *fakeStore) Create(ctx context.Context, email, name string) (User, error
 			return User{}, ErrDuplicate
 		}
 	}
-	u := User{ID: "id-" + email, Email: email, Name: name, CreatedAt: time.Now()}
+	u := User{ID: uuid.NewString(), Email: email, Name: name, CreatedAt: time.Now()}
 	f.items[u.ID] = u
 	return u, nil
 }
@@ -102,6 +104,12 @@ func TestDuplicateAndNotFound(t *testing.T) {
 	post(t, srv.URL+"/users", `{"email":"a@b.co","name":"x"}`)
 	if resp := post(t, srv.URL+"/users", `{"email":"a@b.co","name":"y"}`); resp.StatusCode != http.StatusConflict {
 		t.Fatalf("status %d", resp.StatusCode)
+	}
+	for _, id := range []string{"missing", "33333333-3333-4333-8333-333333333333"} {
+		resp, _ := http.Get(srv.URL + "/users/" + id)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("%s: status %d", id, resp.StatusCode)
+		}
 	}
 	resp, _ := http.Get(srv.URL + "/users/missing")
 	if resp.StatusCode != http.StatusNotFound {
