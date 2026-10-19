@@ -1,0 +1,87 @@
+fullnameOverride: monitoring
+
+defaultRules:
+  rules:
+    etcd: false
+    kubeControllerManager: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeProxy: false
+
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false
+
+prometheusOperator:
+  nodeSelector:
+    role: core
+
+kube-state-metrics:
+  nodeSelector:
+    role: core
+
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    nodeSelector:
+      role: core
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 2Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+alertmanager:
+  alertmanagerSpec:
+    nodeSelector:
+      role: core
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+
+grafana:
+  defaultDashboardsTimezone: browser
+  nodeSelector:
+    role: core
+  persistence:
+    enabled: false
+  sidecar:
+    dashboards:
+      searchNamespace: ALL
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: external
+          orgId: 1
+          folder: Databases
+          type: file
+          disableDeletion: true
+          options:
+            path: /var/lib/grafana/dashboards/external
+  dashboards:
+    external:
+      cloudnative-pg:
+        gnetId: 20417
+        revision: 4
+        datasource: Prometheus

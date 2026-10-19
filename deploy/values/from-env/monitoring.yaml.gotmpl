@@ -1,0 +1,46 @@
+{{- $telegram := dig "telegram" "chatId" 0 .Values.secrets }}
+grafana:
+  adminPassword: {{ .Values.secrets.grafana | quote }}
+  {{- if .Values.grafanaHost }}
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.clusterIssuer }}
+    hosts:
+      - {{ .Values.grafanaHost }}
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - {{ .Values.grafanaHost }}
+  {{- end }}
+
+alertmanager:
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: {{ if $telegram }}telegram{{ else }}"null"{{ end }}
+      group_by: [alertname, namespace, job]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - receiver: "null"
+          matchers:
+            - alertname =~ "Watchdog|InfoInhibitor"
+    inhibit_rules:
+      - source_matchers:
+          - severity = "critical"
+        target_matchers:
+          - severity = "warning"
+        equal: [alertname, namespace]
+    receivers:
+      - name: "null"
+      {{- if $telegram }}
+      - name: telegram
+        telegram_configs:
+          - bot_token: {{ .Values.secrets.telegram.botToken | quote }}
+            chat_id: {{ .Values.secrets.telegram.chatId }}
+            send_resolved: true
+      {{- end }}
