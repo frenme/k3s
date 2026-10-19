@@ -18,6 +18,35 @@ jobs:
       - run: go vet -tags e2e ./e2e
       - run: go test -race -count=1 ./...
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0
+
+  openapi:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v7
+      - run: npx -y @redocly/cli@2.65.0 lint openapi.yaml
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go test -tags integration -count=1 ./...
+
   helm:
     runs-on: ubuntu-latest
     container: ghcr.io/helmfile/helmfile:v1.8.2

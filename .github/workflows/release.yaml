@@ -41,8 +41,16 @@ jobs:
             COMMIT=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          provenance: mode=max
+          sbom: true
           push: true
           tags: ${{ needs.registry.outputs.name }}/${{ matrix.service }}:${{ github.ref_name }}
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ needs.registry.outputs.name }}/${{ matrix.service }}:${{ github.ref_name }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
 
   dev:
     needs: [registry, images]
