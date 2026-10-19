@@ -1,0 +1,17 @@
+#cloud-config
+ssh_pwauth: false
+package_update: true
+package_upgrade: true
+packages:
+  - unattended-upgrades
+write_files:
+  - path: /etc/rancher/k3s/config.yaml
+    permissions: "0600"
+    content: |
+      server: https://${server_ip}:6443
+      token: ${token}
+      node-label:
+        - role=edge
+        - topology.kubernetes.io/region=${region}
+runcmd:
+  - curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${k3s_version} sh -s - agent

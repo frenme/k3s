@@ -6,3 +6,7 @@ dist/
 *.test
 *.out
 kubeconfig*
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfstate.d/

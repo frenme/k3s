@@ -1,0 +1,27 @@
+#cloud-config
+ssh_pwauth: false
+package_update: true
+package_upgrade: true
+packages:
+  - unattended-upgrades
+write_files:
+  - path: /etc/rancher/k3s/config.yaml
+    permissions: "0600"
+    content: |
+      token: ${token}
+      cluster-init: true
+      flannel-backend: wireguard-native
+      write-kubeconfig-mode: "0600"
+      node-label:
+        - role=core
+        - topology.kubernetes.io/region=${region}
+      etcd-snapshot-schedule-cron: "0 */6 * * *"
+      etcd-snapshot-retention: 28
+      etcd-s3: true
+      etcd-s3-endpoint: ${etcd_endpoint}
+      etcd-s3-bucket: ${etcd_bucket}
+      etcd-s3-folder: ${etcd_folder}
+      etcd-s3-access-key: ${s3_access_key}
+      etcd-s3-secret-key: ${s3_secret_key}
+runcmd:
+  - curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${k3s_version} sh -s - server
