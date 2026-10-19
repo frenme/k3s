@@ -48,13 +48,13 @@ spec:
             severity: warning
           annotations:
             summary: "Postgres replica lags {{`{{ $value | humanizeDuration }}`}} behind"
-        - alert: PostgresWalArchivingStale
-          expr: max(cnpg_pg_stat_archiver_seconds_since_last_archival{namespace="{{ $ns }}"}) > {{ .Values.thresholds.walArchiveAgeSeconds }}
-          for: 5m
+        - alert: PostgresWalArchiveBacklog
+          expr: max(cnpg_collector_pg_wal_archive_status{namespace="{{ $ns }}", value="ready"}) > {{ .Values.thresholds.walArchiveBacklog }}
+          for: 10m
           labels:
             severity: critical
           annotations:
-            summary: WAL has not been archived to object storage recently
+            summary: "{{`{{ $value }}`}} WAL segments are waiting to be archived to object storage"
         - alert: PostgresWalArchivingFailing
           expr: increase(cnpg_pg_stat_archiver_failed_count{namespace="{{ $ns }}"}[15m]) > 0
           labels:

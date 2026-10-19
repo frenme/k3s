@@ -9,5 +9,5 @@ thresholds:
   errorRatio: 0.05
   latencyP95Seconds: 0.5
   replicationLagSeconds: 30
-  walArchiveAgeSeconds: 900
+  walArchiveBacklog: 10
   backupAgeHours: 26
