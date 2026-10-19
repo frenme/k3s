@@ -1,4 +1,7 @@
 {{- if .Values.acme.email }}
+{{- if or (contains "example.com" .Values.acme.email) (contains "REPLACE" .Values.acme.email) }}
+{{- fail (printf "acme.email %q is a placeholder, set a real address" .Values.acme.email) }}
+{{- end }}
 {{- range $name, $server := dict "letsencrypt-staging" "https://acme-staging-v02.api.letsencrypt.org/directory" "letsencrypt-prod" "https://acme-v02.api.letsencrypt.org/directory" }}
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
