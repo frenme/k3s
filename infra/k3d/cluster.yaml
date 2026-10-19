@@ -4,6 +4,9 @@ metadata:
   name: k3s-base
 servers: 1
 agents: 2
+kubeAPI:
+  hostIP: 127.0.0.1
+  hostPort: "6550"
 ports:
   - port: 8080:80
     nodeFilters:
