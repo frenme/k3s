@@ -23,6 +23,8 @@ nodeSelector: {}
 
 tolerations: []
 
+nodeFailureTolerationSeconds: 30
+
 exporter:
   enabled: false
   image: oliver006/redis_exporter:v1.94.0
