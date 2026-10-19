@@ -1,13 +1,16 @@
 environments:
   local:
     values:
+      - environments/common.yaml
       - environments/local.yaml
   dev:
     values:
+      - environments/common.yaml
       - environments/dev.yaml
       - environments/secrets.yaml.gotmpl
   prod:
     values:
+      - environments/common.yaml
       - environments/prod.yaml
       - environments/secrets.yaml.gotmpl
 
@@ -56,6 +59,7 @@ templates:
       - redis
       - monitoring/monitoring
     values:
+      - values/derived/app.yaml.gotmpl
       - values/image.yaml.gotmpl
 
 releases:
@@ -150,14 +154,9 @@ releases:
     needs:
       - monitoring/monitoring
 
-  - name: users
-    inherit:
-      - template: app
+{{- range $name, $_ := .Values.apps }}
 
-  - name: orders
+  - name: {{ $name }}
     inherit:
       - template: app
-
-  - name: gateway
-    inherit:
-      - template: app
+{{- end }}

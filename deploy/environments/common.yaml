@@ -1,0 +1,10 @@
+apps:
+  users:
+    database: true
+    cache: true
+    route: true
+  orders:
+    database: true
+    route: true
+  gateway:
+    gateway: true

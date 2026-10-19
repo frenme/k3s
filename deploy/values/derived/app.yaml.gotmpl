@@ -1,0 +1,32 @@
+{{- $name := .Release.Name }}
+{{- $app := index .Values.apps $name }}
+{{- $env := dict }}
+{{- $secret := dict }}
+{{- if dig "database" false $app }}
+{{- $password := required (printf "secrets.postgres.%s must be set" $name) (dig $name "" .Values.secrets.postgres) }}
+{{- $_ := set $secret "DATABASE_URL" (printf "postgres://%s_svc:%s@postgres-rw:5432/app?sslmode=require" $name $password) }}
+{{- if gt (int .Values.postgres.instances) 1 }}
+{{- $_ := set $secret "DATABASE_READ_URL" (printf "postgres://%s_svc:%s@postgres-ro:5432/app?sslmode=require" $name $password) }}
+{{- end }}
+{{- end }}
+{{- if dig "cache" false $app }}
+{{- $_ := set $env "REDIS_ADDR" "redis:6379" }}
+{{- $_ := set $secret "REDIS_PASSWORD" .Values.secrets.redis }}
+{{- end }}
+{{- if dig "gateway" false $app }}
+{{- $routes := list }}
+{{- range $route, $cfg := .Values.apps }}
+{{- if dig "route" false $cfg }}
+{{- $routes = append $routes (printf "%s=http://%s:8080" $route $route) }}
+{{- end }}
+{{- end }}
+{{- $_ := set $env "ROUTES" (join "," $routes) }}
+{{- end }}
+{{- with $env }}
+env:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with $secret }}
+secretEnv:
+  {{- toYaml . | nindent 2 }}
+{{- end }}

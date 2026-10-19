@@ -1,9 +1,11 @@
 instances: {{ .Values.postgres.instances }}
 
 services:
-  {{- range $svc, $password := .Values.secrets.postgres }}
-  {{ $svc }}:
-    password: {{ $password | quote }}
+  {{- range $name, $app := .Values.apps }}
+  {{- if dig "database" false $app }}
+  {{ $name }}:
+    password: {{ required (printf "secrets.postgres.%s must be set" $name) (dig $name "" $.Values.secrets.postgres) | quote }}
+  {{- end }}
   {{- end }}
 
 backup:

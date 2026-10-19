@@ -1,7 +1,5 @@
 env:
-  DB_SCHEMA: users
   DB_MAX_CONNS: "10"
-  REDIS_ADDR: redis:6379
 
 nodeSelector:
   role: core
