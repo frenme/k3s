@@ -1,0 +1,28 @@
+name: deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      registry:
+        type: string
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    container: ghcr.io/helmfile/helmfile:v1.8.2
+    environment: ${{ inputs.environment }}
+    concurrency: deploy-${{ inputs.environment }}
+    env:
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+      KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+      KUBECONFIG: ${{ github.workspace }}/.kubeconfig
+      REGISTRY: ${{ inputs.registry }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: printf '%s' "$KUBECONFIG_DATA" > "$KUBECONFIG"
+      - run: helmfile -f deploy/helmfile.yaml.gotmpl -e ${{ inputs.environment }} sync

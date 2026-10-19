@@ -4,11 +4,17 @@ on:
   push:
     tags: ["v*"]
 
-env:
-  REGISTRY: ghcr.io/${{ github.repository }}
-
 jobs:
+  registry:
+    runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.registry.outputs.name }}
+    steps:
+      - id: registry
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
   images:
+    needs: registry
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -36,4 +42,20 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           push: true
-          tags: ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.ref_name }}
+          tags: ${{ needs.registry.outputs.name }}/${{ matrix.service }}:${{ github.ref_name }}
+
+  dev:
+    needs: [registry, images]
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      environment: dev
+      registry: ${{ needs.registry.outputs.name }}
+    secrets: inherit
+
+  prod:
+    needs: [registry, dev]
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      environment: prod
+      registry: ${{ needs.registry.outputs.name }}
+    secrets: inherit
