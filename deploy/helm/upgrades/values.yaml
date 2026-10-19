@@ -1,0 +1,5 @@
+plans:
+  enabled: false
+  version: ""
+  serviceAccountName: system-upgrade-controller
+  image: rancher/k3s-upgrade

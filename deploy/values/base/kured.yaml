@@ -1,0 +1,11 @@
+configuration:
+  period: 1h
+  startTime: "02:00"
+  endTime: "05:00"
+  timeZone: UTC
+  drainTimeout: 15m
+  prometheusUrl: http://monitoring-prometheus.monitoring:9090
+  alertFilterRegexp: ^(Watchdog|InfoInhibitor)$
+
+tolerations:
+  - operator: Exists

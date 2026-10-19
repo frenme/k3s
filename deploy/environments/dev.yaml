@@ -1,6 +1,9 @@
 namespace: app-dev
 kubeContext: k3s-dev
 acmeEmail: admin@example.com
+clusterIssuer: letsencrypt-staging
+grafanaHost: grafana.dev.example.com
+k3sVersion: v1.35.9+k3s1
 
 postgres:
   instances: 1

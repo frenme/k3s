@@ -1,0 +1,44 @@
+{{- if .Values.plans.enabled }}
+{{- if not .Values.plans.version }}
+{{- fail "plans.version must be set" }}
+{{- end }}
+apiVersion: upgrade.cattle.io/v1
+kind: Plan
+metadata:
+  name: k3s-server
+spec:
+  concurrency: 1
+  cordon: true
+  version: {{ .Values.plans.version }}
+  serviceAccountName: {{ .Values.plans.serviceAccountName }}
+  nodeSelector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/control-plane
+        operator: In
+        values: ["true"]
+  tolerations:
+    - operator: Exists
+  upgrade:
+    image: {{ .Values.plans.image }}
+---
+apiVersion: upgrade.cattle.io/v1
+kind: Plan
+metadata:
+  name: k3s-agent
+spec:
+  concurrency: 1
+  version: {{ .Values.plans.version }}
+  serviceAccountName: {{ .Values.plans.serviceAccountName }}
+  nodeSelector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/control-plane
+        operator: DoesNotExist
+  prepare:
+    image: {{ .Values.plans.image }}
+    args: ["prepare", "k3s-server"]
+  drain:
+    force: true
+    skipWaitForDeleteTimeout: 60
+  upgrade:
+    image: {{ .Values.plans.image }}
+{{- end }}

@@ -18,6 +18,12 @@ repositories:
     url: https://charts.jetstack.io
   - name: cnpg
     url: https://cloudnative-pg.github.io/charts
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+  - name: kubereboot
+    url: https://kubereboot.github.io/charts
+  - name: rancher-charts
+    url: https://charts.rancher.io
 
 helmDefaults:
   kubeContext: {{ .Values.kubeContext }}
@@ -48,10 +54,48 @@ templates:
     needs:
       - postgres
       - redis
+      - monitoring/monitoring
     values:
       - values/image.yaml.gotmpl
 
 releases:
+  - name: monitoring
+    namespace: monitoring
+    chart: prometheus-community/kube-prometheus-stack
+    version: 92.10.1
+    values:
+      - values/base/monitoring.yaml
+      - values/{{ .Environment.Name }}/monitoring.yaml
+      - values/from-env/monitoring.yaml.gotmpl
+
+  - name: observability
+    namespace: monitoring
+    chart: ./helm/observability
+    values:
+      - values/from-env/observability.yaml.gotmpl
+    needs:
+      - monitoring/monitoring
+
+  - name: kured
+    namespace: kube-system
+    chart: kubereboot/kured
+    version: 6.1.0
+    values:
+      - values/base/kured.yaml
+
+  - name: system-upgrade-controller
+    namespace: cattle-system
+    chart: rancher-charts/system-upgrade-controller
+    version: 110.0.0
+
+  - name: upgrades
+    namespace: cattle-system
+    chart: ./helm/upgrades
+    values:
+      - values/from-env/upgrades.yaml.gotmpl
+    needs:
+      - cattle-system/system-upgrade-controller
+
   - name: cert-manager
     namespace: cert-manager
     chart: jetstack/cert-manager
@@ -93,6 +137,7 @@ releases:
     chart: ./helm/postgres
     needs:
       - cnpg-system/barman-cloud
+      - monitoring/monitoring
       {{- if $local }}
       - s3-local
       {{- end }}
@@ -101,6 +146,8 @@ releases:
     inherit:
       - template: layered
     chart: ./helm/redis
+    needs:
+      - monitoring/monitoring
 
   - name: users
     inherit:

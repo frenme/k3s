@@ -1,6 +1,9 @@
 namespace: app
 kubeContext: k3d-k3s-base
 acmeEmail: ""
+clusterIssuer: ""
+grafanaHost: ""
+k3sVersion: ""
 
 postgres:
   instances: 2
@@ -14,6 +17,7 @@ secrets:
     users: dev-users-password
     orders: dev-orders-password
   redis: dev-redis-password
+  grafana: dev-grafana-password
   s3:
     accessKeyId: local-access
     secretAccessKey: local-secret-key
