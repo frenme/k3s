@@ -14,6 +14,8 @@ import (
 
 var (
 	base   = envOr("BASE_URL", "http://localhost:8080")
+	host   = os.Getenv("HOST_HEADER")
+	origin = envOr("CORS_ORIGIN", "http://localhost:5173")
 	client = &http.Client{Timeout: 10 * time.Second}
 )
 
@@ -43,6 +45,9 @@ func call(t *testing.T, method, path string, body any, headers map[string]string
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if host != "" {
+		req.Host = host
+	}
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -69,10 +74,10 @@ func TestUnknownRoute(t *testing.T) {
 
 func TestCORSPreflight(t *testing.T) {
 	r := call(t, http.MethodOptions, "/api/users", nil, map[string]string{
-		"Origin":                        "http://localhost:5173",
+		"Origin":                        origin,
 		"Access-Control-Request-Method": "POST",
 	})
-	if got := r.header.Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
+	if got := r.header.Get("Access-Control-Allow-Origin"); got != origin {
 		t.Fatalf("allow origin %q", got)
 	}
 }
