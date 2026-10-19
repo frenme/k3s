@@ -2,6 +2,7 @@ package pg
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"io/fs"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/egor/k3s-base/internal/lib/config"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -34,9 +36,9 @@ func Connect(ctx context.Context, c Config) (*pgxpool.Pool, error) {
 	cfg.MaxConnLifetime = 30 * time.Minute
 	cfg.HealthCheckPeriod = 30 * time.Second
 
-	var pool *pgxpool.Pool
-	for attempt := 1; attempt <= 30; attempt++ {
-		pool, err = pgxpool.NewWithConfig(ctx, cfg)
+	delay := time.Second
+	for {
+		pool, err := pgxpool.NewWithConfig(ctx, cfg)
 		if err == nil {
 			if err = pool.Ping(ctx); err == nil {
 				return pool, nil
@@ -45,11 +47,11 @@ func Connect(ctx context.Context, c Config) (*pgxpool.Pool, error) {
 		}
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(2 * time.Second):
+			return nil, fmt.Errorf("postgres unavailable: %w", err)
+		case <-time.After(delay):
 		}
+		delay = min(delay*2, 10*time.Second)
 	}
-	return nil, fmt.Errorf("postgres unavailable: %w", err)
 }
 
 type Pools struct {
@@ -86,7 +88,7 @@ func Open(ctx context.Context, defaultSchema string, fsys fs.FS, dir string) (*P
 	if err != nil {
 		return nil, err
 	}
-	if err := Migrate(ctx, write, schema, fsys, dir); err != nil {
+	if err := migrateWhenReady(ctx, write, schema, fsys, dir); err != nil {
 		write.Close()
 		return nil, err
 	}
@@ -100,6 +102,23 @@ func Open(ctx context.Context, defaultSchema string, fsys fs.FS, dir string) (*P
 		pools.Read = read
 	}
 	return pools, nil
+}
+
+func migrateWhenReady(ctx context.Context, pool *pgxpool.Pool, schema string, fsys fs.FS, dir string) error {
+	delay := time.Second
+	for {
+		err := Migrate(ctx, pool, schema, fsys, dir)
+		var pgErr *pgconn.PgError
+		if err == nil || !errors.As(err, &pgErr) || pgErr.Code != "42501" {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(delay):
+		}
+		delay = min(delay*2, 10*time.Second)
+	}
 }
 
 func connectLazy(ctx context.Context, c Config) (*pgxpool.Pool, error) {
