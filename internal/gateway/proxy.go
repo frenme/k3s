@@ -50,7 +50,6 @@ func NewProxy(routes map[string]*url.URL, log *slog.Logger, upstreamTimeout time
 	transport := newTransport(upstreamTimeout)
 	proxies := make(map[string]*httputil.ReverseProxy, len(routes))
 	for name, target := range routes {
-		name := name
 		proxies[name] = &httputil.ReverseProxy{
 			Transport: transport,
 			Rewrite: func(pr *httputil.ProxyRequest) {
