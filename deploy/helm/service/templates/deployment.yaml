@@ -30,9 +30,14 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- with .Values.imagePullSecrets }}
+      {{- if or .Values.imagePullSecrets .Values.registryAuth.server }}
       imagePullSecrets:
+        {{- with .Values.imagePullSecrets }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.registryAuth.server }}
+        - name: {{ include "service.fullname" . }}-registry
+        {{- end }}
       {{- end }}
       automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
@@ -70,7 +75,7 @@ spec:
               path: {{ .Values.probes.startup.path }}
               port: http
             periodSeconds: 2
-            failureThreshold: 30
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.liveness.path }}

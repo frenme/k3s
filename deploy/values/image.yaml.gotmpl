@@ -1,3 +1,9 @@
 image:
   repository: {{ env "REGISTRY" | default "k3s-base" }}/{{ .Release.Name }}
   tag: {{ env "TAG" | default "dev" | quote }}
+{{- with dig "registry" dict .Values.secrets }}
+registryAuth:
+  server: {{ .server | quote }}
+  username: {{ .username | quote }}
+  password: {{ .password | quote }}
+{{- end }}

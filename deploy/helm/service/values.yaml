@@ -8,6 +8,11 @@ image:
 
 imagePullSecrets: []
 
+registryAuth:
+  server: ""
+  username: ""
+  password: ""
+
 replicaCount: 1
 
 containerPort: 8080
@@ -27,6 +32,7 @@ probes:
     path: /readyz
   startup:
     path: /healthz
+    failureThreshold: 150
 
 resources:
   requests:
@@ -84,6 +90,11 @@ networkPolicy:
   enabled: false
   allowFromPods: []
   allowFromNamespaces: []
+
+metrics:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
 
 podAnnotations: {}
 
