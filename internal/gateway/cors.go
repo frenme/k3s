@@ -35,7 +35,7 @@ func (c *CORS) Middleware() httpx.Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
 			w.Header().Add("Vary", "Origin")
-			if origin == "" || !(c.wildcard || c.origins[origin]) {
+			if origin == "" || (!c.wildcard && !c.origins[origin]) {
 				next.ServeHTTP(w, r)
 				return
 			}

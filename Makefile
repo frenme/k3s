@@ -16,12 +16,12 @@ TERRAFORM := terraform -chdir=infra/terraform
 RATE ?= 200
 DURATION ?= 1m
 SSH_USER ?= root
-TOOLS := go docker kubectl helm helmfile sops age k3d terraform kubectl-cnpg
+TOOLS := go golangci-lint docker kubectl helm helmfile sops age k3d terraform kubectl-cnpg
 
 .PHONY: help local-only remote-only doctor
 
 help:
-	@grep -hE '^[a-z0-9-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-14s %s\n", $$1, $$2}'
+	@grep -hE '^[a-z0-9-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-18s %s\n", $$1, $$2}'
 
 local-only:
 	@[ "$(ENV)" = local ] || { echo "this target works only with ENV=local"; exit 1; }

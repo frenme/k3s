@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -127,5 +128,5 @@ func Observe(log *slog.Logger) Middleware {
 }
 
 func statusLabel(code int) string {
-	return string(rune('0'+code/100)) + "xx"
+	return strconv.Itoa(code/100) + "xx"
 }

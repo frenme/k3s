@@ -1,7 +1,7 @@
-.PHONY: fmt vet test lint build images clean
+.PHONY: fmt vet test test-integration lint api-lint build images clean
 
 fmt: ## format go code
-	gofmt -w cmd internal
+	golangci-lint fmt ./...
 
 vet: ## formatting and static checks
 	@test -z "$$(gofmt -l cmd internal)" || { gofmt -l cmd internal; exit 1; }
@@ -10,8 +10,15 @@ vet: ## formatting and static checks
 test: ## unit tests
 	go test -race -count=1 ./...
 
-lint: vet ## vet and lint every release of ENV
+test-integration: ## store and migration tests against a real postgres (needs docker)
+	go test -tags integration -count=1 ./...
+
+lint: vet ## vet, golangci-lint and lint every release of ENV
+	golangci-lint run ./...
 	$(if $(filter local,$(ENV)),,REGISTRY=lint.invalid TAG=lint) $(HELMFILE) lint
+
+api-lint: ## lint the OpenAPI spec
+	cd api && npx -y @redocly/cli@2.65.0 lint openapi.yaml
 
 build: ## build go binaries into bin/
 	@for s in $(GO_SERVICES); do CGO_ENABLED=0 go build -o bin/$$s ./cmd/$$s || exit 1; done

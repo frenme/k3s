@@ -36,7 +36,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, schema string, fsys fs.FS,
 	if _, err := conn.Exec(ctx, "SELECT pg_advisory_lock($1)", lockID); err != nil {
 		return err
 	}
-	defer conn.Exec(context.Background(), "SELECT pg_advisory_unlock($1)", lockID)
+	defer func() { _, _ = conn.Exec(context.Background(), "SELECT pg_advisory_unlock($1)", lockID) }()
 
 	if err := ensureSchema(ctx, conn, schema); err != nil {
 		return err

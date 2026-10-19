@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/egor/k3s-base/internal/lib/httpx"
@@ -26,7 +27,7 @@ func NewUsersClient(baseURL string) *UsersClient {
 }
 
 func (c *UsersClient) Exists(ctx context.Context, id string) (bool, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/users/"+id, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/users/"+url.PathEscape(id), nil)
 	if err != nil {
 		return false, err
 	}
@@ -37,7 +38,7 @@ func (c *UsersClient) Exists(ctx context.Context, id string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	switch resp.StatusCode {
 	case http.StatusOK:
 		return true, nil

@@ -1,0 +1,44 @@
+version: "2"
+
+run:
+  build-tags:
+    - e2e
+    - integration
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - copyloopvar
+    - errorlint
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - revive
+    - unconvert
+    - unparam
+    - usestdlibvars
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - bodyclose
+          - gosec
+          - noctx
+      - path: internal/orders/usersclient\.go
+        linters:
+          - gosec
+        text: G704
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

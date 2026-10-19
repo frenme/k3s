@@ -18,7 +18,7 @@ type Config struct {
 
 func Open(ctx context.Context, defaultSchema string, fsys fs.FS, dir string) (*Pools, error) {
 	schema := config.String("DB_SCHEMA", defaultSchema)
-	maxConns := int32(config.Int("DB_MAX_CONNS", 10))
+	maxConns := config.Int32("DB_MAX_CONNS", 10)
 
 	write, err := Connect(ctx, Config{
 		URL:      config.String("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/app?sslmode=disable"),
