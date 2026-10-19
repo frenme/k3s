@@ -28,6 +28,7 @@ parameters:
 placement:
   preferredNodeLabels: {}
   antiAffinity: required
+  nodeFailureTolerationSeconds: 30
 
 backup:
   enabled: false

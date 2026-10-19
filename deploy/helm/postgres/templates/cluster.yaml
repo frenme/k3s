@@ -64,6 +64,15 @@ spec:
     enablePodAntiAffinity: true
     podAntiAffinityType: {{ .Values.placement.antiAffinity }}
     topologyKey: kubernetes.io/hostname
+    tolerations:
+      - key: node.kubernetes.io/unreachable
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: {{ .Values.placement.nodeFailureTolerationSeconds }}
+      - key: node.kubernetes.io/not-ready
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: {{ .Values.placement.nodeFailureTolerationSeconds }}
     {{- with .Values.placement.preferredNodeLabels }}
     nodeAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
