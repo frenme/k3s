@@ -1,0 +1,13 @@
+apps:
+  - gateway
+  - users
+  - orders
+
+appNamespace: app
+
+thresholds:
+  errorRatio: 0.05
+  latencyP95Seconds: 0.5
+  replicationLagSeconds: 30
+  walArchiveAgeSeconds: 900
+  backupAgeHours: 26

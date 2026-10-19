@@ -1,0 +1,202 @@
+{
+  "title": "Platform services",
+  "uid": "platform-services",
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(http_requests_total, namespace)",
+        "refresh": 2,
+        "current": {}
+      },
+      {
+        "name": "app",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(http_requests_total{namespace=\"$namespace\"}, job)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Requests per second",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (job) (rate(http_requests_total{namespace=\"$namespace\", job=~\"$app\"}[5m]))",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Error ratio (5xx)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (job) (rate(http_requests_total{namespace=\"$namespace\", job=~\"$app\", code=\"5xx\"}[5m])) / sum by (job) (rate(http_requests_total{namespace=\"$namespace\", job=~\"$app\"}[5m]))",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency p95",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", job=~\"$app\"}[5m])))",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Replicas",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count by (job) (up{namespace=\"$namespace\", job=~\"$app\"} == 1)",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests by route",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (job, route, code) (rate(http_requests_total{namespace=\"$namespace\", job=~\"$app\"}[5m]))",
+          "legendFormat": "{{job}} {{route}} {{code}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Cache hit ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(cache_lookups_total{namespace=\"$namespace\", result=\"hit\"}[5m])) / sum(rate(cache_lookups_total{namespace=\"$namespace\"}[5m]))",
+          "legendFormat": "hit ratio"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{{- $apps := join "|" .Values.apps }}
+{{- $ns := .Values.appNamespace }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform
+spec:
+  groups:
+    - name: apps
+      rules:
+        - alert: AppDown
+          expr: sum by (job) (up{namespace="{{ $ns }}", job=~"{{ $apps }}"}) == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{`{{ $labels.job }}`}} has no healthy targets"
+        - alert: AppHighErrorRate
+          expr: |
+            sum by (job) (rate(http_requests_total{namespace="{{ $ns }}", job=~"{{ $apps }}", code="5xx"}[5m]))
+              / sum by (job) (rate(http_requests_total{namespace="{{ $ns }}", job=~"{{ $apps }}"}[5m])) > {{ .Values.thresholds.errorRatio }}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{`{{ $labels.job }}`}} returns more than {{ mulf .Values.thresholds.errorRatio 100 }}% errors"
+        - alert: AppHighLatency
+          expr: |
+            histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket{namespace="{{ $ns }}", job=~"{{ $apps }}"}[5m]))) > {{ .Values.thresholds.latencyP95Seconds }}
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{`{{ $labels.job }}`}} p95 latency is {{`{{ $value | humanizeDuration }}`}}"
+    - name: postgres
+      rules:
+        - alert: PostgresDown
+          expr: count(cnpg_collector_up{namespace="{{ $ns }}"} == 1) == 0 or absent(cnpg_collector_up{namespace="{{ $ns }}"})
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: Postgres has no running instances
+        - alert: PostgresReplicationLag
+          expr: max(cnpg_pg_replication_lag{namespace="{{ $ns }}"}) > {{ .Values.thresholds.replicationLagSeconds }}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Postgres replica lags {{`{{ $value | humanizeDuration }}`}} behind"
+        - alert: PostgresWalArchivingStale
+          expr: max(cnpg_pg_stat_archiver_seconds_since_last_archival{namespace="{{ $ns }}", role="primary"}) > {{ .Values.thresholds.walArchiveAgeSeconds }}
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: WAL has not been archived to object storage recently
+        - alert: PostgresWalArchivingFailing
+          expr: increase(cnpg_pg_stat_archiver_failed_count{namespace="{{ $ns }}"}[15m]) > 0
+          labels:
+            severity: critical
+          annotations:
+            summary: WAL archiving to object storage fails
+        - alert: PostgresBackupStale
+          expr: time() - max(barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{namespace="{{ $ns }}"}) > {{ mul .Values.thresholds.backupAgeHours 3600 }}
+          for: 30m
+          labels:
+            severity: critical
+          annotations:
+            summary: "No successful Postgres backup in the last {{ .Values.thresholds.backupAgeHours }} hours"
+        - alert: PostgresBackupFailed
+          expr: max(barman_cloud_cloudnative_pg_io_last_failed_backup_timestamp{namespace="{{ $ns }}"}) > max(barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{namespace="{{ $ns }}"})
+          labels:
+            severity: critical
+          annotations:
+            summary: The latest Postgres backup failed
+    - name: redis
+      rules:
+        - alert: RedisDown
+          expr: max(redis_up{namespace="{{ $ns }}"}) == 0 or absent(redis_up{namespace="{{ $ns }}"})
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: Redis cache is down, services fall back to the database
