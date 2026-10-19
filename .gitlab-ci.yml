@@ -16,6 +16,31 @@ go:
     - go vet -tags e2e ./e2e
     - go test -race -count=1 ./...
 
+golangci-lint:
+  stage: test
+  image: golangci/golangci-lint:v2.15.0
+  script:
+    - golangci-lint run ./...
+
+openapi:
+  stage: test
+  image: node:24-alpine
+  script:
+    - cd api
+    - npx -y @redocly/cli@2.65.0 lint openapi.yaml
+
+integration:
+  stage: test
+  image: golang:1.26
+  services:
+    - docker:28-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    TESTCONTAINERS_HOST_OVERRIDE: docker
+  script:
+    - go test -tags integration -count=1 ./...
+
 helm:
   stage: test
   image:
@@ -59,7 +84,26 @@ images:
       --build-arg SERVICE=$SERVICE
       --build-arg VERSION=$CI_COMMIT_TAG
       --build-arg COMMIT=$CI_COMMIT_SHA
+      --provenance=mode=max
+      --sbom=true
       --tag $REGISTRY/$SERVICE:$CI_COMMIT_TAG .
+
+scan:
+  stage: build
+  needs: [images]
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+  parallel:
+    matrix:
+      - SERVICE: [gateway, users, orders]
+  variables:
+    TRIVY_USERNAME: $CI_REGISTRY_USER
+    TRIVY_PASSWORD: $CI_REGISTRY_PASSWORD
+  script:
+    - trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 $REGISTRY/$SERVICE:$CI_COMMIT_TAG
 
 .deploy:
   stage: deploy
@@ -75,6 +119,7 @@ images:
 
 deploy-dev:
   extends: .deploy
+  needs: [scan]
   environment:
     name: dev
 
