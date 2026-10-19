@@ -46,7 +46,7 @@ templates:
     values:
       - values/base/{{`{{ .Release.Name }}`}}.yaml
       - values/{{`{{ .Environment.Name }}`}}/{{`{{ .Release.Name }}`}}.yaml
-      - values/from-env/{{`{{ .Release.Name }}`}}.yaml.gotmpl
+      - values/derived/{{`{{ .Release.Name }}`}}.yaml.gotmpl
   app:
     inherit:
       - template: layered
@@ -66,13 +66,13 @@ releases:
     values:
       - values/base/monitoring.yaml
       - values/{{ .Environment.Name }}/monitoring.yaml
-      - values/from-env/monitoring.yaml.gotmpl
+      - values/derived/monitoring.yaml.gotmpl
 
   - name: observability
     namespace: monitoring
     chart: ./helm/observability
     values:
-      - values/from-env/observability.yaml.gotmpl
+      - values/derived/observability.yaml.gotmpl
     needs:
       - monitoring/monitoring
 
@@ -92,7 +92,7 @@ releases:
     namespace: cattle-system
     chart: ./helm/upgrades
     values:
-      - values/from-env/upgrades.yaml.gotmpl
+      - values/derived/upgrades.yaml.gotmpl
     needs:
       - cattle-system/system-upgrade-controller
       - {{ .Values.namespace }}/gateway
@@ -122,7 +122,7 @@ releases:
     namespace: kube-system
     chart: ./helm/cluster
     values:
-      - values/from-env/cluster.yaml.gotmpl
+      - values/derived/cluster.yaml.gotmpl
     needs:
       - cert-manager/cert-manager
 
