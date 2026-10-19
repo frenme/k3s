@@ -4,20 +4,61 @@ package e2e
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/getkin/kin-openapi/routers"
+	"github.com/getkin/kin-openapi/routers/gorillamux"
 )
 
 var (
+	spec   = loadSpec()
 	base   = envOr("BASE_URL", "http://localhost:8080")
 	host   = os.Getenv("HOST_HEADER")
 	origin = envOr("CORS_ORIGIN", "http://localhost:5173")
 	client = &http.Client{Timeout: 10 * time.Second}
 )
+
+func loadSpec() routers.Router {
+	doc, err := openapi3.NewLoader().LoadFromFile("../api/openapi.yaml")
+	if err != nil {
+		panic(err)
+	}
+	if err := doc.Validate(context.Background()); err != nil {
+		panic(err)
+	}
+	router, err := gorillamux.NewRouter(doc)
+	if err != nil {
+		panic(err)
+	}
+	return router
+}
+
+func validate(t *testing.T, req *http.Request, status int, header http.Header, body []byte) {
+	t.Helper()
+	route, params, err := spec.FindRoute(req)
+	if err != nil {
+		return
+	}
+	input := &openapi3filter.ResponseValidationInput{
+		RequestValidationInput: &openapi3filter.RequestValidationInput{Request: req, PathParams: params, Route: route},
+		Status:                 status,
+		Header:                 header,
+		Options:                &openapi3filter.Options{IncludeResponseStatus: true},
+	}
+	input.SetBodyBytes(body)
+	if err := openapi3filter.ValidateResponse(req.Context(), input); err != nil {
+		t.Fatalf("%s %s %d does not match api/openapi.yaml: %v", req.Method, req.URL.Path, status, err)
+	}
+}
 
 func envOr(key, def string) string {
 	if v := os.Getenv(key); v != "" {
@@ -40,7 +81,7 @@ func call(t *testing.T, method, path string, body any, headers map[string]string
 			t.Fatal(err)
 		}
 	}
-	req, err := http.NewRequest(method, base+path, &payload)
+	req, err := http.NewRequestWithContext(t.Context(), method, base+path, &payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,9 +96,14 @@ func call(t *testing.T, method, path string, body any, headers map[string]string
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validate(t, req, resp.StatusCode, resp.Header, raw)
 	out := response{status: resp.StatusCode, header: resp.Header}
-	_ = json.NewDecoder(resp.Body).Decode(&out.body)
+	_ = json.Unmarshal(raw, &out.body)
 	return out
 }
 
