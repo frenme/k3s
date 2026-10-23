@@ -16,6 +16,8 @@ TERRAFORM := terraform -chdir=infra/terraform
 RATE ?= 200
 DURATION ?= 1m
 SSH_USER ?= root
+MCP_IMAGE := grafana/mcp-grafana:2.1.1
+MCP_TOOLS := search,datasource,prometheus,loki,tempo,alerting,dashboard,navigation
 TOOLS := go golangci-lint docker kubectl helm helmfile sops age k3d terraform kubectl-cnpg
 
 .PHONY: help local-only remote-only doctor

@@ -19,10 +19,12 @@
       "customType": "regex",
       "managerFilePatterns": [
         "/deploy/helm/.+/values\\.yaml$/",
-        "/make/.+\\.mk$/"
+        "/make/.+\\.mk$/",
+        "/^Makefile$/"
       ],
       "matchStrings": [
-        "(image|--image)[:=] ?\"?(?<depName>[a-z0-9./_-]+):(?<currentValue>[A-Za-z0-9._-]+)\"?"
+        "(image|--image)[:=] ?\"?(?<depName>[a-z0-9./_-]+):(?<currentValue>[A-Za-z0-9._-]+)\"?",
+        "_IMAGE := (?<depName>[a-z0-9./_-]+):(?<currentValue>[A-Za-z0-9._-]+)"
       ],
       "datasourceTemplate": "docker"
     },

@@ -4,3 +4,6 @@ traefik:
 
 acme:
   email: ""
+
+agent:
+  enabled: true
