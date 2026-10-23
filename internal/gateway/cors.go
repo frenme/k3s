@@ -44,7 +44,7 @@ func (c *CORS) Middleware() httpx.Middleware {
 			h.Set("Access-Control-Expose-Headers", "X-Request-ID")
 			if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
 				h.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-				h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Idempotency-Key, X-Request-ID")
+				h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Idempotency-Key")
 				h.Set("Access-Control-Max-Age", "600")
 				w.WriteHeader(http.StatusNoContent)
 				return

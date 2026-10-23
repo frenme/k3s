@@ -6,31 +6,119 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 var discard = slog.New(slog.NewTextHandler(io.Discard, nil))
 
-func TestRequestIDGenerated(t *testing.T) {
-	var seen string
-	h := Chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		seen = RequestIDFrom(r.Context())
-	}), RequestID())
+func tracedServer(t *testing.T, public bool) (*tracetest.SpanRecorder, http.Handler) {
+	t.Helper()
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	prev := otel.GetTracerProvider()
+	otel.SetTracerProvider(provider)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	t.Cleanup(func() { otel.SetTracerProvider(prev) })
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /items/{id}", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {})
+	return recorder, Chain(mux, Trace("test", public), Observe(discard))
+}
+
+func TestTraceSetsRequestIDAndRouteSpan(t *testing.T) {
+	recorder, h := tracedServer(t, false)
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
-	if seen == "" || rec.Header().Get(RequestIDHeader) != seen {
-		t.Fatalf("request id %q header %q", seen, rec.Header().Get(RequestIDHeader))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/items/42", nil))
+
+	spans := recorder.Ended()
+	if len(spans) != 1 {
+		t.Fatalf("spans %d", len(spans))
+	}
+	if got := spans[0].Name(); got != "GET /items/{id}" {
+		t.Fatalf("span name %q", got)
+	}
+	route := ""
+	for _, a := range spans[0].Attributes() {
+		if a.Key == "http.route" {
+			route = a.Value.AsString()
+		}
+	}
+	if route != "/items/{id}" {
+		t.Fatalf("http.route %q", route)
+	}
+	if got := rec.Header().Get(RequestIDHeader); got != spans[0].SpanContext().TraceID().String() {
+		t.Fatalf("header %q trace %s", got, spans[0].SpanContext().TraceID())
 	}
 }
 
-func TestRequestIDPreserved(t *testing.T) {
-	h := Chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}), RequestID())
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set(RequestIDHeader, "abc")
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-	if rec.Header().Get(RequestIDHeader) != "abc" {
-		t.Fatalf("header %q", rec.Header().Get(RequestIDHeader))
+func TestTraceContinuesIncomingTrace(t *testing.T) {
+	recorder, h := tracedServer(t, false)
+	req := httptest.NewRequest(http.MethodGet, "/items/1", nil)
+	req.Header.Set("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
+	h.ServeHTTP(httptest.NewRecorder(), req)
+	if got := recorder.Ended()[0].SpanContext().TraceID().String(); got != "4bf92f3577b34da6a3ce929d0e0e4736" {
+		t.Fatalf("trace %s", got)
 	}
+}
+
+func TestTracePublicStartsNewTrace(t *testing.T) {
+	recorder, h := tracedServer(t, true)
+	req := httptest.NewRequest(http.MethodGet, "/items/1", nil)
+	req.Header.Set("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
+	h.ServeHTTP(httptest.NewRecorder(), req)
+	span := recorder.Ended()[0]
+	if span.SpanContext().TraceID().String() == "4bf92f3577b34da6a3ce929d0e0e4736" || span.Parent().IsValid() {
+		t.Fatalf("public endpoint continued trace %s", span.SpanContext().TraceID())
+	}
+	if len(span.Links()) != 1 {
+		t.Fatalf("links %d", len(span.Links()))
+	}
+}
+
+func TestTraceSkipsProbes(t *testing.T) {
+	recorder, h := tracedServer(t, false)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	if len(recorder.Ended()) != 0 || rec.Header().Get(RequestIDHeader) != "" {
+		t.Fatalf("probe traced: %d spans", len(recorder.Ended()))
+	}
+}
+
+func TestObserveRecordsExemplar(t *testing.T) {
+	_, h := tracedServer(t, false)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/items/7", nil))
+	traceID := rec.Header().Get(RequestIDHeader)
+
+	families, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range families {
+		if f.GetName() != "http_request_duration_seconds" {
+			continue
+		}
+		for _, m := range f.GetMetric() {
+			for _, b := range m.GetHistogram().GetBucket() {
+				if ex := b.GetExemplar(); ex != nil {
+					for _, l := range ex.GetLabel() {
+						if l.GetName() == "trace_id" && l.GetValue() == traceID {
+							return
+						}
+					}
+				}
+			}
+		}
+	}
+	t.Fatalf("no exemplar with trace_id %s", traceID)
 }
 
 func TestRecover(t *testing.T) {
@@ -54,6 +142,15 @@ func TestObserveKeepsStatus(t *testing.T) {
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/x", nil))
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status %d", rec.Code)
+	}
+}
+
+func TestRoutePath(t *testing.T) {
+	cases := map[string]string{"GET /items/{id}": "/items/{id}", "/api/": "/api/"}
+	for pattern, want := range cases {
+		if got := routePath(pattern); got != want {
+			t.Fatalf("%s: got %s", pattern, got)
+		}
 	}
 }
 

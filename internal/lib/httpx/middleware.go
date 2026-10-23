@@ -1,24 +1,21 @@
 package httpx
 
 import (
-	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Middleware func(http.Handler) http.Handler
-
-type ctxKey int
-
-const requestIDKey ctxKey = 1
 
 const RequestIDHeader = "X-Request-ID"
 
@@ -62,25 +59,23 @@ func Chain(h http.Handler, mws ...Middleware) http.Handler {
 	return h
 }
 
-func RequestIDFrom(ctx context.Context) string {
-	id, _ := ctx.Value(requestIDKey).(string)
-	return id
+func Trace(operation string, public bool) Middleware {
+	return func(next http.Handler) http.Handler {
+		inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if sc := trace.SpanContextFromContext(r.Context()); sc.IsValid() {
+				w.Header().Set(RequestIDHeader, sc.TraceID().String())
+			}
+			next.ServeHTTP(w, r)
+		})
+		return otelhttp.NewHandler(inner, operation,
+			otelhttp.WithFilter(func(r *http.Request) bool { return !isProbe(r.URL.Path) }),
+			otelhttp.WithPublicEndpointFn(func(*http.Request) bool { return public }),
+		)
+	}
 }
 
-func RequestID() Middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			id := r.Header.Get(RequestIDHeader)
-			if id == "" {
-				b := make([]byte, 8)
-				_, _ = rand.Read(b)
-				id = hex.EncodeToString(b)
-			}
-			w.Header().Set(RequestIDHeader, id)
-			r.Header.Set(RequestIDHeader, id)
-			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestIDKey, id)))
-		})
-	}
+func isProbe(path string) bool {
+	return path == "/healthz" || path == "/readyz" || path == "/metrics"
 }
 
 func Recover(log *slog.Logger) Middleware {
@@ -88,7 +83,7 @@ func Recover(log *slog.Logger) Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if rec := recover(); rec != nil {
-					log.Error("panic", "panic", rec, "stack", string(debug.Stack()), "request_id", RequestIDFrom(r.Context()))
+					log.ErrorContext(r.Context(), "panic", "panic", rec, "stack", string(debug.Stack()))
 					WriteError(w, http.StatusInternalServerError, "internal error")
 				}
 			}()
@@ -112,19 +107,39 @@ func Observe(log *slog.Logger) Middleware {
 			}
 			elapsed := time.Since(start)
 			requestsTotal.WithLabelValues(r.Method, route, statusLabel(sw.status)).Inc()
-			requestDuration.WithLabelValues(r.Method, route).Observe(elapsed.Seconds())
-			if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" || r.URL.Path == "/metrics" {
+			observeDuration(r, route, elapsed)
+			if isProbe(r.URL.Path) {
 				return
 			}
-			log.Info("request",
+			if r.Pattern != "" {
+				trace.SpanFromContext(r.Context()).SetAttributes(semconv.HTTPRoute(routePath(r.Pattern)))
+			}
+			log.InfoContext(r.Context(), "request",
 				"method", r.Method,
 				"path", r.URL.Path,
+				"route", route,
 				"status", sw.status,
 				"duration_ms", elapsed.Milliseconds(),
-				"request_id", RequestIDFrom(r.Context()),
 			)
 		})
 	}
+}
+
+func routePath(pattern string) string {
+	if _, path, ok := strings.Cut(pattern, " "); ok {
+		return path
+	}
+	return pattern
+}
+
+func observeDuration(r *http.Request, route string, elapsed time.Duration) {
+	observer := requestDuration.WithLabelValues(r.Method, route)
+	sc := trace.SpanContextFromContext(r.Context())
+	if eo, ok := observer.(prometheus.ExemplarObserver); ok && sc.IsSampled() {
+		eo.ObserveWithExemplar(elapsed.Seconds(), prometheus.Labels{"trace_id": sc.TraceID().String()})
+		return
+	}
+	observer.Observe(elapsed.Seconds())
 }
 
 func statusLabel(code int) string {

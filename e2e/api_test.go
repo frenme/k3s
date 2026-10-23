@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -116,6 +117,20 @@ func expect(t *testing.T, r response, status int) {
 
 func TestUnknownRoute(t *testing.T) {
 	expect(t, call(t, http.MethodGet, "/api/unknown", nil, nil), http.StatusNotFound)
+}
+
+func TestRequestIDIsFreshTraceID(t *testing.T) {
+	r := call(t, http.MethodGet, "/api/users?limit=1", nil, map[string]string{
+		"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+	})
+	expect(t, r, http.StatusOK)
+	ids := r.header.Values("X-Request-ID")
+	if len(ids) != 1 || !regexp.MustCompile(`^[0-9a-f]{32}$`).MatchString(ids[0]) {
+		t.Fatalf("X-Request-ID %v", ids)
+	}
+	if ids[0] == "4bf92f3577b34da6a3ce929d0e0e4736" {
+		t.Fatal("gateway continued a client supplied trace")
+	}
 }
 
 func TestCORSPreflight(t *testing.T) {

@@ -86,7 +86,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	ok, err := h.users.Exists(r.Context(), req.UserID)
 	if err != nil {
-		h.log.Error("users lookup", "err", err, "request_id", httpx.RequestIDFrom(r.Context()))
+		h.log.ErrorContext(r.Context(), "users lookup", "err", err)
 		httpx.WriteError(w, http.StatusBadGateway, "users service unavailable")
 		return
 	}
@@ -111,6 +111,6 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, err error) {
-	h.log.Error("orders handler", "err", err, "request_id", httpx.RequestIDFrom(r.Context()))
+	h.log.ErrorContext(r.Context(), "orders handler", "err", err)
 	httpx.WriteError(w, http.StatusInternalServerError, "internal error")
 }

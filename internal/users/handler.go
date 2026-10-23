@@ -90,7 +90,7 @@ func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, err error
 	case errors.Is(err, ErrDuplicate):
 		httpx.WriteError(w, http.StatusConflict, err.Error())
 	default:
-		h.log.Error("users handler", "err", err, "request_id", httpx.RequestIDFrom(r.Context()))
+		h.log.ErrorContext(r.Context(), "users handler", "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal error")
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/egor/k3s-base/internal/lib/httpx"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type UserChecker interface {
@@ -22,7 +22,7 @@ type UsersClient struct {
 func NewUsersClient(baseURL string) *UsersClient {
 	return &UsersClient{
 		baseURL: baseURL,
-		http:    &http.Client{Timeout: 3 * time.Second},
+		http:    &http.Client{Timeout: 3 * time.Second, Transport: otelhttp.NewTransport(http.DefaultTransport)},
 	}
 }
 
@@ -30,9 +30,6 @@ func (c *UsersClient) Exists(ctx context.Context, id string) (bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/users/"+url.PathEscape(id), nil)
 	if err != nil {
 		return false, err
-	}
-	if rid := httpx.RequestIDFrom(ctx); rid != "" {
-		req.Header.Set(httpx.RequestIDHeader, rid)
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {

@@ -30,8 +30,8 @@ func ServerConfigFromEnv() ServerConfig {
 	}
 }
 
-func Serve(ctx context.Context, log *slog.Logger, health *Health, mux http.Handler) error {
-	handler := Chain(mux, RequestID(), Recover(log), Observe(log))
+func Serve(ctx context.Context, name string, public bool, log *slog.Logger, health *Health, mux http.Handler) error {
+	handler := Chain(mux, Trace(name, public), Recover(log), Observe(log))
 	return Run(ctx, ServerConfigFromEnv(), handler, health, log)
 }
 

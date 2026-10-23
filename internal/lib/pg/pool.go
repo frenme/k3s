@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/egor/k3s-base/internal/lib/config"
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -91,6 +92,7 @@ func poolConfig(c Config) (*pgxpool.Config, error) {
 	}
 	cfg.MaxConnLifetime = 30 * time.Minute
 	cfg.HealthCheckPeriod = 30 * time.Second
+	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
 	return cfg, nil
 }
 

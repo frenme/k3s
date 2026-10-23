@@ -13,6 +13,7 @@ import (
 
 func main() {
 	app.Run("gateway", func(ctx context.Context, s *app.Service) error {
+		s.Public = true
 		routes, err := gateway.ParseRoutes(config.String("ROUTES", "users=http://users:8080,orders=http://orders:8080"))
 		if err != nil {
 			return err

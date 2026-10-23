@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/egor/k3s-base/internal/lib/cache"
 	"github.com/egor/k3s-base/internal/lib/config"
@@ -15,10 +16,12 @@ import (
 	"github.com/egor/k3s-base/internal/lib/logx"
 	"github.com/egor/k3s-base/internal/lib/pg"
 	"github.com/egor/k3s-base/internal/lib/rds"
+	"github.com/egor/k3s-base/internal/lib/tracing"
 )
 
 type Service struct {
 	Name    string
+	Public  bool
 	Log     *slog.Logger
 	Health  *httpx.Health
 	Mux     *http.ServeMux
@@ -45,10 +48,19 @@ func Run(name string, setup func(ctx context.Context, s *Service) error) {
 
 func (s *Service) run(ctx context.Context, setup func(ctx context.Context, s *Service) error) error {
 	defer s.close()
+	shutdown, err := tracing.Setup(ctx, s.Name)
+	if err != nil {
+		return err
+	}
+	s.OnClose(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdown(ctx)
+	})
 	if err := setup(ctx, s); err != nil {
 		return err
 	}
-	return httpx.Serve(ctx, s.Log, s.Health, s.Mux)
+	return httpx.Serve(ctx, s.Name, s.Public, s.Log, s.Health, s.Mux)
 }
 
 func (s *Service) OnClose(fn func()) {

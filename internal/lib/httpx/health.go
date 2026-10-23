@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/egor/k3s-base/internal/lib/version"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -57,5 +58,5 @@ func (h *Health) Mount(mux *http.ServeMux) {
 	mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusOK, map[string]string{"version": version.Version, "commit": version.Commit})
 	})
-	mux.Handle("GET /metrics", promhttp.Handler())
+	mux.Handle("GET /metrics", promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{EnableOpenMetrics: true}))
 }

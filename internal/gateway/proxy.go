@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/egor/k3s-base/internal/lib/httpx"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func ParseRoutes(spec string) (map[string]*url.URL, error) {
@@ -47,7 +48,7 @@ func newTransport(timeout time.Duration) *http.Transport {
 }
 
 func NewProxy(routes map[string]*url.URL, log *slog.Logger, upstreamTimeout time.Duration) http.Handler {
-	transport := newTransport(upstreamTimeout)
+	transport := otelhttp.NewTransport(newTransport(upstreamTimeout))
 	proxies := make(map[string]*httputil.ReverseProxy, len(routes))
 	for name, target := range routes {
 		proxies[name] = &httputil.ReverseProxy{
@@ -61,8 +62,12 @@ func NewProxy(routes map[string]*url.URL, log *slog.Logger, upstreamTimeout time
 				}
 				pr.SetXForwarded()
 			},
+			ModifyResponse: func(resp *http.Response) error {
+				resp.Header.Del(httpx.RequestIDHeader)
+				return nil
+			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-				log.Error("upstream error", "upstream", name, "err", err, "request_id", httpx.RequestIDFrom(r.Context()))
+				log.ErrorContext(r.Context(), "upstream error", "upstream", name, "err", err)
 				httpx.WriteError(w, http.StatusBadGateway, "upstream unavailable")
 			},
 		}

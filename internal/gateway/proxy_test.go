@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
 func TestParseRoutes(t *testing.T) {
@@ -27,6 +29,7 @@ func TestParseRoutes(t *testing.T) {
 
 func TestProxyRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(httpx.RequestIDHeader, "upstream")
 		_, _ = io.WriteString(w, r.URL.Path+"?"+r.URL.RawQuery)
 	}))
 	defer upstream.Close()
@@ -43,6 +46,9 @@ func TestProxyRoutes(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	if string(body) != "/users/abc?limit=2" {
 		t.Fatalf("body %q", body)
+	}
+	if ids := resp.Header.Values(httpx.RequestIDHeader); len(ids) != 0 {
+		t.Fatalf("upstream request id leaked: %v", ids)
 	}
 
 	resp, _ = http.Get(srv.URL + "/api/nothing")
