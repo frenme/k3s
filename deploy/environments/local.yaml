@@ -4,6 +4,7 @@ acmeEmail: ""
 clusterIssuer: ""
 grafanaHost: ""
 k3sVersion: ""
+telemetryRetention: 48h
 
 postgres:
   backupServerName: postgres

@@ -1,0 +1,20 @@
+fullnameOverride: tempo
+
+tempo:
+  reportingEnabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 1Gi
+
+persistence:
+  enabled: true
+  size: 10Gi
+
+nodeSelector:
+  role: core
+
+serviceMonitor:
+  enabled: true

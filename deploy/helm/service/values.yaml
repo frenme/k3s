@@ -25,6 +25,10 @@ env: {}
 
 secretEnv: {}
 
+tracing:
+  endpoint: ""
+  environment: ""
+
 probes:
   liveness:
     path: /healthz

@@ -4,6 +4,7 @@ acmeEmail: REPLACE_WITH_ACME_EMAIL
 clusterIssuer: letsencrypt-prod
 grafanaHost: grafana.example.com
 k3sVersion: v1.35.9+k3s1
+telemetryRetention: 336h
 
 postgres:
   backupServerName: postgres

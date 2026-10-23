@@ -22,6 +22,9 @@
 {{- end }}
 {{- $_ := set $env "ROUTES" (join "," $routes) }}
 {{- end }}
+tracing:
+  endpoint: http://tempo.monitoring:4318
+  environment: {{ .Environment.Name }}
 {{- with $env }}
 env:
   {{- toYaml . | nindent 2 }}
