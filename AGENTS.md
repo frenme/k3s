@@ -6,7 +6,7 @@ Guide for AI agents (Cursor, Claude Code, Codex) working on this repository and 
 
 - `cmd/<service>` entrypoints, `internal/<service>` handlers and stores, `internal/lib` shared code (app bootstrap, httpx, pg, rds, logx, tracing).
 - `api/openapi.yaml` public API, validated by `e2e`.
-- `deploy/helmfile.yaml.gotmpl` every release; `deploy/environments/*.yaml` per-env settings; `deploy/values/{base,local,dev,prod,derived}` release values; `deploy/helm/*` own charts.
+- `infra/deploy/helmfile.yaml.gotmpl` every release; `infra/deploy/environments/*.yaml` per-env settings; `infra/deploy/values/{base,local,dev,prod,derived}` release values; `infra/deploy/helm/*` own charts.
 - `infra/terraform` Hetzner servers, `infra/k3d` local cluster.
 - `make help` lists every command.
 

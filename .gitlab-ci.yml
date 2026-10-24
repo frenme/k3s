@@ -5,7 +5,7 @@ stages:
 
 variables:
   REGISTRY: $CI_REGISTRY_IMAGE
-  HELMFILE: helmfile -f deploy/helmfile.yaml.gotmpl
+  HELMFILE: helmfile -f infra/deploy/helmfile.yaml.gotmpl
 
 go:
   stage: test

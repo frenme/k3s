@@ -1,5 +1,5 @@
 data "sops_file" "secrets" {
-  source_file = "${path.module}/../../deploy/environments/${var.environment}.secrets.yaml"
+  source_file = "${path.module}/../deploy/environments/${var.environment}.secrets.yaml"
 }
 
 locals {

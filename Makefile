@@ -11,7 +11,7 @@ GO_SERVICES := $(notdir $(wildcard cmd/*))
 NAMESPACE := $(if $(filter local,$(ENV)),app,app-$(ENV))
 CONTEXT := $(if $(filter local,$(ENV)),k3d-$(CLUSTER),k3s-$(ENV))
 KUBECTL := kubectl --context $(CONTEXT) -n $(NAMESPACE)
-HELMFILE := helmfile -f deploy/helmfile.yaml.gotmpl -e $(ENV)
+HELMFILE := helmfile -f infra/deploy/helmfile.yaml.gotmpl -e $(ENV)
 TERRAFORM := terraform -chdir=infra/terraform
 SSH_USER ?= root
 MCP_IMAGE := grafana/mcp-grafana:2.1.1

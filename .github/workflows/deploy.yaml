@@ -25,4 +25,4 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: printf '%s' "$KUBECONFIG_DATA" > "$KUBECONFIG"
-      - run: helmfile -f deploy/helmfile.yaml.gotmpl -e ${{ inputs.environment }} sync
+      - run: helmfile -f infra/deploy/helmfile.yaml.gotmpl -e ${{ inputs.environment }} sync
