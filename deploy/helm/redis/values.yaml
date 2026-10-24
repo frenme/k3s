@@ -32,5 +32,4 @@ exporter:
 
 networkPolicy:
   enabled: true
-  allowFromPods: []
   metricsFromNamespaces: []

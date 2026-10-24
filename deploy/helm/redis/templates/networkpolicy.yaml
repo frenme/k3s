@@ -15,11 +15,7 @@ spec:
     - Ingress
   ingress:
     - from:
-        {{- range .Values.networkPolicy.allowFromPods }}
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: {{ . }}
-        {{- end }}
+        - podSelector: {}
       ports:
         - port: 6379
           protocol: TCP

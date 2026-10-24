@@ -9,10 +9,8 @@
 {{- $_ := set $secret "DATABASE_READ_URL" (printf "postgres://%s_svc:%s@postgres-ro:5432/app?sslmode=require" $name $password) }}
 {{- end }}
 {{- end }}
-{{- if dig "cache" false $app }}
 {{- $_ := set $env "REDIS_ADDR" "redis:6379" }}
 {{- $_ := set $secret "REDIS_PASSWORD" .Values.secrets.redis }}
-{{- end }}
 {{- if dig "gateway" false $app }}
 {{- $routes := list }}
 {{- range $route, $cfg := .Values.apps }}

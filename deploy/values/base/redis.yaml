@@ -4,8 +4,6 @@ nodeSelector:
   role: core
 
 networkPolicy:
-  allowFromPods:
-    - users
   metricsFromNamespaces:
     - monitoring
 
