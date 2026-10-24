@@ -13,8 +13,6 @@ CONTEXT := $(if $(filter local,$(ENV)),k3d-$(CLUSTER),k3s-$(ENV))
 KUBECTL := kubectl --context $(CONTEXT) -n $(NAMESPACE)
 HELMFILE := helmfile -f deploy/helmfile.yaml.gotmpl -e $(ENV)
 TERRAFORM := terraform -chdir=infra/terraform
-RATE ?= 200
-DURATION ?= 1m
 SSH_USER ?= root
 MCP_IMAGE := grafana/mcp-grafana:2.1.1
 MCP_TOOLS := search,datasource,prometheus,loki,tempo,alerting,dashboard,navigation

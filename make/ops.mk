@@ -1,4 +1,4 @@
-.PHONY: deploy template destroy status logs restart loadtest grafana db-status db-promote psql backup-now kubeconfig agent-kubeconfig mcp
+.PHONY: deploy template destroy status logs restart grafana db-status db-promote psql backup-now kubeconfig agent-kubeconfig mcp
 
 deploy: ## deploy everything to ENV
 	$(HELMFILE) sync
@@ -18,9 +18,6 @@ logs: ## tail logs: make logs s=users
 restart: ## rolling restart: make restart s=gateway
 	$(KUBECTL) rollout restart deployment/$(s)
 	$(KUBECTL) rollout status deployment/$(s)
-
-loadtest: ## k6 load test from inside the cluster: make loadtest RATE=300 DURATION=2m
-	$(KUBECTL) run k6 --rm -i --restart=Never --image=grafana/k6:1.8.2 -- run -e RATE=$(RATE) -e DURATION=$(DURATION) - < test/load/api.js
 
 grafana: ## open grafana on http://localhost:3000
 	kubectl --context $(CONTEXT) -n monitoring port-forward svc/monitoring-grafana 3000:80
