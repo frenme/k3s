@@ -1,28 +1,27 @@
-{{- if .Values.networkPolicy.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Values.name }}
+  name: postgres
   labels:
     {{- include "postgres.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      cnpg.io/cluster: {{ .Values.name }}
+      cnpg.io/cluster: postgres
   policyTypes:
     - Ingress
   ingress:
     - from:
         - podSelector:
             matchLabels:
-              cnpg.io/cluster: {{ .Values.name }}
+              cnpg.io/cluster: postgres
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: {{ .Values.networkPolicy.operatorNamespace }}
-        {{- range .Values.networkPolicy.allowFromPods }}
+              kubernetes.io/metadata.name: cnpg-system
+        {{- range $svc, $_ := .Values.services }}
         - podSelector:
             matchLabels:
-              app.kubernetes.io/name: {{ . }}
+              app.kubernetes.io/name: {{ $svc }}
         {{- end }}
       ports:
         - port: 5432
@@ -32,4 +31,3 @@ spec:
           protocol: TCP
         - port: 9187
           protocol: TCP
-{{- end }}

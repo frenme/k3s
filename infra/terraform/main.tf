@@ -39,7 +39,7 @@ resource "hcloud_firewall" "base" {
     direction  = "in"
     protocol   = "tcp"
     port       = "6443"
-    source_ips = length(var.api_cidrs) > 0 ? var.api_cidrs : var.admin_cidrs
+    source_ips = var.admin_cidrs
   }
 
   rule {

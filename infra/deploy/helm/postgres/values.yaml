@@ -1,16 +1,11 @@
-name: postgres
-
 instances: 2
 
 image: ghcr.io/cloudnative-pg/postgresql:17
-
-database: app
 
 services: {}
 
 storage:
   size: 5Gi
-  storageClass: ""
 
 resources:
   requests:
@@ -25,29 +20,15 @@ parameters:
   effective_cache_size: 384MB
   max_slot_wal_keep_size: 2GB
 
-placement:
-  preferredNodeLabels: {}
-  antiAffinity: required
-  nodeFailureTolerationSeconds: 30
-
 backup:
   enabled: false
   serverName: ""
   destinationPath: ""
   endpointURL: ""
   retention: 7d
-  schedule: "0 0 3 * * *"
   accessKeyId: ""
   secretAccessKey: ""
 
 restore:
   enabled: false
   serverName: postgres
-
-monitoring:
-  podMonitor: false
-
-networkPolicy:
-  enabled: true
-  operatorNamespace: cnpg-system
-  allowFromPods: []

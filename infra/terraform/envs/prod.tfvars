@@ -6,8 +6,6 @@ ssh_public_keys = [
 
 admin_cidrs = ["REPLACE_WITH_YOUR_IP/32"]
 
-api_cidrs = []
-
 server = {
   location    = "fsn1"
   server_type = "cpx41"

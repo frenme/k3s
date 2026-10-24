@@ -1,14 +1,11 @@
 image:
   repository: redis
   tag: 7-alpine
-  pullPolicy: IfNotPresent
 
 auth:
   password: ""
 
 maxmemory: 256mb
-
-maxmemoryPolicy: allkeys-lru
 
 resources:
   requests:
@@ -16,12 +13,3 @@ resources:
     memory: 128Mi
   limits:
     memory: 320Mi
-
-nodeSelector: {}
-
-tolerations: []
-
-nodeFailureTolerationSeconds: 30
-
-networkPolicy:
-  enabled: true

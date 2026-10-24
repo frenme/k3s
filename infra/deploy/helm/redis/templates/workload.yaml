@@ -31,7 +31,7 @@ spec:
       containers:
         - name: redis
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: IfNotPresent
           args: ["redis-server", "/etc/redis/redis.conf"]
           env:
             - name: REDISCLI_AUTH
@@ -69,19 +69,14 @@ spec:
             items:
               - key: redis.conf
                 path: redis.conf
-      {{- with .Values.nodeSelector }}
       nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        role: core
       tolerations:
         - key: node.kubernetes.io/unreachable
           operator: Exists
           effect: NoExecute
-          tolerationSeconds: {{ .Values.nodeFailureTolerationSeconds }}
+          tolerationSeconds: 30
         - key: node.kubernetes.io/not-ready
           operator: Exists
           effect: NoExecute
-          tolerationSeconds: {{ .Values.nodeFailureTolerationSeconds }}
-        {{- with .Values.tolerations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+          tolerationSeconds: 30

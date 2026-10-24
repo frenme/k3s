@@ -1,9 +1,9 @@
-apps:
-  - gateway
-  - users
-  - orders
+acme:
+  email: ""
 
 appNamespace: app
+
+apps: []
 
 backups: true
 
@@ -13,3 +13,11 @@ thresholds:
   replicationLagSeconds: 30
   walArchiveBacklog: 10
   backupAgeHours: 26
+
+k3sVersion: ""
+
+upgradeWindow:
+  days: ["sunday"]
+  startTime: "03:00"
+  endTime: "06:00"
+  timeZone: UTC

@@ -1,4 +1,7 @@
 {{- $name := .Release.Name }}
+image:
+  repository: {{ env "REGISTRY" | default "k3s-base" }}/{{ $name }}
+  tag: {{ env "TAG" | default "dev" | quote }}
 {{- $app := index .Values.apps $name }}
 {{- $env := dict }}
 {{- $secret := dict }}

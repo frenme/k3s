@@ -10,11 +10,6 @@ variable "admin_cidrs" {
   type = list(string)
 }
 
-variable "api_cidrs" {
-  type    = list(string)
-  default = []
-}
-
 variable "image" {
   type    = string
   default = "ubuntu-24.04"

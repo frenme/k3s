@@ -1,6 +1,0 @@
-apiVersion: v2
-name: upgrades
-description: Automated k3s upgrades through system-upgrade-controller plans
-type: application
-version: 0.1.0
-appVersion: v0.20.1

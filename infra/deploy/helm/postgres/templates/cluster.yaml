@@ -1,7 +1,7 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: {{ .Values.name }}
+  name: postgres
   labels:
     {{- include "postgres.labels" . | nindent 4 }}
 spec:
@@ -11,9 +11,6 @@ spec:
   enableSuperuserAccess: false
   storage:
     size: {{ .Values.storage.size }}
-    {{- with .Values.storage.storageClass }}
-    storageClass: {{ . }}
-    {{- end }}
   resources:
     {{- toYaml .Values.resources | nindent 4 }}
   postgresql:
@@ -25,12 +22,12 @@ spec:
     {{- if .Values.restore.enabled }}
     recovery:
       source: origin
-      database: {{ .Values.database }}
-      owner: {{ .Values.database }}
+      database: app
+      owner: app
     {{- else }}
     initdb:
-      database: {{ .Values.database }}
-      owner: {{ .Values.database }}
+      database: app
+      owner: app
     {{- end }}
   {{- if .Values.restore.enabled }}
   externalClusters:
@@ -38,7 +35,7 @@ spec:
       plugin:
         name: barman-cloud.cloudnative-pg.io
         parameters:
-          barmanObjectName: {{ .Values.name }}-backup
+          barmanObjectName: postgres-backup
           serverName: {{ .Values.restore.serverName }}
   {{- end }}
   {{- with .Values.services }}
@@ -49,7 +46,7 @@ spec:
         ensure: present
         login: true
         passwordSecret:
-          name: {{ $.Values.name }}-{{ $svc }}
+          name: postgres-{{ $svc }}
       {{- end }}
   {{- end }}
   {{- if .Values.backup.enabled }}
@@ -57,31 +54,27 @@ spec:
     - name: barman-cloud.cloudnative-pg.io
       isWALArchiver: true
       parameters:
-        barmanObjectName: {{ .Values.name }}-backup
-        serverName: {{ default .Values.name .Values.backup.serverName }}
+        barmanObjectName: postgres-backup
+        serverName: {{ default "postgres" .Values.backup.serverName }}
   {{- end }}
   affinity:
     enablePodAntiAffinity: true
-    podAntiAffinityType: {{ .Values.placement.antiAffinity }}
+    podAntiAffinityType: required
     topologyKey: kubernetes.io/hostname
     tolerations:
       - key: node.kubernetes.io/unreachable
         operator: Exists
         effect: NoExecute
-        tolerationSeconds: {{ .Values.placement.nodeFailureTolerationSeconds }}
+        tolerationSeconds: 30
       - key: node.kubernetes.io/not-ready
         operator: Exists
         effect: NoExecute
-        tolerationSeconds: {{ .Values.placement.nodeFailureTolerationSeconds }}
-    {{- with .Values.placement.preferredNodeLabels }}
+        tolerationSeconds: 30
     nodeAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
         - weight: 100
           preference:
             matchExpressions:
-              {{- range $k, $v := . }}
-              - key: {{ $k }}
+              - key: role
                 operator: In
-                values: [{{ $v | quote }}]
-              {{- end }}
-    {{- end }}
+                values: ["core"]

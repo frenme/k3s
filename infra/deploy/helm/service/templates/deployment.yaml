@@ -5,14 +5,11 @@ metadata:
   labels:
     {{- include "service.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: {{ .Values.strategy.maxUnavailable }}
-      maxSurge: {{ .Values.strategy.maxSurge }}
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       {{- include "service.selectorLabels" . | nindent 6 }}
@@ -28,7 +25,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
@@ -37,17 +34,22 @@ spec:
       containers:
         - name: app
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: IfNotPresent
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            runAsUser: 65532
+            runAsGroup: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
           ports:
             - name: http
-              containerPort: {{ .Values.containerPort }}
+              containerPort: 8080
           env:
             - name: HTTP_ADDR
-              value: ":{{ .Values.containerPort }}"
+              value: ":8080"
             - name: DRAIN_DELAY
-              value: {{ .Values.drainDelay | quote }}
+              value: 5s
             - name: GRACE_TIMEOUT
               value: "{{ max 5 (sub (int .Values.terminationGracePeriodSeconds) 10) }}s"
             {{- with .Values.tracing.endpoint }}
@@ -75,19 +77,19 @@ spec:
           {{- end }}
           startupProbe:
             httpGet:
-              path: {{ .Values.probes.startup.path }}
+              path: /healthz
               port: http
             periodSeconds: 2
-            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+            failureThreshold: 150
           livenessProbe:
             httpGet:
-              path: {{ .Values.probes.liveness.path }}
+              path: /healthz
               port: http
             periodSeconds: 10
             timeoutSeconds: 2
           readinessProbe:
             httpGet:
-              path: {{ .Values.probes.readiness.path }}
+              path: /readyz
               port: http
             periodSeconds: 3
             timeoutSeconds: 2
@@ -101,20 +103,15 @@ spec:
         - key: node.kubernetes.io/unreachable
           operator: Exists
           effect: NoExecute
-          tolerationSeconds: {{ .Values.nodeFailureTolerationSeconds }}
+          tolerationSeconds: 30
         - key: node.kubernetes.io/not-ready
           operator: Exists
           effect: NoExecute
-          tolerationSeconds: {{ .Values.nodeFailureTolerationSeconds }}
-        {{- with .Values.tolerations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      {{- if .Values.spread.enabled }}
+          tolerationSeconds: 30
       topologySpreadConstraints:
-        - maxSkew: {{ .Values.spread.maxSkew }}
-          topologyKey: {{ .Values.spread.topologyKey }}
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: ScheduleAnyway
           labelSelector:
             matchLabels:
               {{- include "service.selectorLabels" . | nindent 14 }}
-      {{- end }}

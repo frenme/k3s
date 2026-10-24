@@ -1,17 +1,8 @@
 image:
   repository: k3s-base/service
   tag: dev
-  pullPolicy: IfNotPresent
 
 imagePullSecrets: []
-
-replicaCount: 1
-
-containerPort: 8080
-
-service:
-  type: ClusterIP
-  port: 8080
 
 env: {}
 
@@ -20,15 +11,6 @@ secretEnv: {}
 tracing:
   endpoint: ""
   environment: ""
-
-probes:
-  liveness:
-    path: /healthz
-  readiness:
-    path: /readyz
-  startup:
-    path: /healthz
-    failureThreshold: 150
 
 resources:
   requests:
@@ -39,27 +21,9 @@ resources:
 
 terminationGracePeriodSeconds: 30
 
-drainDelay: 5s
-
-automountServiceAccountToken: false
-
-strategy:
-  maxUnavailable: 0
-  maxSurge: 1
-
 nodeSelector: {}
 
-tolerations: []
-
-nodeFailureTolerationSeconds: 30
-
-spread:
-  enabled: false
-  topologyKey: kubernetes.io/hostname
-  maxSkew: 1
-
 autoscaling:
-  enabled: false
   minReplicas: 2
   maxReplicas: 6
   targetCPUUtilizationPercentage: 70
@@ -67,11 +31,9 @@ autoscaling:
 
 pdb:
   enabled: false
-  maxUnavailable: 1
 
 ingress:
   enabled: false
-  className: traefik
   annotations: {}
   host: ""
   tlsSecretName: ""
@@ -81,17 +43,3 @@ networkPolicy:
   enabled: false
   allowFromPods: []
   allowFromNamespaces: []
-
-metrics:
-  serviceMonitor:
-    enabled: false
-    interval: 30s
-
-securityContext:
-  runAsNonRoot: true
-  runAsUser: 65532
-  runAsGroup: 65532
-  allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
-  capabilities:
-    drop: [ALL]

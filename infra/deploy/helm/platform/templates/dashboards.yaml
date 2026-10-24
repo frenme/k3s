@@ -3,6 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: dashboard-{{ base $path | trimSuffix ".json" }}
+  namespace: monitoring
   labels:
     grafana_dashboard: "1"
 data:

@@ -24,6 +24,6 @@ spec:
               kubernetes.io/metadata.name: {{ . }}
         {{- end }}
       ports:
-        - port: {{ .Values.containerPort }}
+        - port: 8080
           protocol: TCP
 {{- end }}

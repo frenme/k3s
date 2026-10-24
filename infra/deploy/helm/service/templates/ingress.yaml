@@ -33,7 +33,7 @@ metadata:
     {{- end }}
   {{- end }}
 spec:
-  ingressClassName: {{ $ingress.className }}
+  ingressClassName: traefik
   {{- if and $ingress.tlsSecretName $ingress.host }}
   tls:
     - secretName: {{ $ingress.tlsSecretName }}

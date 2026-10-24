@@ -11,3 +11,6 @@ prometheus:
           resources:
             requests:
               storage: 2Gi
+
+alertmanager:
+  enabled: false

@@ -5,10 +5,9 @@ metadata:
   labels:
     {{- include "service.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
   ports:
     - name: http
-      port: {{ .Values.service.port }}
+      port: 8080
       targetPort: http
   selector:
     {{- include "service.selectorLabels" . | nindent 4 }}

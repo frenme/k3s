@@ -2,14 +2,14 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Database
 metadata:
-  name: {{ .Values.name }}-{{ .Values.database }}
+  name: postgres-app
   labels:
     {{- include "postgres.labels" . | nindent 4 }}
 spec:
-  name: {{ .Values.database }}
-  owner: {{ .Values.database }}
+  name: app
+  owner: app
   cluster:
-    name: {{ .Values.name }}
+    name: postgres
   schemas:
     {{- range $svc, $cfg := .Values.services }}
     - name: {{ $svc }}

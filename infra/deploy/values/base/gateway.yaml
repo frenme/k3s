@@ -6,9 +6,6 @@ terminationGracePeriodSeconds: 90
 nodeSelector:
   role: edge
 
-spread:
-  enabled: true
-
 pdb:
   enabled: true
 
@@ -33,13 +30,3 @@ ingress:
         average: 300
         period: 1m
         burst: 100
-
-autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 6
-  targetCPUUtilizationPercentage: 70
-
-metrics:
-  serviceMonitor:
-    enabled: true

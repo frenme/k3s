@@ -5,7 +5,7 @@
 apiVersion: barmancloud.cnpg.io/v1
 kind: ObjectStore
 metadata:
-  name: {{ .Values.name }}-backup
+  name: postgres-backup
   labels:
     {{- include "postgres.labels" . | nindent 4 }}
 spec:
@@ -15,10 +15,10 @@ spec:
     endpointURL: {{ .Values.backup.endpointURL }}
     s3Credentials:
       accessKeyId:
-        name: {{ .Values.name }}-s3
+        name: postgres-s3
         key: ACCESS_KEY_ID
       secretAccessKey:
-        name: {{ .Values.name }}-s3
+        name: postgres-s3
         key: ACCESS_SECRET_KEY
     wal:
       compression: gzip
@@ -30,15 +30,15 @@ spec:
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
-  name: {{ .Values.name }}-daily
+  name: postgres-daily
   labels:
     {{- include "postgres.labels" . | nindent 4 }}
 spec:
-  schedule: {{ .Values.backup.schedule | quote }}
+  schedule: "0 0 3 * * *"
   immediate: true
   backupOwnerReference: self
   cluster:
-    name: {{ .Values.name }}
+    name: postgres
   method: plugin
   pluginConfiguration:
     name: barman-cloud.cloudnative-pg.io

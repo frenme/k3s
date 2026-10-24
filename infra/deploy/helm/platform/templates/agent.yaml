@@ -1,15 +1,14 @@
-{{- if .Values.agent.enabled }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: agent
-  namespace: {{ .Release.Namespace }}
+  namespace: kube-system
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: agent-token
-  namespace: {{ .Release.Namespace }}
+  namespace: kube-system
   annotations:
     kubernetes.io/service-account.name: agent
 type: kubernetes.io/service-account-token
@@ -43,7 +42,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: agent
-    namespace: {{ .Release.Namespace }}
+    namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -56,5 +55,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: agent
-    namespace: {{ .Release.Namespace }}
-{{- end }}
+    namespace: kube-system

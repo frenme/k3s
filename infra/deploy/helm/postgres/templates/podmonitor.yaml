@@ -1,15 +1,13 @@
-{{- if .Values.monitoring.podMonitor }}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: {{ .Values.name }}
+  name: postgres
   labels:
     {{- include "postgres.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      cnpg.io/cluster: {{ .Values.name }}
+      cnpg.io/cluster: postgres
       cnpg.io/podRole: instance
   podMetricsEndpoints:
     - port: metrics
-{{- end }}

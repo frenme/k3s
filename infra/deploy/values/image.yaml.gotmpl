@@ -1,3 +1,0 @@
-image:
-  repository: {{ env "REGISTRY" | default "k3s-base" }}/{{ .Release.Name }}
-  tag: {{ env "TAG" | default "dev" | quote }}

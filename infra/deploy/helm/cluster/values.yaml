@@ -1,9 +1,0 @@
-traefik:
-  externalTrafficPolicy: Local
-  daemonSet: true
-
-acme:
-  email: ""
-
-agent:
-  enabled: true

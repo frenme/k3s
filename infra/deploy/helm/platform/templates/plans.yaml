@@ -1,20 +1,16 @@
-{{- if .Values.plans.enabled }}
-{{- if not .Values.plans.version }}
-{{- fail "plans.version must be set" }}
-{{- end }}
+{{- with .Values.k3sVersion }}
 apiVersion: upgrade.cattle.io/v1
 kind: Plan
 metadata:
   name: k3s-server
+  namespace: cattle-system
 spec:
   concurrency: 1
   cordon: true
-  version: {{ .Values.plans.version }}
-  serviceAccountName: {{ .Values.plans.serviceAccountName }}
-  {{- with .Values.plans.window }}
+  version: {{ . }}
+  serviceAccountName: system-upgrade-controller
   window:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- toYaml $.Values.upgradeWindow | nindent 4 }}
   nodeSelector:
     matchExpressions:
       - key: node-role.kubernetes.io/control-plane
@@ -23,30 +19,29 @@ spec:
   tolerations:
     - operator: Exists
   upgrade:
-    image: {{ .Values.plans.image }}
+    image: rancher/k3s-upgrade
 ---
 apiVersion: upgrade.cattle.io/v1
 kind: Plan
 metadata:
   name: k3s-agent
+  namespace: cattle-system
 spec:
   concurrency: 1
-  version: {{ .Values.plans.version }}
-  serviceAccountName: {{ .Values.plans.serviceAccountName }}
-  {{- with .Values.plans.window }}
+  version: {{ . }}
+  serviceAccountName: system-upgrade-controller
   window:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- toYaml $.Values.upgradeWindow | nindent 4 }}
   nodeSelector:
     matchExpressions:
       - key: node-role.kubernetes.io/control-plane
         operator: DoesNotExist
   prepare:
-    image: {{ .Values.plans.image }}
+    image: rancher/k3s-upgrade
     args: ["prepare", "k3s-server"]
   drain:
     force: true
     skipWaitForDeleteTimeout: 60
   upgrade:
-    image: {{ .Values.plans.image }}
+    image: rancher/k3s-upgrade
 {{- end }}
