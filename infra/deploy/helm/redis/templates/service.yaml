@@ -6,9 +6,6 @@ metadata:
     app.kubernetes.io/name: redis
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  {{- if eq .Values.mode "daemonset" }}
-  internalTrafficPolicy: Local
-  {{- end }}
   ports:
     - name: redis
       port: 6379

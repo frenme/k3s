@@ -60,7 +60,3 @@ test:
 sidecar:
   rules:
     enabled: false
-
-monitoring:
-  serviceMonitor:
-    enabled: true

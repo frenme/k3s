@@ -21,23 +21,12 @@ spec:
       annotations:
         checksum/secret: {{ toYaml .Values.secretEnv | sha256sum }}
         checksum/env: {{ toYaml .Values.env | sha256sum }}
-        {{- with .Values.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
       labels:
         {{- include "service.selectorLabels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
     spec:
-      {{- if or .Values.imagePullSecrets .Values.registryAuth.server }}
+      {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
-        {{- with .Values.imagePullSecrets }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if .Values.registryAuth.server }}
-        - name: {{ include "service.fullname" . }}-registry
-        {{- end }}
       {{- end }}
       automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
@@ -104,14 +93,6 @@ spec:
             timeoutSeconds: 2
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- with .Values.extraVolumeMounts }}
-          volumeMounts:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.extraVolumes }}
-      volumes:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -128,10 +109,6 @@ spec:
         {{- with .Values.tolerations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       {{- if .Values.spread.enabled }}
       topologySpreadConstraints:
         - maxSkew: {{ .Values.spread.maxSkew }}

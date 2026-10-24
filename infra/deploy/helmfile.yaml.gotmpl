@@ -161,12 +161,6 @@ releases:
     needs:
       - cert-manager/cert-manager
 
-  - name: s3-local
-    installed: {{ $local }}
-    inherit:
-      - template: layered
-    chart: ./helm/s3-local
-
   - name: postgres
     inherit:
       - template: layered
@@ -174,9 +168,6 @@ releases:
     needs:
       - cnpg-system/barman-cloud
       - monitoring/monitoring
-      {{- if $local }}
-      - s3-local
-      {{- end }}
 
   - name: redis
     inherit:

@@ -1,12 +1,2 @@
-mode: deployment
-
 nodeSelector:
   role: core
-
-networkPolicy:
-  metricsFromNamespaces:
-    - monitoring
-
-exporter:
-  enabled: true
-  podMonitor: true

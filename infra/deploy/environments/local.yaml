@@ -6,13 +6,16 @@ grafanaHost: ""
 k3sVersion: ""
 telemetryRetention: 48h
 
+appDefaults:
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 4
+  pdb:
+    enabled: false
+
 postgres:
   backupServerName: postgres
-  instances: 2
-
-backup:
-  destinationPath: s3://backups/
-  endpointURL: http://s3-local:8333
+  instances: 1
 
 secrets:
   postgres:
@@ -20,6 +23,3 @@ secrets:
     orders: dev-orders-password
   redis: dev-redis-password
   grafana: dev-grafana-password
-  s3:
-    accessKeyId: local-access
-    secretAccessKey: local-secret-key

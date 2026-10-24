@@ -8,10 +8,12 @@ services:
   {{- end }}
   {{- end }}
 
+{{- with .Values | get "backup" dict }}
 backup:
   enabled: true
-  serverName: {{ dig "backupServerName" "" .Values.postgres | quote }}
-  destinationPath: {{ .Values.backup.destinationPath }}
-  endpointURL: {{ .Values.backup.endpointURL }}
-  accessKeyId: {{ .Values.secrets.s3.accessKeyId | quote }}
-  secretAccessKey: {{ .Values.secrets.s3.secretAccessKey | quote }}
+  serverName: {{ dig "backupServerName" "" $.Values.postgres | quote }}
+  destinationPath: {{ .destinationPath }}
+  endpointURL: {{ .endpointURL }}
+  accessKeyId: {{ $.Values.secrets.s3.accessKeyId | quote }}
+  secretAccessKey: {{ $.Values.secrets.s3.secretAccessKey | quote }}
+{{- end }}

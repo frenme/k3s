@@ -15,6 +15,3 @@ persistence:
 
 nodeSelector:
   role: core
-
-serviceMonitor:
-  enabled: true

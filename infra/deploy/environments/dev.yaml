@@ -6,6 +6,13 @@ grafanaHost: grafana.dev.example.com
 k3sVersion: v1.35.9+k3s1
 telemetryRetention: 168h
 
+appDefaults:
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 3
+  pdb:
+    enabled: false
+
 postgres:
   backupServerName: postgres
   instances: 1

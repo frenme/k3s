@@ -48,6 +48,7 @@ spec:
             severity: warning
           annotations:
             summary: "Postgres replica lags {{`{{ $value | humanizeDuration }}`}} behind"
+        {{- if .Values.backups }}
         - alert: PostgresWalArchiveBacklog
           expr: max(cnpg_collector_pg_wal_archive_status{namespace="{{ $ns }}", value="ready"}) > {{ .Values.thresholds.walArchiveBacklog }}
           for: 10m
@@ -74,10 +75,11 @@ spec:
             severity: critical
           annotations:
             summary: The latest Postgres backup failed
+        {{- end }}
     - name: redis
       rules:
         - alert: RedisDown
-          expr: max(redis_up{namespace="{{ $ns }}"}) == 0 or absent(redis_up{namespace="{{ $ns }}"})
+          expr: max(kube_deployment_status_replicas_available{namespace="{{ $ns }}", deployment="redis"}) < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ $ns }}", deployment="redis"})
           for: 2m
           labels:
             severity: warning

@@ -15,9 +15,6 @@ spec:
     average: {{ $r.rateLimit.average }}
     period: {{ default "1s" $r.rateLimit.period }}
     burst: {{ default $r.rateLimit.average $r.rateLimit.burst }}
-    sourceCriterion:
-      ipStrategy:
-        depth: {{ $ingress.rateLimitIPDepth }}
 ---
 {{- end }}
 apiVersion: networking.k8s.io/v1

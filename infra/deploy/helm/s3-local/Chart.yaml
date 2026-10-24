@@ -1,6 +1,0 @@
-apiVersion: v2
-name: s3-local
-description: Single node S3 compatible storage for local backups
-type: application
-version: 0.1.0
-appVersion: "4.48"

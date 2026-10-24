@@ -20,6 +20,9 @@
 {{- end }}
 {{- $_ := set $env "ROUTES" (join "," $routes) }}
 {{- end }}
+{{- with .Values | get "appDefaults" dict }}
+{{ toYaml . }}
+{{- end }}
 tracing:
   endpoint: http://tempo.monitoring:4318
   environment: {{ .Environment.Name }}

@@ -105,6 +105,3 @@ controller:
         hostPath:
           path: /var/lib/alloy
           type: DirectoryOrCreate
-
-serviceMonitor:
-  enabled: true

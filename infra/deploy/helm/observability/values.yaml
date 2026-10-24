@@ -5,6 +5,8 @@ apps:
 
 appNamespace: app
 
+backups: true
+
 thresholds:
   errorRatio: 0.05
   latencyP95Seconds: 0.5

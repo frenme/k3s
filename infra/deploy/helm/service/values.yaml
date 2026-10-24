@@ -1,17 +1,9 @@
-nameOverride: ""
-fullnameOverride: ""
-
 image:
   repository: k3s-base/service
   tag: dev
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
-
-registryAuth:
-  server: ""
-  username: ""
-  password: ""
 
 replicaCount: 1
 
@@ -61,8 +53,6 @@ tolerations: []
 
 nodeFailureTolerationSeconds: 30
 
-affinity: {}
-
 spread:
   enabled: false
   topologyKey: kubernetes.io/hostname
@@ -73,7 +63,6 @@ autoscaling:
   minReplicas: 2
   maxReplicas: 6
   targetCPUUtilizationPercentage: 70
-  targetMemoryUtilizationPercentage: 0
   scaleDownStabilizationSeconds: 120
 
 pdb:
@@ -86,7 +75,6 @@ ingress:
   annotations: {}
   host: ""
   tlsSecretName: ""
-  rateLimitIPDepth: 0
   routes: {}
 
 networkPolicy:
@@ -99,10 +87,6 @@ metrics:
     enabled: false
     interval: 30s
 
-podAnnotations: {}
-
-podLabels: {}
-
 securityContext:
   runAsNonRoot: true
   runAsUser: 65532
@@ -111,7 +95,3 @@ securityContext:
   readOnlyRootFilesystem: true
   capabilities:
     drop: [ALL]
-
-extraVolumes: []
-
-extraVolumeMounts: []
