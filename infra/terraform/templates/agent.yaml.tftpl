@@ -12,6 +12,7 @@ write_files:
       token: ${token}
       node-label:
         - role=edge
+        - svccontroller.k3s.cattle.io/enablelb=true
         - topology.kubernetes.io/region=${region}
 runcmd:
   - curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${k3s_version} sh -s - agent

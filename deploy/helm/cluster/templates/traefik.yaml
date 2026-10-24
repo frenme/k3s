@@ -12,3 +12,5 @@ spec:
     deployment:
       kind: DaemonSet
     {{- end }}
+    nodeSelector:
+      role: edge

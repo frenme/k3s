@@ -39,7 +39,11 @@ variable "agents" {
     server_type = string
     region      = string
   }))
-  default = {}
+
+  validation {
+    condition     = length(var.agents) > 0
+    error_message = "at least one edge agent is required to serve ingress"
+  }
 }
 
 variable "etcd_s3" {

@@ -20,6 +20,9 @@ options:
       - label: role=edge
         nodeFilters:
           - agent:*
+      - label: svccontroller.k3s.cattle.io/enablelb=true
+        nodeFilters:
+          - agent:*
       - label: topology.kubernetes.io/region=local-a
         nodeFilters:
           - agent:0

@@ -44,6 +44,17 @@ resource "hcloud_firewall" "base" {
 
   rule {
     direction  = "in"
+    protocol   = "icmp"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
+}
+
+resource "hcloud_firewall" "web" {
+  name   = "${local.name}-web"
+  labels = local.labels
+
+  rule {
+    direction  = "in"
     protocol   = "tcp"
     port       = "80"
     source_ips = ["0.0.0.0/0", "::/0"]
@@ -53,12 +64,6 @@ resource "hcloud_firewall" "base" {
     direction  = "in"
     protocol   = "tcp"
     port       = "443"
-    source_ips = ["0.0.0.0/0", "::/0"]
-  }
-
-  rule {
-    direction  = "in"
-    protocol   = "icmp"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 }
@@ -100,7 +105,7 @@ resource "hcloud_server" "agent" {
   server_type  = each.value.server_type
   image        = var.image
   ssh_keys     = [for key in hcloud_ssh_key.admin : key.id]
-  firewall_ids = [hcloud_firewall.base.id]
+  firewall_ids = [hcloud_firewall.base.id, hcloud_firewall.web.id]
   labels       = merge(local.labels, { role = "edge" })
 
   user_data = templatefile("${path.module}/templates/agent.yaml.tftpl", {
