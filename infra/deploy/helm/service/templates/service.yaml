@@ -4,7 +4,14 @@ metadata:
   name: {{ include "service.fullname" . }}
   labels:
     {{- include "service.labels" . | nindent 4 }}
+  {{- if .Values.ingress.enabled }}
+  annotations:
+    traefik.ingress.kubernetes.io/service.nativelb: "true"
+  {{- end }}
 spec:
+  {{- if .Values.ingress.enabled }}
+  trafficDistribution: PreferSameNode
+  {{- end }}
   ports:
     - name: http
       port: 8080
