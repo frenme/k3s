@@ -116,7 +116,22 @@ func expect(t *testing.T, r response, status int) {
 }
 
 func TestUnknownRoute(t *testing.T) {
-	expect(t, call(t, http.MethodGet, "/api/unknown", nil, nil), http.StatusNotFound)
+	cases := []struct {
+		method, path string
+		status       int
+	}{
+		{http.MethodGet, "/api/unknown", http.StatusNotFound},
+		{http.MethodGet, "/api/users/1/nope", http.StatusNotFound},
+		{http.MethodGet, "/nope", http.StatusNotFound},
+		{http.MethodDelete, "/api/orders", http.StatusMethodNotAllowed},
+	}
+	for _, c := range cases {
+		r := call(t, c.method, c.path, nil, nil)
+		expect(t, r, c.status)
+		if msg, _ := r.body["error"].(string); msg == "" {
+			t.Fatalf("%s %s: no json error in %v", c.method, c.path, r.body)
+		}
+	}
 }
 
 func TestRequestIDIsFreshTraceID(t *testing.T) {
