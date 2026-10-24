@@ -24,7 +24,7 @@ build: ## build go binaries into bin/
 	@for s in $(GO_SERVICES); do CGO_ENABLED=0 go build -o bin/$$s ./cmd/$$s || exit 1; done
 
 images: ## build container images tagged REGISTRY/<service>:TAG
-	@for s in $(GO_SERVICES); do docker build -q -f build/go.Dockerfile --build-arg SERVICE=$$s --build-arg VERSION=$(TAG) --build-arg COMMIT=$(COMMIT) -t $(REGISTRY)/$$s:$(TAG) . || exit 1; done
+	@for s in $(GO_SERVICES); do docker build -q --build-arg SERVICE=$$s --build-arg VERSION=$(TAG) --build-arg COMMIT=$(COMMIT) -t $(REGISTRY)/$$s:$(TAG) . || exit 1; done
 
 clean: ## remove build output
 	rm -rf bin
