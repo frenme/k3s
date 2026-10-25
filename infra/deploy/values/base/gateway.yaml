@@ -26,6 +26,18 @@ ingress:
         average: 60
         period: 1m
         burst: 20
+    common:
+      path: /api/v1/common
+      rateLimit:
+        average: 300
+        period: 1m
+        burst: 100
+    admin:
+      path: /api/v1/admin
+      rateLimit:
+        average: 30
+        period: 1m
+        burst: 10
     api:
       path: /api
       rateLimit:

@@ -22,6 +22,10 @@ ingress:
       rateLimit:
         average: 300
         burst: 100
+    common:
+      rateLimit:
+        average: 1200
+        burst: 400
     api:
       rateLimit:
         average: 1200
