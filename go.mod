@@ -4,6 +4,7 @@ go 1.26.9
 
 require (
 	github.com/alicebob/miniredis/v2 v2.40.0
+	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/exaring/otelpgx v0.13.0
 	github.com/getkin/kin-openapi v0.151.0
 	github.com/google/uuid v1.6.0
@@ -42,7 +43,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v1.0.0 // indirect
-	github.com/gorilla/mux v1.8.0 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect

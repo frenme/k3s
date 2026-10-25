@@ -26,7 +26,7 @@ define terraform
 endef
 
 .PHONY: help doctor local-only remote-only
-.PHONY: fmt lint api-lint test test-integration e2e images
+.PHONY: fmt lint openapi test test-integration e2e images
 .PHONY: up down deploy template status logs restart grafana
 .PHONY: db-status db-promote psql backup-now
 .PHONY: infra-plan infra-apply infra-destroy kubeconfig agent-kubeconfig mcp
@@ -51,8 +51,8 @@ lint: ## formatting, golangci-lint and lint every release of ENV
 	golangci-lint run ./...
 	$(if $(filter local,$(ENV)),,REGISTRY=lint.invalid TAG=lint) $(HELMFILE) lint
 
-api-lint: ## lint the OpenAPI spec
-	cd api && npx -y @redocly/cli@2.65.0 lint openapi.yaml
+openapi: ## regenerate api/*.yaml from the code
+	go run ./api
 
 test: ## unit tests
 	go test -race -count=1 ./...

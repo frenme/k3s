@@ -1,0 +1,72 @@
+components:
+  schemas:
+    APIError:
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+      required:
+        - error
+      type: object
+    User:
+      additionalProperties: false
+      properties:
+        created_at:
+          format: date-time
+          type: string
+        email:
+          format: email
+          type: string
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+      required:
+        - id
+        - email
+        - name
+        - created_at
+      type: object
+info:
+  title: users internal
+  version: dev
+openapi: 3.0.3
+paths:
+  /internal/v1/users/{id}:
+    get:
+      operationId: internal-get-user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Internal Server Error
+      summary: Get a user for other services
+      tags:
+        - Internal

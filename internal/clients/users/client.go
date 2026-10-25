@@ -24,7 +24,7 @@ func New(baseURL string) *Client {
 }
 
 func (c *Client) Get(ctx context.Context, id string) (User, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/internal/users/"+url.PathEscape(id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/internal/v1/users/"+url.PathEscape(id), nil)
 	if err != nil {
 		return User{}, err
 	}

@@ -1,0 +1,188 @@
+components:
+  schemas:
+    APIError:
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+      required:
+        - error
+      type: object
+    CreateOrderRequestBody:
+      additionalProperties: false
+      properties:
+        amount_cents:
+          format: int64
+          minimum: 0
+          type: integer
+        item:
+          maxLength: 200
+          type: string
+        user_id:
+          type: string
+      required:
+        - user_id
+        - item
+        - amount_cents
+      type: object
+    ListOrdersResponseBody:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/Order"
+          nullable: true
+          type: array
+      required:
+        - items
+      type: object
+    Order:
+      additionalProperties: false
+      properties:
+        amount_cents:
+          format: int64
+          type: integer
+        created_at:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        item:
+          type: string
+        user_id:
+          format: uuid
+          type: string
+      required:
+        - id
+        - user_id
+        - item
+        - amount_cents
+        - created_at
+      type: object
+info:
+  title: orders
+  version: dev
+openapi: 3.0.3
+paths:
+  /v1/orders:
+    get:
+      operationId: list-orders
+      parameters:
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            default: 50
+            format: int64
+            maximum: 500
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: user_id
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListOrdersResponseBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Error
+      summary: List orders
+      tags:
+        - Orders
+    post:
+      operationId: create-order
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            maxLength: 200
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequestBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+          description: Replay of an earlier order with the same Idempotency-Key
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+          description: Created
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Internal Server Error
+        "502":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Bad Gateway
+      summary: Create an order, replays return the first order with 200
+      tags:
+        - Orders
+  /v1/orders/{id}:
+    get:
+      operationId: get-order
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Internal Server Error
+      summary: Get an order
+      tags:
+        - Orders
+servers:
+  - url: /api

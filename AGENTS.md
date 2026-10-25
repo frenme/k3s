@@ -5,7 +5,7 @@ Guide for AI agents (Cursor, Claude Code, Codex) working on this repository and 
 ## Layout
 
 - `cmd/<service>` entrypoints, `internal/<service>` services (see Writing services), `internal/clients/<service>` HTTP clients of other services, `internal/lib` shared code (app bootstrap, httpx, pg, rds, logx, tracing).
-- `api/openapi.yaml` public API, validated by `e2e`.
+- `api/*.yaml` OpenAPI generated from the code (`make openapi`), validated by `e2e`.
 - `infra/deploy/helmfile.yaml.gotmpl` every release; `infra/deploy/environments/*.yaml` per-env settings; `infra/deploy/values/{base,local,dev,prod,derived}` release values; `infra/deploy/helm/*` own charts.
 - `infra/terraform` Hetzner servers, `infra/k3d` local cluster.
 - `make help` lists every command.
@@ -16,20 +16,26 @@ Every service follows the same layout, `internal/users` is the reference:
 
 ```
 internal/<service>/
-  model/        plain structs and domain errors, one file per model
-  storage/      all SQL of the service, one file per table, plus migrations/
-  <feature>/    one package per feature (profile, auth, checkout)
-    handler.go  HTTP only: decode, call the service, map errors to status codes
-    service.go  business logic, no HTTP and no SQL; declares the small interfaces it needs
-  routes.go     Setup: opens Postgres, builds storage, wires features into the muxes
+  model/          plain structs and domain errors, one file per model
+  storage/        all SQL of the service, one file per table, plus migrations/
+  <feature>/      one package per feature (profile, auth, checkout)
+    service.go    business logic, no HTTP and no SQL; declares the small interfaces it needs
+    v1/           one folder per API version
+      dto.go      request and response structs of this version, mapped from and to model
+      handler.go  Huma operations: register routes, call the service, map errors
+  routes.go       Setup opens Postgres and wires features; OpenAPI builds the spec without a database
 ```
 
+- HTTP is [Huma](https://huma.rocks) on top of `net/http` (`internal/lib/httpx/api.go`). Routes, validation tags and docs live in `huma.Register` calls and DTO tags. Errors are always `{"error": "..."}`: return `huma.Error404NotFound(...)` and similar.
+- Validation errors are 422, malformed JSON is 400.
+- Public routes are `/v1/<resource>` on `:8080` (`s.Mux`), reached as `/api/v1/<service>/...` through the gateway. A breaking change goes to a new `v2/` folder next to `v1/`, reusing the same service.
+- Internal routes are `/internal/v1/<resource>` on `:8081` (`s.Internal`), reached only by other services. The gateway refuses any path with an `internal` segment, and the NetworkPolicy opens `:8081` only to pods listed in `networkPolicy.internalFromPods`.
+- Docs: `/api/v1/<service>/docs`, spec at `/api/v1/<service>/openapi.json`.
+- `api/*.yaml` is generated from the code by `make openapi`, never edited by hand. CI fails if it differs from the code, `e2e` validates real responses against it.
 - SQL lives only in `storage/`. Feature packages never import each other; what they share lives in `model/` and `storage/`.
 - A growing `service.go` splits per use case inside the same package (`register.go`, `login.go`).
 - Each service owns one Postgres schema and one migration history in `storage/migrations`.
 - Services never import another service's `internal/<service>` packages (enforced by depguard). They call each other over HTTP through `internal/clients/<service>` (`users.New(url)`, `users.Client`), which mirrors only the fields the caller needs.
-- Two listeners per service: public routes on `:8080` (`s.Mux`, reached through the gateway) and internal routes on `:8081` (`s.Internal`, paths under `/internal/`, reached only by other services). The gateway refuses any path with an `internal` segment, and the NetworkPolicy opens `:8081` only to pods listed in `networkPolicy.internalFromPods`.
-- Public API changes go to `api/openapi.yaml` and are checked by `e2e`.
 - Migrations must stay compatible with the previous release during rolling updates: add first, switch code in the next release, drop last.
 
 ## Environments
@@ -43,6 +49,8 @@ internal/<service>/
 Platform namespaces: `monitoring` (Prometheus, Grafana, Alertmanager, Loki, Tempo, Alloy), `cnpg-system`, `cert-manager`, `kube-system`, `cattle-system`.
 
 Nodes are labeled `role=core` (databases, monitoring, services) and `role=edge` (ingress only).
+
+Servers are listed in `infra/terraform/envs/<env>.tfvars`: `server` is the control plane (core), `nodes` is a map of extra servers with `location`, `server_type`, `region` and `role` (`edge` by default, `core` for more core capacity such as a database replica). Add or remove entries and run `make infra-apply ENV=<env>`; a new `edge` gets Traefik and its own gateway pod (gateway is a DaemonSet on `role=edge`), core nodes sit in a spread placement group on different hosts. A database replica is a `core` node plus `postgres.instances: 2` in `environments/<env>.yaml`.
 
 ## Connecting
 
@@ -99,7 +107,7 @@ TraceQL:
 ```traceql
 { resource.service.name = "orders" && status = error }
 { resource.k8s.namespace.name = "app-prod" && duration > 500ms }
-{ span.http.route = "/orders/{id}" && span.http.response.status_code >= 500 }
+{ span.http.route = "/v1/orders/{id}" && span.http.response.status_code >= 500 }
 { resource.service.name = "users" } >> { span.db.system.name = "postgresql" && duration > 100ms }
 ```
 

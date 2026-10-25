@@ -21,32 +21,45 @@ import (
 )
 
 var (
-	spec   = loadSpec()
+	specs  = loadSpecs()
 	base   = envOr("BASE_URL", "http://localhost:8080")
 	host   = os.Getenv("HOST_HEADER")
 	origin = envOr("CORS_ORIGIN", "http://localhost:5173")
 	client = &http.Client{Timeout: 10 * time.Second}
 )
 
-func loadSpec() routers.Router {
-	doc, err := openapi3.NewLoader().LoadFromFile("../api/openapi.yaml")
-	if err != nil {
-		panic(err)
+func loadSpecs() []routers.Router {
+	var out []routers.Router
+	for _, file := range []string{"../api/users.yaml", "../api/orders.yaml"} {
+		doc, err := openapi3.NewLoader().LoadFromFile(file)
+		if err != nil {
+			panic(err)
+		}
+		if err := doc.Validate(context.Background()); err != nil {
+			panic(fmt.Sprintf("%s: %v", file, err))
+		}
+		router, err := gorillamux.NewRouter(doc)
+		if err != nil {
+			panic(err)
+		}
+		out = append(out, router)
 	}
-	if err := doc.Validate(context.Background()); err != nil {
-		panic(err)
-	}
-	router, err := gorillamux.NewRouter(doc)
-	if err != nil {
-		panic(err)
-	}
-	return router
+	return out
 }
 
 func validate(t *testing.T, req *http.Request, status int, header http.Header, body []byte) {
 	t.Helper()
-	route, params, err := spec.FindRoute(req)
-	if err != nil {
+	var (
+		route  *routers.Route
+		params map[string]string
+		err    error
+	)
+	for _, spec := range specs {
+		if route, params, err = spec.FindRoute(req); err == nil {
+			break
+		}
+	}
+	if route == nil {
 		return
 	}
 	input := &openapi3filter.ResponseValidationInput{
@@ -57,7 +70,7 @@ func validate(t *testing.T, req *http.Request, status int, header http.Header, b
 	}
 	input.SetBodyBytes(body)
 	if err := openapi3filter.ValidateResponse(req.Context(), input); err != nil {
-		t.Fatalf("%s %s %d does not match api/openapi.yaml: %v", req.Method, req.URL.Path, status, err)
+		t.Fatalf("%s %s %d does not match the spec in api/: %v", req.Method, req.URL.Path, status, err)
 	}
 }
 
@@ -121,9 +134,9 @@ func TestUnknownRoute(t *testing.T) {
 		status       int
 	}{
 		{http.MethodGet, "/api/unknown", http.StatusNotFound},
-		{http.MethodGet, "/api/users/1/nope", http.StatusNotFound},
-		{http.MethodGet, "/api/users/internal/users/11111111-1111-4111-8111-111111111111", http.StatusNotFound},
-		{http.MethodDelete, "/api/orders", http.StatusMethodNotAllowed},
+		{http.MethodGet, "/api/v1/users/1/nope", http.StatusNotFound},
+		{http.MethodGet, "/api/v1/users/internal/v1/users/11111111-1111-4111-8111-111111111111", http.StatusNotFound},
+		{http.MethodDelete, "/api/v1/orders", http.StatusMethodNotAllowed},
 	}
 	for _, c := range cases {
 		r := call(t, c.method, c.path, nil, nil)
@@ -134,8 +147,28 @@ func TestUnknownRoute(t *testing.T) {
 	}
 }
 
+func TestDocsThroughGateway(t *testing.T) {
+	for _, path := range []string{"/api/v1/users/docs", "/api/v1/users/openapi.json", "/api/v1/orders/docs", "/api/v1/orders/openapi.json"} {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, base+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if host != "" {
+			req.Host = host
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("%s: status %d", path, resp.StatusCode)
+		}
+	}
+}
+
 func TestRequestIDIsFreshTraceID(t *testing.T) {
-	r := call(t, http.MethodGet, "/api/users?limit=1", nil, map[string]string{
+	r := call(t, http.MethodGet, "/api/v1/users?limit=1", nil, map[string]string{
 		"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
 	})
 	expect(t, r, http.StatusOK)
@@ -149,7 +182,7 @@ func TestRequestIDIsFreshTraceID(t *testing.T) {
 }
 
 func TestCORSPreflight(t *testing.T) {
-	r := call(t, http.MethodOptions, "/api/users", nil, map[string]string{
+	r := call(t, http.MethodOptions, "/api/v1/users", nil, map[string]string{
 		"Origin":                        origin,
 		"Access-Control-Request-Method": "POST",
 	})
@@ -161,36 +194,36 @@ func TestCORSPreflight(t *testing.T) {
 func TestUsersAndOrders(t *testing.T) {
 	email := fmt.Sprintf("e2e-%d@example.com", time.Now().UnixNano())
 
-	created := call(t, http.MethodPost, "/api/users", map[string]string{"email": email, "name": "E2E"}, nil)
+	created := call(t, http.MethodPost, "/api/v1/users", map[string]string{"email": email, "name": "E2E"}, nil)
 	expect(t, created, http.StatusCreated)
 	userID, _ := created.body["id"].(string)
 	if userID == "" {
 		t.Fatal("user id missing")
 	}
 
-	expect(t, call(t, http.MethodPost, "/api/users", map[string]string{"email": email, "name": "E2E"}, nil), http.StatusConflict)
-	expect(t, call(t, http.MethodGet, "/api/users/"+userID, nil, nil), http.StatusOK)
+	expect(t, call(t, http.MethodPost, "/api/v1/users", map[string]string{"email": email, "name": "E2E"}, nil), http.StatusConflict)
+	expect(t, call(t, http.MethodGet, "/api/v1/users/"+userID, nil, nil), http.StatusOK)
 
 	order := map[string]any{"user_id": userID, "item": "widget", "amount_cents": 1999}
 	key := map[string]string{"Idempotency-Key": "e2e-" + userID}
 
-	first := call(t, http.MethodPost, "/api/orders", order, key)
+	first := call(t, http.MethodPost, "/api/v1/orders", order, key)
 	expect(t, first, http.StatusCreated)
 	orderID, _ := first.body["id"].(string)
 
-	expect(t, call(t, http.MethodGet, "/api/orders/"+orderID, nil, nil), http.StatusOK)
-	expect(t, call(t, http.MethodGet, "/api/orders/00000000-0000-0000-0000-000000000000", nil, nil), http.StatusNotFound)
+	expect(t, call(t, http.MethodGet, "/api/v1/orders/"+orderID, nil, nil), http.StatusOK)
+	expect(t, call(t, http.MethodGet, "/api/v1/orders/00000000-0000-0000-0000-000000000000", nil, nil), http.StatusNotFound)
 
-	replay := call(t, http.MethodPost, "/api/orders", order, key)
+	replay := call(t, http.MethodPost, "/api/v1/orders", order, key)
 	expect(t, replay, http.StatusOK)
 	if replay.body["id"] != orderID {
 		t.Fatalf("replay returned another order: %v", replay.body["id"])
 	}
 
 	unknown := map[string]any{"user_id": "00000000-0000-0000-0000-000000000000", "item": "x", "amount_cents": 1}
-	expect(t, call(t, http.MethodPost, "/api/orders", unknown, nil), http.StatusUnprocessableEntity)
+	expect(t, call(t, http.MethodPost, "/api/v1/orders", unknown, nil), http.StatusUnprocessableEntity)
 
-	list := call(t, http.MethodGet, "/api/orders?user_id="+userID, nil, nil)
+	list := call(t, http.MethodGet, "/api/v1/orders?user_id="+userID, nil, nil)
 	expect(t, list, http.StatusOK)
 	if items, _ := list.body["items"].([]any); len(items) != 1 {
 		t.Fatalf("expected 1 order, got %d", len(items))

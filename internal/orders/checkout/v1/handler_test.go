@@ -1,4 +1,4 @@
-package checkout
+package v1
 
 import (
 	"context"
@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/egor/k3s-base/internal/clients/users"
+	"github.com/egor/k3s-base/internal/lib/httpx"
+	"github.com/egor/k3s-base/internal/orders/checkout"
 	"github.com/egor/k3s-base/internal/orders/model"
 	"github.com/google/uuid"
 )
@@ -63,14 +65,17 @@ func (f fakeUsers) Get(ctx context.Context, id string) (users.User, error) {
 	}
 }
 
-func newServer(u fakeUsers) *httptest.Server {
+func newServer(t *testing.T, u fakeUsers) string {
+	t.Helper()
 	mux := http.NewServeMux()
-	svc := NewService(&fakeStore{byKey: map[string]model.Order{}}, u)
-	NewHandler(svc, slog.New(slog.NewTextHandler(io.Discard, nil))).Mount(mux)
-	return httptest.NewServer(mux)
+	svc := checkout.NewService(&fakeStore{byKey: map[string]model.Order{}}, u)
+	NewHandler(svc, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewAPI(mux, "orders"))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv.URL
 }
 
-func send(t *testing.T, url, body, key string) *http.Response {
+func send(t *testing.T, url, body, key string) (int, map[string]any) {
 	t.Helper()
 	req, _ := http.NewRequest(http.MethodPost, url, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -81,67 +86,63 @@ func send(t *testing.T, url, body, key string) *http.Response {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return resp
+	defer func() { _ = resp.Body.Close() }()
+	out := map[string]any{}
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	return resp.StatusCode, out
 }
 
 func TestCreateOrder(t *testing.T) {
-	srv := newServer(fakeUsers{})
-	defer srv.Close()
-
+	url := newServer(t, fakeUsers{}) + "/v1/orders"
 	cases := map[string]int{
 		`{"user_id":"` + knownUser + `","item":"book","amount_cents":1500}`:                 http.StatusCreated,
 		`{"user_id":"22222222-2222-4222-8222-222222222222","item":"book","amount_cents":1}`: http.StatusUnprocessableEntity,
-		`{"user_id":"not-a-uuid","item":"x","amount_cents":1}`:                              http.StatusBadRequest,
-		`{"user_id":"` + knownUser + `","item":"","amount_cents":1}`:                        http.StatusBadRequest,
-		`{"user_id":"` + knownUser + `","item":"x","amount_cents":-1}`:                      http.StatusBadRequest,
+		`{"user_id":"not-a-uuid","item":"x","amount_cents":1}`:                              http.StatusUnprocessableEntity,
+		`{"user_id":"` + knownUser + `","item":"","amount_cents":1}`:                        http.StatusUnprocessableEntity,
+		`{"user_id":"` + knownUser + `","item":"x","amount_cents":-1}`:                      http.StatusUnprocessableEntity,
 		`nope`: http.StatusBadRequest,
 	}
 	for body, want := range cases {
-		if resp := send(t, srv.URL+"/orders", body, ""); resp.StatusCode != want {
-			t.Fatalf("%s: status %d, want %d", body, resp.StatusCode, want)
+		code, out := send(t, url, body, "")
+		if code != want {
+			t.Fatalf("%s: status %d, want %d", body, code, want)
+		}
+		if msg, _ := out["error"].(string); code >= 400 && msg == "" {
+			t.Fatalf("%s: no json error in %v", body, out)
 		}
 	}
 }
 
 func TestUsersServiceDown(t *testing.T) {
-	srv := newServer(fakeUsers{down: true})
-	defer srv.Close()
-
-	resp := send(t, srv.URL+"/orders", `{"user_id":"`+knownUser+`","item":"book","amount_cents":1}`, "")
-	if resp.StatusCode != http.StatusBadGateway {
-		t.Fatalf("status %d", resp.StatusCode)
+	url := newServer(t, fakeUsers{down: true}) + "/v1/orders"
+	if code, _ := send(t, url, `{"user_id":"`+knownUser+`","item":"book","amount_cents":1}`, ""); code != http.StatusBadGateway {
+		t.Fatalf("status %d", code)
 	}
 }
 
 func TestIdempotency(t *testing.T) {
-	srv := newServer(fakeUsers{})
-	defer srv.Close()
-
+	url := newServer(t, fakeUsers{}) + "/v1/orders"
 	body := `{"user_id":"` + knownUser + `","item":"book","amount_cents":1}`
-	if resp := send(t, srv.URL+"/orders", body, "k1"); resp.StatusCode != http.StatusCreated {
-		t.Fatalf("first status %d", resp.StatusCode)
+	if code, _ := send(t, url, body, "k1"); code != http.StatusCreated {
+		t.Fatalf("first status %d", code)
 	}
-	if resp := send(t, srv.URL+"/orders", body, "k1"); resp.StatusCode != http.StatusOK {
-		t.Fatalf("second status %d", resp.StatusCode)
+	if code, _ := send(t, url, body, "k1"); code != http.StatusOK {
+		t.Fatalf("second status %d", code)
 	}
 }
 
 func TestGetOrder(t *testing.T) {
-	srv := newServer(fakeUsers{})
-	defer srv.Close()
-
-	resp := send(t, srv.URL+"/orders", `{"user_id":"`+knownUser+`","item":"book","amount_cents":5}`, "k-get")
-	var created model.Order
-	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
-		t.Fatal(err)
-	}
-	for path, want := range map[string]int{"/orders/" + created.ID: http.StatusOK, "/orders/nope": http.StatusNotFound} {
-		got, err := http.Get(srv.URL + path)
+	base := newServer(t, fakeUsers{})
+	_, created := send(t, base+"/v1/orders", `{"user_id":"`+knownUser+`","item":"book","amount_cents":5}`, "k-get")
+	id, _ := created["id"].(string)
+	for path, want := range map[string]int{"/v1/orders/" + id: http.StatusOK, "/v1/orders/nope": http.StatusNotFound} {
+		resp, err := http.Get(base + path)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.StatusCode != want {
-			t.Fatalf("%s: status %d", path, got.StatusCode)
+		_ = resp.Body.Close()
+		if resp.StatusCode != want {
+			t.Fatalf("%s: status %d", path, resp.StatusCode)
 		}
 	}
 }

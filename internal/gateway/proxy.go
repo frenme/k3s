@@ -73,12 +73,25 @@ func NewProxy(routes map[string]*url.URL, log *slog.Logger, upstreamTimeout time
 		}
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		name, rest, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/api/"), "/")
+		version, rest, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/api/"), "/")
+		name, _, _ := strings.Cut(rest, "/")
 		p, ok := proxies[name]
-		if !ok || strings.Contains("/"+rest+"/", "/internal/") {
+		if !ok || !isVersion(version) || strings.Contains("/"+rest+"/", "/internal/") {
 			httpx.WriteError(w, http.StatusNotFound, "unknown route")
 			return
 		}
 		p.ServeHTTP(w, r)
 	})
+}
+
+func isVersion(s string) bool {
+	if len(s) < 2 || s[0] != 'v' {
+		return false
+	}
+	for _, c := range s[1:] {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }

@@ -1,0 +1,100 @@
+package v1
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/egor/k3s-base/internal/users/model"
+	"github.com/egor/k3s-base/internal/users/profile"
+)
+
+type Handler struct {
+	svc *profile.Service
+	log *slog.Logger
+}
+
+func NewHandler(svc *profile.Service, log *slog.Logger) *Handler {
+	return &Handler{svc: svc, log: log}
+}
+
+func (h *Handler) Register(public, internal huma.API) {
+	huma.Register(public, huma.Operation{
+		OperationID: "list-users",
+		Method:      http.MethodGet,
+		Path:        "/v1/users",
+		Summary:     "List users",
+		Tags:        []string{"Users"},
+	}, h.list)
+	huma.Register(public, huma.Operation{
+		OperationID:   "create-user",
+		Method:        http.MethodPost,
+		Path:          "/v1/users",
+		Summary:       "Create a user",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusCreated,
+		Errors:        []int{http.StatusConflict},
+	}, h.create)
+	huma.Register(public, huma.Operation{
+		OperationID: "get-user",
+		Method:      http.MethodGet,
+		Path:        "/v1/users/{id}",
+		Summary:     "Get a user",
+		Tags:        []string{"Users"},
+		Errors:      []int{http.StatusNotFound},
+	}, h.get)
+	huma.Register(internal, huma.Operation{
+		OperationID: "internal-get-user",
+		Method:      http.MethodGet,
+		Path:        "/internal/v1/users/{id}",
+		Summary:     "Get a user for other services",
+		Tags:        []string{"Internal"},
+		Errors:      []int{http.StatusNotFound},
+	}, h.get)
+}
+
+func (h *Handler) list(ctx context.Context, in *ListUsersRequest) (*ListUsersResponse, error) {
+	users, err := h.svc.List(ctx, in.Limit)
+	if err != nil {
+		return nil, h.fail(ctx, err)
+	}
+	out := &ListUsersResponse{}
+	out.Body.Items = make([]User, 0, len(users))
+	for _, u := range users {
+		out.Body.Items = append(out.Body.Items, toUser(u))
+	}
+	return out, nil
+}
+
+func (h *Handler) get(ctx context.Context, in *GetUserRequest) (*UserResponse, error) {
+	u, err := h.svc.Get(ctx, in.ID)
+	if err != nil {
+		return nil, h.fail(ctx, err)
+	}
+	return &UserResponse{Body: toUser(u)}, nil
+}
+
+func (h *Handler) create(ctx context.Context, in *CreateUserRequest) (*UserResponse, error) {
+	u, err := h.svc.Create(ctx, in.Body.Email, in.Body.Name)
+	if err != nil {
+		return nil, h.fail(ctx, err)
+	}
+	return &UserResponse{Body: toUser(u)}, nil
+}
+
+func (h *Handler) fail(ctx context.Context, err error) error {
+	var invalid model.ValidationError
+	switch {
+	case errors.As(err, &invalid):
+		return huma.Error422UnprocessableEntity(invalid.Error())
+	case errors.Is(err, model.ErrNotFound):
+		return huma.Error404NotFound(err.Error())
+	case errors.Is(err, model.ErrDuplicate):
+		return huma.Error409Conflict(err.Error())
+	default:
+		h.log.ErrorContext(ctx, "profile v1", "err", err)
+		return huma.Error500InternalServerError("internal error")
+	}
+}

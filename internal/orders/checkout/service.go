@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var errUsersUnavailable = errors.New("users service unavailable")
+var ErrUsersUnavailable = errors.New("users service unavailable")
 
 type store interface {
 	List(ctx context.Context, userID string, limit int) ([]model.Order, error)
@@ -57,7 +57,7 @@ func (s *Service) Create(ctx context.Context, o model.Order, idempotencyKey stri
 	if _, err := s.users.Get(ctx, o.UserID); errors.Is(err, users.ErrNotFound) {
 		return model.Order{}, false, model.ErrUnknownUser
 	} else if err != nil {
-		return model.Order{}, false, fmt.Errorf("%w: %w", errUsersUnavailable, err)
+		return model.Order{}, false, fmt.Errorf("%w: %w", ErrUsersUnavailable, err)
 	}
 	return s.store.Create(ctx, o, idempotencyKey)
 }

@@ -13,13 +13,13 @@ ingress:
   enabled: true
   routes:
     users:
-      path: /api/users
+      path: /api/v1/users
       rateLimit:
         average: 120
         period: 1m
         burst: 40
     orders:
-      path: /api/orders
+      path: /api/v1/orders
       rateLimit:
         average: 60
         period: 1m

@@ -1,0 +1,164 @@
+components:
+  schemas:
+    APIError:
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+      required:
+        - error
+      type: object
+    CreateUserRequestBody:
+      additionalProperties: false
+      properties:
+        email:
+          maxLength: 254
+          type: string
+        name:
+          maxLength: 200
+          minLength: 1
+          type: string
+      required:
+        - email
+        - name
+      type: object
+    ListUsersResponseBody:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/User"
+          nullable: true
+          type: array
+      required:
+        - items
+      type: object
+    User:
+      additionalProperties: false
+      properties:
+        created_at:
+          format: date-time
+          type: string
+        email:
+          format: email
+          type: string
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+      required:
+        - id
+        - email
+        - name
+        - created_at
+      type: object
+info:
+  title: users
+  version: dev
+openapi: 3.0.3
+paths:
+  /v1/users:
+    get:
+      operationId: list-users
+      parameters:
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            default: 50
+            format: int64
+            maximum: 500
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListUsersResponseBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Error
+      summary: List users
+      tags:
+        - Users
+    post:
+      operationId: create-user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequestBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+          description: Created
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Conflict
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Internal Server Error
+      summary: Create a user
+      tags:
+        - Users
+  /v1/users/{id}:
+    get:
+      operationId: get-user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: Internal Server Error
+      summary: Get a user
+      tags:
+        - Users
+servers:
+  - url: /api

@@ -24,10 +24,10 @@ golangci-lint:
 
 openapi:
   stage: test
-  image: node:24-alpine
+  image: golang:1.26
   script:
-    - cd api
-    - npx -y @redocly/cli@2.65.0 lint openapi.yaml
+    - go run ./api
+    - git diff --exit-code -- api
 
 integration:
   stage: test

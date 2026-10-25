@@ -10,9 +10,9 @@ import (
 func TestGet(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/internal/users/known":
+		case "/internal/v1/users/known":
 			_, _ = w.Write([]byte(`{"id":"known","email":"a@b.co","name":"Ann"}`))
-		case "/internal/users/broken":
+		case "/internal/v1/users/broken":
 			w.WriteHeader(http.StatusInternalServerError)
 		default:
 			w.WriteHeader(http.StatusNotFound)

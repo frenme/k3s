@@ -39,19 +39,19 @@ func TestProxyRoutes(t *testing.T) {
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	resp, err := http.Get(srv.URL + "/api/users/abc?limit=2")
+	resp, err := http.Get(srv.URL + "/api/v1/users/abc?limit=2")
 	if err != nil {
 		t.Fatal(err)
 	}
 	body, _ := io.ReadAll(resp.Body)
-	if string(body) != "/users/abc?limit=2" {
+	if string(body) != "/v1/users/abc?limit=2" {
 		t.Fatalf("body %q", body)
 	}
 	if ids := resp.Header.Values(httpx.RequestIDHeader); len(ids) != 0 {
 		t.Fatalf("upstream request id leaked: %v", ids)
 	}
 
-	for _, path := range []string{"/api/nothing", "/api/users/internal", "/api/users/internal/users/1", "/api/users/a/internal/b"} {
+	for _, path := range []string{"/api/nothing", "/api/users/abc", "/api/x1/users", "/api/v1/nothing", "/api/v1/users/internal", "/api/v1/users/internal/v1/users/1", "/api/v1/users/a/internal/b"} {
 		resp, _ = http.Get(srv.URL + path)
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("%s: status %d", path, resp.StatusCode)
