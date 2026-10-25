@@ -6,6 +6,7 @@ metadata:
     {{- include "postgres.labels" . | nindent 4 }}
 spec:
   instances: {{ .Values.instances }}
+  enablePDB: {{ gt (int .Values.instances) 1 }}
   imageName: {{ .Values.image }}
   primaryUpdateStrategy: unsupervised
   enableSuperuserAccess: false
@@ -71,10 +72,9 @@ spec:
         effect: NoExecute
         tolerationSeconds: 30
     nodeAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          preference:
-            matchExpressions:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
               - key: role
                 operator: In
                 values: ["core"]

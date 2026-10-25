@@ -4,3 +4,4 @@ appNamespace: {{ .Values.namespace }}
 apps: {{ keys .Values.apps | sortAlpha | toJson }}
 backups: {{ hasKey .Values "backup" }}
 k3sVersion: {{ .Values.k3sVersion | quote }}
+httpsRedirect: {{ ne .Values.clusterIssuer "" }}

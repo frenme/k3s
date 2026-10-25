@@ -1,19 +1,6 @@
 {{- $telegram := dig "telegram" "chatId" 0 .Values.secrets }}
 grafana:
   adminPassword: {{ .Values.secrets.grafana | quote }}
-  {{- if .Values.grafanaHost }}
-  ingress:
-    enabled: true
-    ingressClassName: traefik
-    annotations:
-      cert-manager.io/cluster-issuer: {{ .Values.clusterIssuer }}
-    hosts:
-      - {{ .Values.grafanaHost }}
-    tls:
-      - secretName: grafana-tls
-        hosts:
-          - {{ .Values.grafanaHost }}
-  {{- end }}
 
 alertmanager:
   config:

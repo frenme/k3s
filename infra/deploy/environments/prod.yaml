@@ -2,13 +2,12 @@ namespace: app-prod
 kubeContext: k3s-prod
 acmeEmail: REPLACE_WITH_ACME_EMAIL
 clusterIssuer: letsencrypt-prod
-grafanaHost: grafana.example.com
 k3sVersion: v1.35.9+k3s1
 telemetryRetention: 336h
 
 postgres:
   backupServerName: postgres
-  instances: 2
+  instances: 1
 
 backup:
   destinationPath: s3://k3s-backups/prod/

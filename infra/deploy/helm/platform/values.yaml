@@ -7,6 +7,8 @@ apps: []
 
 backups: true
 
+httpsRedirect: false
+
 thresholds:
   errorRatio: 0.05
   latencyP95Seconds: 0.5

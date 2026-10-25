@@ -12,3 +12,13 @@ spec:
       kind: DaemonSet
     nodeSelector:
       role: edge
+    {{- if .Values.httpsRedirect }}
+    ports:
+      web:
+        http:
+          redirections:
+            entryPoint:
+              to: websecure
+              scheme: https
+              permanent: true
+    {{- end }}

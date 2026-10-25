@@ -3,9 +3,10 @@ data "sops_file" "secrets" {
 }
 
 locals {
-  name    = "k3s-${var.environment}"
-  secrets = yamldecode(data.sops_file.secrets.raw).secrets
-  labels  = { cluster = local.name }
+  name     = "k3s-${var.environment}"
+  secrets  = yamldecode(data.sops_file.secrets.raw).secrets
+  registry = try(local.secrets.registry, null)
+  labels   = { cluster = local.name }
 }
 
 provider "hcloud" {
@@ -86,6 +87,7 @@ resource "hcloud_server" "server" {
     etcd_folder   = "${local.name}/etcd"
     s3_access_key = local.secrets.s3.accessKeyId
     s3_secret_key = local.secrets.s3.secretAccessKey
+    registry      = local.registry
   })
 
   public_net {
@@ -113,6 +115,7 @@ resource "hcloud_server" "agent" {
     k3s_version = var.k3s_version
     server_ip   = hcloud_server.server.ipv4_address
     region      = each.value.region
+    registry    = local.registry
   })
 
   public_net {

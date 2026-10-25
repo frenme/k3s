@@ -14,5 +14,15 @@ write_files:
         - role=edge
         - svccontroller.k3s.cattle.io/enablelb=true
         - topology.kubernetes.io/region=${region}
+%{ if registry != null ~}
+  - path: /etc/rancher/k3s/registries.yaml
+    permissions: "0600"
+    content: |
+      configs:
+        ${jsonencode(registry.host)}:
+          auth:
+            username: ${jsonencode(registry.username)}
+            password: ${jsonencode(registry.password)}
+%{ endif ~}
 runcmd:
   - curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${k3s_version} sh -s - agent

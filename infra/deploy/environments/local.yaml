@@ -2,7 +2,6 @@ namespace: app
 kubeContext: k3d-k3s-base
 acmeEmail: ""
 clusterIssuer: ""
-grafanaHost: ""
 k3sVersion: ""
 telemetryRetention: 48h
 

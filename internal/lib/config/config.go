@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -20,7 +21,7 @@ func Int(key string, def int) int {
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		return def
+		invalid(key, v)
 	}
 	return n
 }
@@ -32,7 +33,7 @@ func Int32(key string, def int32) int32 {
 	}
 	n, err := strconv.ParseInt(v, 10, 32)
 	if err != nil {
-		return def
+		invalid(key, v)
 	}
 	return int32(n)
 }
@@ -44,7 +45,11 @@ func Duration(key string, def time.Duration) time.Duration {
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil {
-		return def
+		invalid(key, v)
 	}
 	return d
+}
+
+func invalid(key, value string) {
+	panic(fmt.Sprintf("invalid value %q for %s", value, key))
 }

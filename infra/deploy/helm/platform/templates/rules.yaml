@@ -10,7 +10,11 @@ spec:
     - name: apps
       rules:
         - alert: AppDown
-          expr: sum by (job) (up{namespace="{{ $ns }}", job=~"{{ $apps }}"}) == 0
+          expr: |
+            sum by (job) (up{namespace="{{ $ns }}", job=~"{{ $apps }}"}) == 0
+            {{- range .Values.apps }}
+              or absent(up{namespace="{{ $ns }}", job="{{ . }}"})
+            {{- end }}
           for: 2m
           labels:
             severity: critical

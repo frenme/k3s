@@ -7,9 +7,10 @@ image:
 {{- $secret := dict }}
 {{- if dig "database" false $app }}
 {{- $password := required (printf "secrets.postgres.%s must be set" $name) (dig $name "" .Values.secrets.postgres) }}
-{{- $_ := set $secret "DATABASE_URL" (printf "postgres://%s_svc:%s@postgres-rw:5432/app?sslmode=require" $name $password) }}
+{{- $_ := set $secret "PGPASSWORD" $password }}
+{{- $_ := set $env "DATABASE_URL" (printf "postgres://%s_svc@postgres-rw:5432/app?sslmode=require" $name) }}
 {{- if gt (int .Values.postgres.instances) 1 }}
-{{- $_ := set $secret "DATABASE_READ_URL" (printf "postgres://%s_svc:%s@postgres-ro:5432/app?sslmode=require" $name $password) }}
+{{- $_ := set $env "DATABASE_READ_URL" (printf "postgres://%s_svc@postgres-ro:5432/app?sslmode=require" $name) }}
 {{- end }}
 {{- end }}
 {{- $_ := set $env "REDIS_ADDR" "redis:6379" }}
