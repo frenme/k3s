@@ -1,0 +1,17 @@
+env:
+  DB_MAX_CONNS: "5"
+
+nodeSelector:
+  role: core
+
+pdb:
+  enabled: true
+
+networkPolicy:
+  enabled: true
+  allowFromNamespaces:
+    - monitoring
+  allowFromPods:
+    - gateway
+  internalFromPods:
+    - users

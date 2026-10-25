@@ -8,37 +8,55 @@ import (
 	"github.com/egor/k3s-base/internal/lib/cache"
 	"github.com/egor/k3s-base/internal/lib/pg"
 	"github.com/egor/k3s-base/internal/users/model"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
-const (
-	userColumns  = `id::text AS id, email, name, created_at`
-	userCacheTTL = time.Minute
-)
+const userCacheTTL = time.Minute
+
+type userRow struct {
+	ID        string `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	Email     string
+	Name      string
+	CreatedAt time.Time
+}
+
+func (userRow) TableName() string { return "users" }
+
+func (r userRow) model() model.User {
+	return model.User{ID: r.ID, Email: r.Email, Name: r.Name, CreatedAt: r.CreatedAt}
+}
 
 type Users struct {
-	pools *pg.Pools
+	db    *pg.DB
 	cache *cache.Cache
 }
 
-func NewUsers(pools *pg.Pools, c *cache.Cache) *Users {
-	return &Users{pools: pools, cache: c}
+func NewUsers(db *pg.DB, c *cache.Cache) *Users {
+	return &Users{db: db, cache: c}
 }
 
 func (s *Users) List(ctx context.Context, limit int) ([]model.User, error) {
-	return pg.Query(s.pools, func(pool *pgxpool.Pool) ([]model.User, error) {
-		return pg.All[model.User](ctx, pool, `SELECT `+userColumns+` FROM users ORDER BY created_at DESC LIMIT $1`, limit)
+	return pg.Read(s.db, func(db *gorm.DB) ([]model.User, error) {
+		var rows []userRow
+		if err := db.WithContext(ctx).Order("created_at DESC").Limit(limit).Find(&rows).Error; err != nil {
+			return nil, err
+		}
+		users := make([]model.User, 0, len(rows))
+		for _, r := range rows {
+			users = append(users, r.model())
+		}
+		return users, nil
 	})
 }
 
 func (s *Users) Get(ctx context.Context, id string) (model.User, error) {
 	return cache.Fetch(ctx, s.cache, id, userCacheTTL, func() (model.User, error) {
-		u, err := pg.Query(s.pools, func(pool *pgxpool.Pool) (model.User, error) {
-			return pg.One[model.User](ctx, pool, `SELECT `+userColumns+` FROM users WHERE id = $1`, id)
+		u, err := pg.Read(s.db, func(db *gorm.DB) (model.User, error) {
+			var row userRow
+			err := db.WithContext(ctx).First(&row, "id = ?", id).Error
+			return row.model(), err
 		})
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return model.User{}, model.ErrNotFound
 		}
 		return u, err
@@ -46,10 +64,10 @@ func (s *Users) Get(ctx context.Context, id string) (model.User, error) {
 }
 
 func (s *Users) Create(ctx context.Context, email, name string) (model.User, error) {
-	u, err := pg.One[model.User](ctx, s.pools.Write, `INSERT INTO users (email, name) VALUES ($1, $2) RETURNING `+userColumns, email, name)
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+	row := userRow{Email: email, Name: name}
+	err := s.db.Write.WithContext(ctx).Create(&row).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		return model.User{}, model.ErrDuplicate
 	}
-	return u, err
+	return row.model(), err
 }

@@ -18,12 +18,12 @@ import (
 const name = "orders"
 
 func Setup(ctx context.Context, s *app.Service) error {
-	pools, err := s.Postgres(ctx, storage.Migrations, storage.MigrationsDir)
+	db, err := s.Postgres(ctx, storage.Migrations, storage.MigrationsDir)
 	if err != nil {
 		return err
 	}
 	usersClient := users.New(config.String("USERS_URL", "http://users:8081"))
-	svc := checkout.NewService(storage.NewOrders(pools), usersClient)
+	svc := checkout.NewService(storage.NewOrders(db), usersClient)
 	register(httpx.NewAPI(s.Mux, name), svc, s.Log)
 	return nil
 }

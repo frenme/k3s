@@ -68,7 +68,7 @@ func NewProxy(routes map[string]*url.URL, log *slog.Logger, upstreamTimeout time
 			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 				log.ErrorContext(r.Context(), "upstream error", "upstream", name, "err", err)
-				httpx.WriteError(w, http.StatusBadGateway, "upstream unavailable")
+				httpx.WriteError(w, errUpstreamUnavailable)
 			},
 		}
 	}
@@ -77,7 +77,7 @@ func NewProxy(routes map[string]*url.URL, log *slog.Logger, upstreamTimeout time
 		name, _, _ := strings.Cut(rest, "/")
 		p, ok := proxies[name]
 		if !ok || !isVersion(version) || strings.Contains("/"+rest+"/", "/internal/") {
-			httpx.WriteError(w, http.StatusNotFound, "unknown route")
+			httpx.WriteError(w, errUnknownRoute)
 			return
 		}
 		p.ServeHTTP(w, r)

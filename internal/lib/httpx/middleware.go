@@ -84,7 +84,7 @@ func Recover(log *slog.Logger) Middleware {
 			defer func() {
 				if rec := recover(); rec != nil {
 					log.ErrorContext(r.Context(), "panic", "panic", rec, "stack", string(debug.Stack()))
-					WriteError(w, http.StatusInternalServerError, "internal error")
+					WriteError(w, ErrInternal)
 				}
 			}()
 			next.ServeHTTP(w, r)

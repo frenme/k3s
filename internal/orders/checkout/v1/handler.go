@@ -2,11 +2,11 @@ package v1
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/egor/k3s-base/internal/lib/httpx"
 	"github.com/egor/k3s-base/internal/orders/checkout"
 	"github.com/egor/k3s-base/internal/orders/model"
 )
@@ -90,19 +90,5 @@ func (h *Handler) create(ctx context.Context, in *CreateOrderRequest) (*OrderRes
 }
 
 func (h *Handler) fail(ctx context.Context, err error) error {
-	var invalid model.ValidationError
-	switch {
-	case errors.As(err, &invalid):
-		return huma.Error422UnprocessableEntity(invalid.Error())
-	case errors.Is(err, model.ErrNotFound):
-		return huma.Error404NotFound(err.Error())
-	case errors.Is(err, model.ErrUnknownUser):
-		return huma.Error422UnprocessableEntity(err.Error())
-	case errors.Is(err, checkout.ErrUsersUnavailable):
-		h.log.ErrorContext(ctx, "users lookup", "err", err)
-		return huma.Error502BadGateway(checkout.ErrUsersUnavailable.Error())
-	default:
-		h.log.ErrorContext(ctx, "checkout v1", "err", err)
-		return huma.Error500InternalServerError("internal error")
-	}
+	return httpx.Fail(ctx, h.log, err)
 }

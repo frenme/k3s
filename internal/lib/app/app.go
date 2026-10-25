@@ -13,10 +13,7 @@ import (
 	"github.com/egor/k3s-base/internal/lib/cache"
 	"github.com/egor/k3s-base/internal/lib/config"
 	"github.com/egor/k3s-base/internal/lib/httpx"
-	"github.com/egor/k3s-base/internal/lib/logx"
 	"github.com/egor/k3s-base/internal/lib/pg"
-	"github.com/egor/k3s-base/internal/lib/rds"
-	"github.com/egor/k3s-base/internal/lib/tracing"
 )
 
 type Service struct {
@@ -32,7 +29,7 @@ type Service struct {
 func Run(name string, setup func(ctx context.Context, s *Service) error) {
 	s := &Service{
 		Name:     name,
-		Log:      logx.New(name, config.String("LOG_LEVEL", "info")),
+		Log:      newLogger(name, config.String("LOG_LEVEL", "info")),
 		Health:   httpx.NewHealth(),
 		Mux:      http.NewServeMux(),
 		Internal: http.NewServeMux(),
@@ -50,7 +47,7 @@ func Run(name string, setup func(ctx context.Context, s *Service) error) {
 
 func (s *Service) run(ctx context.Context, setup func(ctx context.Context, s *Service) error) error {
 	defer s.close()
-	shutdown, err := tracing.Setup(ctx, s.Name)
+	shutdown, err := setupTracing(ctx, s.Name)
 	if err != nil {
 		return err
 	}
@@ -75,14 +72,14 @@ func (s *Service) close() {
 	}
 }
 
-func (s *Service) Postgres(ctx context.Context, fsys fs.FS, dir string) (*pg.Pools, error) {
+func (s *Service) Postgres(ctx context.Context, fsys fs.FS, dir string) (*pg.DB, error) {
 	pools, err := pg.Open(ctx, s.Name, fsys, dir)
 	if err != nil {
 		return nil, err
 	}
 	s.OnClose(pools.Close)
 	s.Health.Add("postgres", pools.Write.Ping)
-	return pools, nil
+	return pg.NewDB(pools)
 }
 
 func (s *Service) Cache() *cache.Cache {
@@ -90,7 +87,7 @@ func (s *Service) Cache() *cache.Cache {
 	if addr == "" {
 		return nil
 	}
-	client := rds.New(addr, config.String("REDIS_PASSWORD", ""))
+	client := cache.NewClient(addr, config.String("REDIS_PASSWORD", ""))
 	s.OnClose(func() { _ = client.Close() })
 	return cache.New(client, s.Name)
 }

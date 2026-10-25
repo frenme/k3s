@@ -14,8 +14,12 @@ func TestGet(t *testing.T) {
 			_, _ = w.Write([]byte(`{"id":"known","email":"a@b.co","name":"Ann"}`))
 		case "/internal/v1/users/broken":
 			w.WriteHeader(http.StatusInternalServerError)
+		case "/internal/v1/users/missing":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"code":"user_not_found","message":"User not found"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"code":"not_found","message":"Not found"}`))
 		}
 	}))
 	defer srv.Close()
@@ -28,7 +32,9 @@ func TestGet(t *testing.T) {
 	if _, err := c.Get(t.Context(), "missing"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing: %v", err)
 	}
-	if _, err := c.Get(t.Context(), "broken"); err == nil || errors.Is(err, ErrNotFound) {
-		t.Fatalf("broken: %v", err)
+	for _, id := range []string{"broken", "wrong-path"} {
+		if _, err := c.Get(t.Context(), id); err == nil || errors.Is(err, ErrNotFound) {
+			t.Fatalf("%s: %v", id, err)
+		}
 	}
 }

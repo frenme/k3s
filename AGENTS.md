@@ -4,7 +4,7 @@ Guide for AI agents (Cursor, Claude Code, Codex) working on this repository and 
 
 ## Layout
 
-- `cmd/<service>` entrypoints, `internal/<service>` services (see Writing services), `internal/clients/<service>` HTTP clients of other services, `internal/lib` shared code (app bootstrap, httpx, pg, rds, logx, tracing).
+- `cmd/<service>` entrypoints, `internal/<service>` services (see Writing services), `internal/clients/<service>` HTTP clients of other services, `internal/lib` shared code: `app` (service bootstrap with logging and tracing), `httpx`, `pg`, `cache`, `config`, `version`.
 - `api/*.yaml` OpenAPI generated from the code (`make openapi`), validated by `e2e`.
 - `infra/deploy/helmfile.yaml.gotmpl` every release; `infra/deploy/environments/*.yaml` per-env settings; `infra/deploy/values/{base,local,dev,prod,derived}` release values; `infra/deploy/helm/*` own charts.
 - `infra/terraform` Hetzner servers, `infra/k3d` local cluster.
@@ -17,7 +17,7 @@ Every service follows the same layout, `internal/users` is the reference:
 ```
 internal/<service>/
   model/          plain structs and domain errors, one file per model
-  storage/        all SQL of the service, one file per table, plus migrations/
+  storage/        all database access of the service through GORM, one file per table, plus migrations/
   <feature>/      one package per feature (profile, auth, checkout)
     service.go    business logic, no HTTP and no SQL; declares the small interfaces it needs
     v1/           one folder per API version
@@ -26,17 +26,23 @@ internal/<service>/
   routes.go       Setup opens Postgres and wires features; OpenAPI builds the spec without a database
 ```
 
-- HTTP is [Huma](https://huma.rocks) on top of `net/http` (`internal/lib/httpx/api.go`). Routes, validation tags and docs live in `huma.Register` calls and DTO tags. Errors are always `{"error": "..."}`: return `huma.Error404NotFound(...)` and similar.
-- Validation errors are 422, malformed JSON is 400.
+- HTTP is [Huma](https://huma.rocks) on top of `net/http` (`internal/lib/httpx/api.go`). Routes, validation tags and docs live in `huma.Register` calls and DTO tags.
+- Errors are defined once, as `httpx.Error{Status, Code, Message}`: entity errors in `model/errors.go`, scenario errors next to the feature service (`checkout.ErrUnknownUser`), shared ones (`not_found`, `invalid_input`, `internal_error`) in `internal/lib/httpx/errors.go`. Storage and services return them (wrapping with `%w` is fine), code checks them with `errors.Is`, which matches by `code`.
+- Every response error is `{"code": "...", "message": "...", "details": [...]}`. Clients branch on `code`, never on `message`. Handlers end with `return nil, httpx.Fail(ctx, log, err)`: anything that is not an `httpx.Error` becomes `internal_error`, 5xx are logged, and internal details never reach the response.
+- Input validation lives in DTO tags (`format`, `pattern`, `minimum`, `maxLength`), not in services: Huma returns 422 `invalid_input` with details, malformed JSON is 400 `bad_request`. Services only normalize input and enforce business rules.
 - Public routes are `/v1/<resource>` on `:8080` (`s.Mux`), reached as `/api/v1/<service>/...` through the gateway. A breaking change goes to a new `v2/` folder next to `v1/`, reusing the same service.
 - Internal routes are `/internal/v1/<resource>` on `:8081` (`s.Internal`), reached only by other services. The gateway refuses any path with an `internal` segment, and the NetworkPolicy opens `:8081` only to pods listed in `networkPolicy.internalFromPods`.
 - Docs: `/api/v1/<service>/docs`, spec at `/api/v1/<service>/openapi.json`.
 - `api/*.yaml` is generated from the code by `make openapi`, never edited by hand. CI fails if it differs from the code, `e2e` validates real responses against it.
-- SQL lives only in `storage/`. Feature packages never import each other; what they share lives in `model/` and `storage/`.
+- Database access lives only in `storage/` and goes through GORM (`*pg.DB`: `Write` for writes, `pg.Read` for reads that prefer the replica and fall back to the primary). GORM row structs with tags stay private in `storage/` and are mapped to `model/` structs; depguard rejects GORM and pgx anywhere else.
+- Schema changes are plain SQL files in `storage/migrations`, never GORM `AutoMigrate`.
+- Feature packages never import each other; what they share lives in `model/` and `storage/`.
 - A growing `service.go` splits per use case inside the same package (`register.go`, `login.go`).
 - Each service owns one Postgres schema and one migration history in `storage/migrations`.
 - Services never import another service's `internal/<service>` packages (enforced by depguard). They call each other over HTTP through `internal/clients/<service>` (`users.New(url)`, `users.Client`), which mirrors only the fields the caller needs.
 - Migrations must stay compatible with the previous release during rolling updates: add first, switch code in the next release, drop last.
+- `common` holds what is shared by the whole app: `settings` (key and JSON value; public ones are served to clients at `/api/v1/common/settings`, any key to services at `/internal/v1/common/settings/{key}` through `internal/clients/common`) and `health` (`/api/v1/common/health` checks `/readyz` of every routed service, 503 when any is down). It scales like any other service because every service depends on it. Example use: `users` refuses sign-ups when `registration_enabled` is false.
+- `admin` is the exception that reads every schema: its Postgres role is in `pg_read_all_data` (`readAllSchemas: true` in `common.yaml`), so it can read but never write other services' tables. It runs as exactly one pod (`singleton: true`: no HPA, no PDB, `Recreate` rollout) and its routes `/api/v1/admin/...` pass the gateway only with the admin password (`gateway.AdminMiddleware`, HTTP Basic). The password is hardcoded in `internal/gateway/admin.go` for now.
 
 ## Environments
 
@@ -51,6 +57,8 @@ Platform namespaces: `monitoring` (Prometheus, Grafana, Alertmanager, Loki, Temp
 Nodes are labeled `role=core` (databases, monitoring, services) and `role=edge` (ingress only).
 
 Servers are listed in `infra/terraform/envs/<env>.tfvars`: `server` is the control plane (core), `nodes` is a map of extra servers with `location`, `server_type`, `region` and `role` (`edge` by default, `core` for more core capacity such as a database replica). Add or remove entries and run `make infra-apply ENV=<env>`; a new `edge` gets Traefik and its own gateway pod (gateway is a DaemonSet on `role=edge`), core nodes sit in a spread placement group on different hosts. A database replica is a `core` node plus `postgres.instances: 2` in `environments/<env>.yaml`.
+
+CoreDNS is our own manifest `infra/k3s/coredns.yaml` (k3s CoreDNS is disabled) pinned to `role=core`, so cluster DNS never moves to a remote edge. `dev` runs without metrics and traces (`telemetry` in `environments/dev.yaml`): only services, Loki, Alloy and Grafana for logs.
 
 ## Connecting
 

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/egor/k3s-base/internal/lib/rds"
 )
 
 type item struct {
@@ -16,7 +15,7 @@ type item struct {
 
 func TestFetchLoadsOnceThenHits(t *testing.T) {
 	mr := miniredis.RunT(t)
-	c := New(rds.New(mr.Addr(), ""), "test")
+	c := New(NewClient(mr.Addr(), ""), "test")
 	calls := 0
 	load := func() (item, error) {
 		calls++
@@ -35,7 +34,7 @@ func TestFetchLoadsOnceThenHits(t *testing.T) {
 
 func TestFetchDoesNotCacheErrors(t *testing.T) {
 	mr := miniredis.RunT(t)
-	c := New(rds.New(mr.Addr(), ""), "test")
+	c := New(NewClient(mr.Addr(), ""), "test")
 	boom := errors.New("boom")
 	calls := 0
 	load := func() (item, error) {
@@ -54,7 +53,7 @@ func TestFetchDoesNotCacheErrors(t *testing.T) {
 
 func TestFetchExpires(t *testing.T) {
 	mr := miniredis.RunT(t)
-	c := New(rds.New(mr.Addr(), ""), "test")
+	c := New(NewClient(mr.Addr(), ""), "test")
 	calls := 0
 	load := func() (item, error) {
 		calls++
@@ -70,7 +69,7 @@ func TestFetchExpires(t *testing.T) {
 
 func TestDeleteForcesReload(t *testing.T) {
 	mr := miniredis.RunT(t)
-	c := New(rds.New(mr.Addr(), ""), "test")
+	c := New(NewClient(mr.Addr(), ""), "test")
 	calls := 0
 	load := func() (item, error) {
 		calls++
@@ -86,7 +85,7 @@ func TestDeleteForcesReload(t *testing.T) {
 
 func TestFetchFallsBackWhenRedisDown(t *testing.T) {
 	mr := miniredis.RunT(t)
-	c := New(rds.New(mr.Addr(), ""), "test")
+	c := New(NewClient(mr.Addr(), ""), "test")
 	mr.Close()
 	v, err := Fetch(context.Background(), c, "k", time.Minute, func() (item, error) { return item{Name: "x"}, nil })
 	if err != nil || v.Name != "x" {

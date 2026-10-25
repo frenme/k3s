@@ -6,7 +6,9 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/egor/k3s-base/internal/clients/common"
 	"github.com/egor/k3s-base/internal/lib/app"
+	"github.com/egor/k3s-base/internal/lib/config"
 	"github.com/egor/k3s-base/internal/lib/httpx"
 	"github.com/egor/k3s-base/internal/users/profile"
 	profilev1 "github.com/egor/k3s-base/internal/users/profile/v1"
@@ -16,11 +18,12 @@ import (
 const name = "users"
 
 func Setup(ctx context.Context, s *app.Service) error {
-	pools, err := s.Postgres(ctx, storage.Migrations, storage.MigrationsDir)
+	db, err := s.Postgres(ctx, storage.Migrations, storage.MigrationsDir)
 	if err != nil {
 		return err
 	}
-	svc := profile.NewService(storage.NewUsers(pools, s.Cache()))
+	settings := common.New(config.String("COMMON_URL", "http://common:8081"))
+	svc := profile.NewService(storage.NewUsers(db, s.Cache()), settings)
 	register(httpx.NewAPI(s.Mux, name), httpx.NewInternalAPI(s.Internal, name), svc, s.Log)
 	return nil
 }

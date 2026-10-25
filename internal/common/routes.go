@@ -1,0 +1,44 @@
+package common
+
+import (
+	"context"
+	"log/slog"
+	"net/http"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/egor/k3s-base/internal/common/health"
+	healthv1 "github.com/egor/k3s-base/internal/common/health/v1"
+	"github.com/egor/k3s-base/internal/common/settings"
+	settingsv1 "github.com/egor/k3s-base/internal/common/settings/v1"
+	"github.com/egor/k3s-base/internal/common/storage"
+	"github.com/egor/k3s-base/internal/lib/app"
+	"github.com/egor/k3s-base/internal/lib/config"
+	"github.com/egor/k3s-base/internal/lib/httpx"
+)
+
+const name = "common"
+
+func Setup(ctx context.Context, s *app.Service) error {
+	db, err := s.Postgres(ctx, storage.Migrations, storage.MigrationsDir)
+	if err != nil {
+		return err
+	}
+	targets, err := health.ParseTargets(config.String("HEALTH_TARGETS", ""))
+	if err != nil {
+		return err
+	}
+	register(httpx.NewAPI(s.Mux, name), httpx.NewInternalAPI(s.Internal, name),
+		settings.NewService(storage.NewSettings(db)), health.NewService(targets), s.Log)
+	return nil
+}
+
+func OpenAPI() (public, internal *huma.OpenAPI) {
+	pub, in := httpx.NewAPI(http.NewServeMux(), name), httpx.NewInternalAPI(http.NewServeMux(), name)
+	register(pub, in, nil, nil, nil)
+	return pub.OpenAPI(), in.OpenAPI()
+}
+
+func register(public, internal huma.API, settingsSvc *settings.Service, healthSvc *health.Service, log *slog.Logger) {
+	settingsv1.NewHandler(settingsSvc, log).Register(public, internal)
+	healthv1.NewHandler(healthSvc).Register(public)
+}

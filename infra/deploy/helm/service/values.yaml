@@ -4,6 +4,8 @@ image:
 
 kind: Deployment
 
+singleton: false
+
 imagePullSecrets: []
 
 env: {}

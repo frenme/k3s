@@ -2,8 +2,11 @@ package profile
 
 import (
 	"context"
-	"net/mail"
+	"fmt"
+	"net/http"
 	"strings"
+
+	"github.com/egor/k3s-base/internal/lib/httpx"
 
 	"github.com/egor/k3s-base/internal/users/model"
 	"github.com/google/uuid"
@@ -15,12 +18,22 @@ type store interface {
 	Create(ctx context.Context, email, name string) (model.User, error)
 }
 
-type Service struct {
-	store store
+type settings interface {
+	Bool(ctx context.Context, key string) (bool, error)
 }
 
-func NewService(store store) *Service {
-	return &Service{store: store}
+var (
+	ErrRegistrationClosed  = httpx.Error{Status: http.StatusForbidden, Code: "registration_closed", Message: "Registration is closed"}
+	ErrSettingsUnavailable = httpx.Error{Status: http.StatusBadGateway, Code: "settings_unavailable", Message: "Settings are temporarily unavailable"}
+)
+
+type Service struct {
+	store    store
+	settings settings
+}
+
+func NewService(store store, settings settings) *Service {
+	return &Service{store: store, settings: settings}
 }
 
 func (s *Service) List(ctx context.Context, limit int) ([]model.User, error) {
@@ -35,13 +48,12 @@ func (s *Service) Get(ctx context.Context, id string) (model.User, error) {
 }
 
 func (s *Service) Create(ctx context.Context, email, name string) (model.User, error) {
-	email = strings.TrimSpace(strings.ToLower(email))
-	name = strings.TrimSpace(name)
-	if _, err := mail.ParseAddress(email); err != nil {
-		return model.User{}, model.ValidationError("invalid email")
+	open, err := s.settings.Bool(ctx, "registration_enabled")
+	if err != nil {
+		return model.User{}, fmt.Errorf("%w: %w", ErrSettingsUnavailable, err)
 	}
-	if name == "" {
-		return model.User{}, model.ValidationError("name is required")
+	if !open {
+		return model.User{}, ErrRegistrationClosed
 	}
-	return s.store.Create(ctx, email, name)
+	return s.store.Create(ctx, strings.TrimSpace(strings.ToLower(email)), strings.TrimSpace(name))
 }

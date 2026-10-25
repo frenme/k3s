@@ -1,9 +1,24 @@
 apps:
   users:
     database: true
+    redis: true
     route: true
   orders:
     database: true
+    redis: true
     route: true
+  common:
+    database: true
+    route: true
+    healthCheck: true
+  admin:
+    database: true
+    readAllSchemas: true
+    route: true
+    singleton: true
   gateway:
     gateway: true
+
+telemetry:
+  metrics: true
+  traces: true

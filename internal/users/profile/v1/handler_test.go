@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -48,10 +49,27 @@ func (f *fakeStore) Create(ctx context.Context, email, name string) (model.User,
 	return u, nil
 }
 
+type fakeSettings struct {
+	registration bool
+	down         bool
+}
+
+func (f *fakeSettings) Bool(ctx context.Context, key string) (bool, error) {
+	if f.down {
+		return false, errors.New("connection refused")
+	}
+	return f.registration, nil
+}
+
 func newServers(t *testing.T) (public, internal string) {
 	t.Helper()
+	return newServersWith(t, &fakeSettings{registration: true})
+}
+
+func newServersWith(t *testing.T, settings *fakeSettings) (public, internal string) {
+	t.Helper()
 	pubMux, inMux := http.NewServeMux(), http.NewServeMux()
-	svc := profile.NewService(&fakeStore{items: map[string]model.User{}})
+	svc := profile.NewService(&fakeStore{items: map[string]model.User{}}, settings)
 	NewHandler(svc, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewAPI(pubMux, "users"), httpx.NewInternalAPI(inMux, "users"))
 	pub, in := httptest.NewServer(pubMux), httptest.NewServer(inMux)
 	t.Cleanup(pub.Close)
@@ -111,16 +129,20 @@ func TestErrorsAreJSON(t *testing.T) {
 	public, _ := newServers(t)
 	post(t, public+"/v1/users", `{"email":"a@b.co","name":"x"}`)
 
-	cases := map[string]int{
-		`{"email":"nope","name":"x"}`:   http.StatusUnprocessableEntity,
-		`{"email":"c@b.co","name":""}`:  http.StatusUnprocessableEntity,
-		`{"email":"a@b.co","name":"y"}`: http.StatusConflict,
-		`{bad`:                          http.StatusBadRequest,
+	cases := map[string]struct {
+		status int
+		code   string
+	}{
+		`{"email":"nope","name":"x"}`:    {http.StatusUnprocessableEntity, "invalid_input"},
+		`{"email":"c@b.co","name":""}`:   {http.StatusUnprocessableEntity, "invalid_input"},
+		`{"email":"d@b.co","name":"  "}`: {http.StatusUnprocessableEntity, "invalid_input"},
+		`{"email":"a@b.co","name":"y"}`:  {http.StatusConflict, "email_taken"},
+		`{bad`:                           {http.StatusBadRequest, "bad_request"},
 	}
 	for in, want := range cases {
-		code, body := post(t, public+"/v1/users", in)
-		if msg, _ := body["error"].(string); code != want || msg == "" {
-			t.Fatalf("%s: status %d body %v", in, code, body)
+		status, body := post(t, public+"/v1/users", in)
+		if status != want.status || body["code"] != want.code || body["message"] == "" {
+			t.Fatalf("%s: status %d body %v", in, status, body)
 		}
 	}
 	for _, id := range []string{"missing", uuid.NewString()} {
@@ -130,6 +152,24 @@ func TestErrorsAreJSON(t *testing.T) {
 	}
 	if got := status(t, public+"/v1/users?limit=0"); got != http.StatusUnprocessableEntity {
 		t.Fatalf("limit=0: status %d", got)
+	}
+}
+
+func TestRegistrationSetting(t *testing.T) {
+	cases := []struct {
+		settings *fakeSettings
+		status   int
+		code     string
+	}{
+		{&fakeSettings{registration: false}, http.StatusForbidden, "registration_closed"},
+		{&fakeSettings{down: true}, http.StatusBadGateway, "settings_unavailable"},
+	}
+	for _, c := range cases {
+		public, _ := newServersWith(t, c.settings)
+		status, body := post(t, public+"/v1/users", `{"email":"a@b.co","name":"Ann"}`)
+		if status != c.status || body["code"] != c.code {
+			t.Fatalf("%+v: %d %v", c.settings, status, body)
+		}
 	}
 }
 

@@ -48,6 +48,10 @@ spec:
         login: true
         passwordSecret:
           name: postgres-{{ $svc }}
+        {{- if $cfg.readAllSchemas }}
+        inRoles:
+          - pg_read_all_data
+        {{- end }}
       {{- end }}
   {{- end }}
   {{- if .Values.backup.enabled }}

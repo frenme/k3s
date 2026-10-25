@@ -1,4 +1,4 @@
-package logx
+package app
 
 import (
 	"bytes"

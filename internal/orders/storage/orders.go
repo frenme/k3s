@@ -3,61 +3,86 @@ package storage
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/egor/k3s-base/internal/lib/pg"
 	"github.com/egor/k3s-base/internal/orders/model"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-const orderColumns = `id::text AS id, user_id::text AS user_id, item, amount_cents, created_at`
-
-type Orders struct {
-	pools *pg.Pools
+type orderRow struct {
+	ID             string `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	UserID         string `gorm:"type:uuid"`
+	Item           string
+	AmountCents    int64
+	IdempotencyKey *string
+	CreatedAt      time.Time
 }
 
-func NewOrders(pools *pg.Pools) *Orders {
-	return &Orders{pools: pools}
+func (orderRow) TableName() string { return "orders" }
+
+func (r orderRow) model() model.Order {
+	return model.Order{ID: r.ID, UserID: r.UserID, Item: r.Item, AmountCents: r.AmountCents, CreatedAt: r.CreatedAt}
+}
+
+var onIdempotencyConflict = clause.OnConflict{
+	Columns:     []clause.Column{{Name: "idempotency_key"}},
+	TargetWhere: clause.Where{Exprs: []clause.Expression{clause.Expr{SQL: "idempotency_key IS NOT NULL"}}},
+	DoNothing:   true,
+}
+
+type Orders struct {
+	db *pg.DB
+}
+
+func NewOrders(db *pg.DB) *Orders {
+	return &Orders{db: db}
 }
 
 func (s *Orders) List(ctx context.Context, userID string, limit int) ([]model.Order, error) {
-	query := `SELECT ` + orderColumns + ` FROM orders ORDER BY created_at DESC LIMIT $1`
-	args := []any{limit}
-	if userID != "" {
-		query = `SELECT ` + orderColumns + ` FROM orders WHERE user_id = $2 ORDER BY created_at DESC LIMIT $1`
-		args = append(args, userID)
-	}
-	return pg.Query(s.pools, func(pool *pgxpool.Pool) ([]model.Order, error) {
-		return pg.All[model.Order](ctx, pool, query, args...)
+	return pg.Read(s.db, func(db *gorm.DB) ([]model.Order, error) {
+		q := db.WithContext(ctx).Order("created_at DESC").Limit(limit)
+		if userID != "" {
+			q = q.Where("user_id = ?", userID)
+		}
+		var rows []orderRow
+		if err := q.Find(&rows).Error; err != nil {
+			return nil, err
+		}
+		orders := make([]model.Order, 0, len(rows))
+		for _, r := range rows {
+			orders = append(orders, r.model())
+		}
+		return orders, nil
 	})
 }
 
 func (s *Orders) Get(ctx context.Context, id string) (model.Order, error) {
-	o, err := pg.Query(s.pools, func(pool *pgxpool.Pool) (model.Order, error) {
-		return pg.One[model.Order](ctx, pool, `SELECT `+orderColumns+` FROM orders WHERE id = $1`, id)
+	o, err := pg.Read(s.db, func(db *gorm.DB) (model.Order, error) {
+		var row orderRow
+		err := db.WithContext(ctx).First(&row, "id = ?", id).Error
+		return row.model(), err
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return model.Order{}, model.ErrNotFound
 	}
 	return o, err
 }
 
 func (s *Orders) Create(ctx context.Context, o model.Order, key string) (model.Order, bool, error) {
-	var idem *string
+	row := orderRow{UserID: o.UserID, Item: o.Item, AmountCents: o.AmountCents}
 	if key != "" {
-		idem = &key
+		row.IdempotencyKey = &key
 	}
-	out, err := pg.One[model.Order](ctx, s.pools.Write, `
-		INSERT INTO orders (user_id, item, amount_cents, idempotency_key)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
-		RETURNING `+orderColumns, o.UserID, o.Item, o.AmountCents, idem)
-	if err == nil {
-		return out, true, nil
+	res := s.db.Write.WithContext(ctx).Clauses(onIdempotencyConflict).Create(&row)
+	if res.Error != nil {
+		return model.Order{}, false, res.Error
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return model.Order{}, false, err
+	if res.RowsAffected == 1 {
+		return row.model(), true, nil
 	}
-	out, err = pg.One[model.Order](ctx, s.pools.Write, `SELECT `+orderColumns+` FROM orders WHERE idempotency_key = $1`, key)
-	return out, false, err
+	var existing orderRow
+	err := s.db.Write.WithContext(ctx).First(&existing, "idempotency_key = ?", key).Error
+	return existing.model(), false, err
 }

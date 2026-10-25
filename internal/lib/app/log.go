@@ -1,4 +1,4 @@
-package logx
+package app
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func New(service, level string) *slog.Logger {
+func newLogger(service, level string) *slog.Logger {
 	var lvl slog.Level
 	switch strings.ToLower(level) {
 	case "debug":

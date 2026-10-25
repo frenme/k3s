@@ -1,4 +1,4 @@
-package tracing
+package app
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 )
 
-func Setup(ctx context.Context, service string) (func(context.Context) error, error) {
+func setupTracing(ctx context.Context, service string) (func(context.Context) error, error) {
 	res, err := resource.New(ctx,
 		resource.WithSchemaURL(semconv.SchemaURL),
 		resource.WithTelemetrySDK(),

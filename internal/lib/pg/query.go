@@ -1,10 +1,11 @@
 package pg
 
 import (
-	"context"
-
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type Pools struct {
@@ -19,30 +20,38 @@ func (p *Pools) Close() {
 	p.Write.Close()
 }
 
-func Query[T any](p *Pools, fn func(*pgxpool.Pool) (T, error)) (T, error) {
-	if p.Read == nil {
-		return fn(p.Write)
-	}
-	v, err := fn(p.Read)
-	if err == nil {
-		return v, nil
-	}
-	return fn(p.Write)
+type DB struct {
+	Write *gorm.DB
+	Read  *gorm.DB
 }
 
-func All[T any](ctx context.Context, pool *pgxpool.Pool, sql string, args ...any) ([]T, error) {
-	rows, err := pool.Query(ctx, sql, args...)
+func NewDB(p *Pools) (*DB, error) {
+	write, err := openGorm(p.Write)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, pgx.RowToStructByName[T])
+	db := &DB{Write: write, Read: write}
+	if p.Read != nil {
+		if db.Read, err = openGorm(p.Read); err != nil {
+			return nil, err
+		}
+	}
+	return db, nil
 }
 
-func One[T any](ctx context.Context, pool *pgxpool.Pool, sql string, args ...any) (T, error) {
-	rows, err := pool.Query(ctx, sql, args...)
-	if err != nil {
-		var zero T
-		return zero, err
+func openGorm(pool *pgxpool.Pool) (*gorm.DB, error) {
+	return gorm.Open(postgres.New(postgres.Config{Conn: stdlib.OpenDBFromPool(pool)}), &gorm.Config{
+		TranslateError:         true,
+		DisableAutomaticPing:   true,
+		SkipDefaultTransaction: true,
+		Logger:                 logger.Discard,
+	})
+}
+
+func Read[T any](db *DB, fn func(*gorm.DB) (T, error)) (T, error) {
+	v, err := fn(db.Read)
+	if err == nil || db.Read == db.Write {
+		return v, err
 	}
-	return pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[T])
+	return fn(db.Write)
 }

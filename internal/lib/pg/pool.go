@@ -29,9 +29,11 @@ func Open(ctx context.Context, defaultSchema string, fsys fs.FS, dir string) (*P
 	if err != nil {
 		return nil, err
 	}
-	if err := migrateWhenReady(ctx, write, schema, fsys, dir); err != nil {
-		write.Close()
-		return nil, err
+	if fsys != nil {
+		if err := migrateWhenReady(ctx, write, schema, fsys, dir); err != nil {
+			write.Close()
+			return nil, err
+		}
 	}
 
 	pools := &Pools{Write: write}

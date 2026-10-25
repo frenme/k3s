@@ -1,0 +1,149 @@
+components:
+  schemas:
+    Error:
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+        details:
+          items:
+            type: string
+          nullable: true
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    ListOrdersResponseBody:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/Order"
+          nullable: true
+          type: array
+      required:
+        - items
+      type: object
+    ListUsersResponseBody:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/User"
+          nullable: true
+          type: array
+      required:
+        - items
+      type: object
+    Order:
+      additionalProperties: false
+      properties:
+        amount_cents:
+          format: int64
+          type: integer
+        created_at:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        item:
+          type: string
+        user_id:
+          format: uuid
+          type: string
+      required:
+        - id
+        - user_id
+        - item
+        - amount_cents
+        - created_at
+      type: object
+    User:
+      additionalProperties: false
+      properties:
+        created_at:
+          format: date-time
+          type: string
+        email:
+          format: email
+          type: string
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+      required:
+        - id
+        - email
+        - name
+        - created_at
+      type: object
+info:
+  title: admin
+  version: dev
+openapi: 3.0.3
+paths:
+  /v1/admin/orders:
+    get:
+      operationId: admin-list-orders
+      parameters:
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            default: 50
+            format: int64
+            maximum: 500
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListOrdersResponseBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Error
+      summary: List orders from the orders schema
+      tags:
+        - Admin
+  /v1/admin/users:
+    get:
+      operationId: admin-list-users
+      parameters:
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            default: 50
+            format: int64
+            maximum: 500
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListUsersResponseBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Error
+      summary: List users from the users schema
+      tags:
+        - Admin
+servers:
+  - url: /api

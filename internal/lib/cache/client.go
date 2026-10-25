@@ -1,4 +1,4 @@
-package rds
+package cache
 
 import (
 	"time"
@@ -7,7 +7,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func New(addr, password string) *redis.Client {
+func NewClient(addr, password string) *redis.Client {
 	client := redis.NewClient(&redis.Options{
 		Addr:         addr,
 		Password:     password,

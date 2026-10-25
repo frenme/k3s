@@ -13,8 +13,10 @@ image:
 {{- $_ := set $env "DATABASE_READ_URL" (printf "postgres://%s_svc@postgres-ro:5432/app?sslmode=require" $name) }}
 {{- end }}
 {{- end }}
+{{- if dig "redis" false $app }}
 {{- $_ := set $env "REDIS_ADDR" "redis:6379" }}
 {{- $_ := set $secret "REDIS_PASSWORD" .Values.secrets.redis }}
+{{- end }}
 {{- if dig "gateway" false $app }}
 {{- $routes := list }}
 {{- range $route, $cfg := .Values.apps }}
@@ -24,11 +26,25 @@ image:
 {{- end }}
 {{- $_ := set $env "ROUTES" (join "," $routes) }}
 {{- end }}
+{{- if dig "healthCheck" false $app }}
+{{- $targets := list }}
+{{- range $target, $cfg := .Values.apps }}
+{{- if and (dig "route" false $cfg) (ne $target $name) }}
+{{- $targets = append $targets (printf "%s=http://%s:8080" $target $target) }}
+{{- end }}
+{{- end }}
+{{- $_ := set $env "HEALTH_TARGETS" (join "," $targets) }}
+{{- end }}
+{{- if dig "singleton" false $app }}
+singleton: true
+{{- end }}
 {{- with .Values | get "appDefaults" dict }}
 {{ toYaml . }}
 {{- end }}
 tracing:
+  {{- if .Values.telemetry.traces }}
   endpoint: http://tempo.monitoring:4318
+  {{- end }}
   environment: {{ .Environment.Name }}
 {{- with $env }}
 env:

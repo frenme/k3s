@@ -94,29 +94,30 @@ func send(t *testing.T, url, body, key string) (int, map[string]any) {
 
 func TestCreateOrder(t *testing.T) {
 	url := newServer(t, fakeUsers{}) + "/v1/orders"
-	cases := map[string]int{
-		`{"user_id":"` + knownUser + `","item":"book","amount_cents":1500}`:                 http.StatusCreated,
-		`{"user_id":"22222222-2222-4222-8222-222222222222","item":"book","amount_cents":1}`: http.StatusUnprocessableEntity,
-		`{"user_id":"not-a-uuid","item":"x","amount_cents":1}`:                              http.StatusUnprocessableEntity,
-		`{"user_id":"` + knownUser + `","item":"","amount_cents":1}`:                        http.StatusUnprocessableEntity,
-		`{"user_id":"` + knownUser + `","item":"x","amount_cents":-1}`:                      http.StatusUnprocessableEntity,
-		`nope`: http.StatusBadRequest,
+	cases := map[string]struct {
+		status int
+		code   string
+	}{
+		`{"user_id":"` + knownUser + `","item":"book","amount_cents":1500}`:                 {http.StatusCreated, ""},
+		`{"user_id":"22222222-2222-4222-8222-222222222222","item":"book","amount_cents":1}`: {http.StatusUnprocessableEntity, "unknown_user"},
+		`{"user_id":"not-a-uuid","item":"x","amount_cents":1}`:                              {http.StatusUnprocessableEntity, "invalid_input"},
+		`{"user_id":"` + knownUser + `","item":"","amount_cents":1}`:                        {http.StatusUnprocessableEntity, "invalid_input"},
+		`{"user_id":"` + knownUser + `","item":"   ","amount_cents":1}`:                     {http.StatusUnprocessableEntity, "invalid_input"},
+		`{"user_id":"` + knownUser + `","item":"x","amount_cents":-1}`:                      {http.StatusUnprocessableEntity, "invalid_input"},
+		`nope`: {http.StatusBadRequest, "bad_request"},
 	}
 	for body, want := range cases {
-		code, out := send(t, url, body, "")
-		if code != want {
-			t.Fatalf("%s: status %d, want %d", body, code, want)
-		}
-		if msg, _ := out["error"].(string); code >= 400 && msg == "" {
-			t.Fatalf("%s: no json error in %v", body, out)
+		status, out := send(t, url, body, "")
+		if code, _ := out["code"].(string); status != want.status || code != want.code {
+			t.Fatalf("%s: status %d body %v, want %d %q", body, status, out, want.status, want.code)
 		}
 	}
 }
 
 func TestUsersServiceDown(t *testing.T) {
 	url := newServer(t, fakeUsers{down: true}) + "/v1/orders"
-	if code, _ := send(t, url, `{"user_id":"`+knownUser+`","item":"book","amount_cents":1}`, ""); code != http.StatusBadGateway {
-		t.Fatalf("status %d", code)
+	if status, out := send(t, url, `{"user_id":"`+knownUser+`","item":"book","amount_cents":1}`, ""); status != http.StatusBadGateway || out["code"] != "users_unavailable" {
+		t.Fatalf("status %d body %v", status, out)
 	}
 }
 

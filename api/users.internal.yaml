@@ -1,12 +1,20 @@
 components:
   schemas:
-    APIError:
+    Error:
       additionalProperties: false
       properties:
-        error:
+        code:
+          type: string
+        details:
+          items:
+            type: string
+          nullable: true
+          type: array
+        message:
           type: string
       required:
-        - error
+        - code
+        - message
       type: object
     User:
       additionalProperties: false
@@ -53,19 +61,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/APIError"
+                $ref: "#/components/schemas/Error"
           description: Not Found
         "422":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/APIError"
+                $ref: "#/components/schemas/Error"
           description: Unprocessable Entity
         "500":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/APIError"
+                $ref: "#/components/schemas/Error"
           description: Internal Server Error
       summary: Get a user for other services
       tags:

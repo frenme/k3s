@@ -20,5 +20,7 @@ secrets:
   postgres:
     users: dev-users-password
     orders: dev-orders-password
+    admin: dev-admin-password
+    common: dev-common-password
   redis: dev-redis-password
   grafana: dev-grafana-password

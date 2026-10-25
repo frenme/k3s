@@ -12,7 +12,7 @@ import (
 )
 
 func TestOrders(t *testing.T) {
-	store := NewOrders(pgtest.Pools(t, "orders", Migrations, MigrationsDir))
+	store := NewOrders(pgtest.DB(t, "orders", Migrations, MigrationsDir))
 	ctx := t.Context()
 	user, other := uuid.NewString(), uuid.NewString()
 

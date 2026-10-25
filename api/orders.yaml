@@ -1,13 +1,5 @@
 components:
   schemas:
-    APIError:
-      additionalProperties: false
-      properties:
-        error:
-          type: string
-      required:
-        - error
-      type: object
     CreateOrderRequestBody:
       additionalProperties: false
       properties:
@@ -17,13 +9,31 @@ components:
           type: integer
         item:
           maxLength: 200
+          pattern: \S
           type: string
         user_id:
+          format: uuid
           type: string
       required:
         - user_id
         - item
         - amount_cents
+      type: object
+    Error:
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+        details:
+          items:
+            type: string
+          nullable: true
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
       type: object
     ListOrdersResponseBody:
       additionalProperties: false
@@ -82,6 +92,7 @@ paths:
           in: query
           name: user_id
           schema:
+            format: uuid
             type: string
       responses:
         "200":
@@ -94,7 +105,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/APIError"
+                $ref: "#/components/schemas/Error"
           description: Error
       summary: List orders
       tags:
@@ -130,19 +141,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/APIError"
+                $ref: "#/components/schemas/Error"
           description: Unprocessable Entity
         "500":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/APIError"
+                $ref: "#/components/schemas/Error"
           description: Internal Server Error
         "502":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/APIError"
+                $ref: "#/components/schemas/Error"
           description: Bad Gateway
       summary: Create an order, replays return the first order with 200
       tags:
@@ -167,19 +178,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/APIError"
+                $ref: "#/components/schemas/Error"
           description: Not Found
         "422":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/APIError"
+                $ref: "#/components/schemas/Error"
           description: Unprocessable Entity
         "500":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/APIError"
+                $ref: "#/components/schemas/Error"
           description: Internal Server Error
       summary: Get an order
       tags:

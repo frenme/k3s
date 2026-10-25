@@ -73,7 +73,7 @@ images:
     - if: $CI_COMMIT_TAG =~ /^v/
   parallel:
     matrix:
-      - SERVICE: [gateway, users, orders]
+      - SERVICE: [gateway, users, orders, admin, common]
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx create --use
@@ -97,7 +97,7 @@ scan:
     - if: $CI_COMMIT_TAG =~ /^v/
   parallel:
     matrix:
-      - SERVICE: [gateway, users, orders]
+      - SERVICE: [gateway, users, orders, admin, common]
   variables:
     TRIVY_USERNAME: $CI_REGISTRY_USER
     TRIVY_PASSWORD: $CI_REGISTRY_PASSWORD

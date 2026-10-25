@@ -34,7 +34,7 @@ func URL(t *testing.T) string {
 	return url
 }
 
-func Pools(t *testing.T, schema string, fsys fs.FS, dir string) *pg.Pools {
+func DB(t *testing.T, schema string, fsys fs.FS, dir string) *pg.DB {
 	t.Helper()
 	ctx := t.Context()
 	url := URL(t)
@@ -46,5 +46,9 @@ func Pools(t *testing.T, schema string, fsys fs.FS, dir string) *pg.Pools {
 	if err := pg.Migrate(ctx, write, schema, fsys, dir); err != nil {
 		t.Fatal(err)
 	}
-	return &pg.Pools{Write: write}
+	db, err := pg.NewDB(&pg.Pools{Write: write})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return db
 }

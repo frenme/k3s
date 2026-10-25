@@ -21,8 +21,8 @@ func TestJSONErrors(t *testing.T) {
 		body, allow  string
 	}{
 		{http.MethodGet, "/items/1", http.StatusOK, "", ""},
-		{http.MethodGet, "/nope", http.StatusNotFound, "not found", ""},
-		{http.MethodDelete, "/items/1", http.StatusMethodNotAllowed, "method not allowed", "GET, HEAD"},
+		{http.MethodGet, "/nope", http.StatusNotFound, "not_found", ""},
+		{http.MethodDelete, "/items/1", http.StatusMethodNotAllowed, "method_not_allowed", "GET, HEAD"},
 	}
 	for _, c := range cases {
 		rec := httptest.NewRecorder()
@@ -36,8 +36,8 @@ func TestJSONErrors(t *testing.T) {
 		if c.body == "" {
 			continue
 		}
-		var body ErrorBody
-		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || body.Error != c.body {
+		var body Error
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || body.Code != c.body {
 			t.Fatalf("%s %s: body %q", c.method, c.path, rec.Body.String())
 		}
 		if ct := rec.Header().Get("Content-Type"); ct != "application/json" {

@@ -1,5 +1,6 @@
 env:
   DB_MAX_CONNS: "10"
+  COMMON_URL: http://common:8081
 
 nodeSelector:
   role: core
@@ -13,5 +14,6 @@ networkPolicy:
     - monitoring
   allowFromPods:
     - gateway
+    - common
   internalFromPods:
     - orders

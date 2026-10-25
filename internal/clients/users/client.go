@@ -33,13 +33,16 @@ func (c *Client) Get(ctx context.Context, id string) (User, error) {
 		return User{}, err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	switch resp.StatusCode {
-	case http.StatusOK:
+	if resp.StatusCode == http.StatusOK {
 		var u User
 		return u, json.NewDecoder(resp.Body).Decode(&u)
-	case http.StatusNotFound:
-		return User{}, ErrNotFound
-	default:
-		return User{}, fmt.Errorf("users service returned %d", resp.StatusCode)
 	}
+	var e struct {
+		Code string `json:"code"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&e)
+	if e.Code == "user_not_found" {
+		return User{}, ErrNotFound
+	}
+	return User{}, fmt.Errorf("users service returned %d %s", resp.StatusCode, e.Code)
 }

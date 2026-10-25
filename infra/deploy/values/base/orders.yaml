@@ -14,3 +14,4 @@ networkPolicy:
     - monitoring
   allowFromPods:
     - gateway
+    - common

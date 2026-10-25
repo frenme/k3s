@@ -1,9 +1,6 @@
 package httpx
 
-import (
-	"net/http"
-	"strings"
-)
+import "net/http"
 
 func JSONErrors(mux *http.ServeMux) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -17,7 +14,7 @@ func JSONErrors(mux *http.ServeMux) http.Handler {
 		if allow := probe.header.Get("Allow"); allow != "" {
 			w.Header().Set("Allow", allow)
 		}
-		WriteError(w, probe.status, strings.ToLower(http.StatusText(probe.status)))
+		WriteError(w, standard(probe.status))
 	})
 }
 

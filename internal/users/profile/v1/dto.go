@@ -37,7 +37,7 @@ type UserResponse struct {
 
 type CreateUserRequest struct {
 	Body struct {
-		Email string `json:"email" maxLength:"254"`
-		Name  string `json:"name" minLength:"1" maxLength:"200"`
+		Email string `json:"email" format:"email" maxLength:"254"`
+		Name  string `json:"name" pattern:"\\S" maxLength:"200"`
 	}
 }

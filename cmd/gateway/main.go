@@ -14,13 +14,13 @@ import (
 func main() {
 	app.Run("gateway", func(ctx context.Context, s *app.Service) error {
 		s.Public = true
-		routes, err := gateway.ParseRoutes(config.String("ROUTES", "users=http://users:8080,orders=http://orders:8080"))
+		routes, err := gateway.ParseRoutes(config.String("ROUTES", "users=http://users:8080,orders=http://orders:8080,admin=http://admin:8080,common=http://common:8080"))
 		if err != nil {
 			return err
 		}
 		proxy := gateway.NewProxy(routes, s.Log, config.Duration("UPSTREAM_TIMEOUT", 10*time.Second))
 		cors := gateway.NewCORS(strings.Split(config.String("CORS_ORIGINS", ""), ","))
-		s.Mux.Handle("/api/", httpx.Chain(proxy, cors.Middleware()))
+		s.Mux.Handle("/api/", httpx.Chain(proxy, cors.Middleware(), gateway.AdminMiddleware()))
 		return nil
 	})
 }

@@ -5,6 +5,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,11 +27,13 @@ var (
 	host   = os.Getenv("HOST_HEADER")
 	origin = envOr("CORS_ORIGIN", "http://localhost:5173")
 	client = &http.Client{Timeout: 10 * time.Second}
+
+	adminCredentials = envOr("ADMIN_CREDENTIALS", "admin:admin-dev-password")
 )
 
 func loadSpecs() []routers.Router {
 	var out []routers.Router
-	for _, file := range []string{"../api/users.yaml", "../api/orders.yaml"} {
+	for _, file := range []string{"../api/users.yaml", "../api/orders.yaml", "../api/admin.yaml", "../api/common.yaml"} {
 		doc, err := openapi3.NewLoader().LoadFromFile(file)
 		if err != nil {
 			panic(err)
@@ -141,7 +144,7 @@ func TestUnknownRoute(t *testing.T) {
 	for _, c := range cases {
 		r := call(t, c.method, c.path, nil, nil)
 		expect(t, r, c.status)
-		if msg, _ := r.body["error"].(string); msg == "" {
+		if code, _ := r.body["code"].(string); code == "" || r.body["message"] == "" {
 			t.Fatalf("%s %s: no json error in %v", c.method, c.path, r.body)
 		}
 	}
@@ -164,6 +167,38 @@ func TestDocsThroughGateway(t *testing.T) {
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("%s: status %d", path, resp.StatusCode)
 		}
+	}
+}
+
+func TestCommon(t *testing.T) {
+	settings := call(t, http.MethodGet, "/api/v1/common/settings", nil, nil)
+	expect(t, settings, http.StatusOK)
+	items, _ := settings.body["items"].([]any)
+	found := false
+	for _, item := range items {
+		if m, _ := item.(map[string]any); m["key"] == "registration_enabled" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("registration_enabled missing in %v", settings.body)
+	}
+	health := call(t, http.MethodGet, "/api/v1/common/health", nil, nil)
+	expect(t, health, http.StatusOK)
+	if health.body["status"] != "ok" {
+		t.Fatalf("health %v", health.body)
+	}
+}
+
+func TestAdminNeedsPassword(t *testing.T) {
+	for _, path := range []string{"/api/v1/admin/users", "/api/v1/admin/orders"} {
+		denied := call(t, http.MethodGet, path, nil, nil)
+		expect(t, denied, http.StatusUnauthorized)
+		if denied.body["code"] != "unauthorized" {
+			t.Fatalf("%s: body %v", path, denied.body)
+		}
+		auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(adminCredentials))
+		expect(t, call(t, http.MethodGet, path, nil, map[string]string{"Authorization": auth}), http.StatusOK)
 	}
 }
 

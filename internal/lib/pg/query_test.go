@@ -4,47 +4,43 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
-func TestQueryWithoutReplicaUsesPrimary(t *testing.T) {
-	w := &pgxpool.Pool{}
-	p := &Pools{Write: w}
-	got, err := Query(p, func(pool *pgxpool.Pool) (*pgxpool.Pool, error) { return pool, nil })
-	if err != nil || got != w {
+func pick(db *gorm.DB) (*gorm.DB, error) { return db, nil }
+
+func TestReadWithoutReplicaUsesPrimary(t *testing.T) {
+	w := &gorm.DB{}
+	if got, err := Read(&DB{Write: w, Read: w}, pick); err != nil || got != w {
 		t.Fatalf("got %v %v", got, err)
 	}
 }
 
-func TestQueryPrefersReplica(t *testing.T) {
-	w, r := &pgxpool.Pool{}, &pgxpool.Pool{}
-	p := &Pools{Write: w, Read: r}
-	got, _ := Query(p, func(pool *pgxpool.Pool) (*pgxpool.Pool, error) { return pool, nil })
-	if got != r {
+func TestReadPrefersReplica(t *testing.T) {
+	w, r := &gorm.DB{}, &gorm.DB{}
+	if got, _ := Read(&DB{Write: w, Read: r}, pick); got != r {
 		t.Fatal("expected replica")
 	}
 }
 
-func TestQueryFallsBackToPrimary(t *testing.T) {
-	w, r := &pgxpool.Pool{}, &pgxpool.Pool{}
-	p := &Pools{Write: w, Read: r}
+func TestReadFallsBackToPrimary(t *testing.T) {
+	w, r := &gorm.DB{}, &gorm.DB{}
 	calls := 0
-	got, err := Query(p, func(pool *pgxpool.Pool) (*pgxpool.Pool, error) {
+	got, err := Read(&DB{Write: w, Read: r}, func(db *gorm.DB) (*gorm.DB, error) {
 		calls++
-		if pool == r {
+		if db == r {
 			return nil, errors.New("replica down")
 		}
-		return pool, nil
+		return db, nil
 	})
 	if err != nil || got != w || calls != 2 {
 		t.Fatalf("got %v err %v calls %d", got, err, calls)
 	}
 }
 
-func TestQueryReturnsPrimaryError(t *testing.T) {
-	p := &Pools{Write: &pgxpool.Pool{}, Read: &pgxpool.Pool{}}
+func TestReadReturnsPrimaryError(t *testing.T) {
 	want := errors.New("boom")
-	_, err := Query(p, func(pool *pgxpool.Pool) (int, error) { return 0, want })
+	_, err := Read(&DB{Write: &gorm.DB{}, Read: &gorm.DB{}}, func(*gorm.DB) (int, error) { return 0, want })
 	if !errors.Is(err, want) {
 		t.Fatalf("err %v", err)
 	}

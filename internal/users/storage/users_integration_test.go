@@ -12,7 +12,7 @@ import (
 )
 
 func TestUsers(t *testing.T) {
-	store := NewUsers(pgtest.Pools(t, "users", Migrations, MigrationsDir), nil)
+	store := NewUsers(pgtest.DB(t, "users", Migrations, MigrationsDir), nil)
 	ctx := t.Context()
 
 	empty, err := store.List(ctx, 10)

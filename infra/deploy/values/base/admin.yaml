@@ -1,0 +1,13 @@
+env:
+  DB_MAX_CONNS: "5"
+
+nodeSelector:
+  role: core
+
+networkPolicy:
+  enabled: true
+  allowFromNamespaces:
+    - monitoring
+  allowFromPods:
+    - gateway
+    - common

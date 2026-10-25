@@ -3,7 +3,6 @@ package httpx
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -14,31 +13,22 @@ func init() {
 	huma.NewError = newAPIError
 }
 
-type APIError struct {
-	status  int
-	Message string `json:"error"`
-}
-
-func (e *APIError) Error() string { return e.Message }
-
-func (e *APIError) GetStatus() int { return e.status }
-
-func newAPIError(status int, msg string, errs ...error) huma.StatusError {
-	details := make([]string, 0, len(errs))
+func newAPIError(status int, _ string, errs ...error) huma.StatusError {
+	e := standard(status)
+	if status >= http.StatusInternalServerError {
+		return e
+	}
 	for _, err := range errs {
 		var detail *huma.ErrorDetail
 		switch {
 		case err == nil:
 		case errors.As(err, &detail) && detail.Location != "":
-			details = append(details, detail.Location+": "+detail.Message)
+			e = e.With(detail.Location + ": " + detail.Message)
 		default:
-			details = append(details, err.Error())
+			e = e.With(err.Error())
 		}
 	}
-	if len(details) > 0 {
-		msg += ": " + strings.Join(details, "; ")
-	}
-	return &APIError{status: status, Message: msg}
+	return e
 }
 
 func NewAPI(mux *http.ServeMux, service string) huma.API {

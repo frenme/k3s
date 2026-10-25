@@ -20,7 +20,7 @@ func toOrder(o model.Order) Order {
 
 type ListOrdersRequest struct {
 	Limit  int    `query:"limit" default:"50" minimum:"1" maximum:"500"`
-	UserID string `query:"user_id"`
+	UserID string `query:"user_id" format:"uuid"`
 }
 
 type ListOrdersResponse struct {
@@ -41,8 +41,8 @@ type OrderResponse struct {
 type CreateOrderRequest struct {
 	IdempotencyKey string `header:"Idempotency-Key" maxLength:"200"`
 	Body           struct {
-		UserID      string `json:"user_id"`
-		Item        string `json:"item" maxLength:"200"`
+		UserID      string `json:"user_id" format:"uuid"`
+		Item        string `json:"item" pattern:"\\S" maxLength:"200"`
 		AmountCents int64  `json:"amount_cents" minimum:"0"`
 	}
 }

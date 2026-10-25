@@ -2,12 +2,11 @@ package v1
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/egor/k3s-base/internal/users/model"
+	"github.com/egor/k3s-base/internal/lib/httpx"
 	"github.com/egor/k3s-base/internal/users/profile"
 )
 
@@ -35,7 +34,7 @@ func (h *Handler) Register(public, internal huma.API) {
 		Summary:       "Create a user",
 		Tags:          []string{"Users"},
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusConflict},
+		Errors:        []int{http.StatusForbidden, http.StatusConflict, http.StatusBadGateway},
 	}, h.create)
 	huma.Register(public, huma.Operation{
 		OperationID: "get-user",
@@ -85,16 +84,5 @@ func (h *Handler) create(ctx context.Context, in *CreateUserRequest) (*UserRespo
 }
 
 func (h *Handler) fail(ctx context.Context, err error) error {
-	var invalid model.ValidationError
-	switch {
-	case errors.As(err, &invalid):
-		return huma.Error422UnprocessableEntity(invalid.Error())
-	case errors.Is(err, model.ErrNotFound):
-		return huma.Error404NotFound(err.Error())
-	case errors.Is(err, model.ErrDuplicate):
-		return huma.Error409Conflict(err.Error())
-	default:
-		h.log.ErrorContext(ctx, "profile v1", "err", err)
-		return huma.Error500InternalServerError("internal error")
-	}
+	return httpx.Fail(ctx, h.log, err)
 }

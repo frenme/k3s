@@ -23,18 +23,56 @@ linters:
   settings:
     depguard:
       rules:
+        database:
+          files:
+            - $all
+            - "!**/storage/**"
+            - "!**/internal/lib/pg/**"
+          deny:
+            - pkg: gorm.io
+              desc: database access lives only in storage packages
+            - pkg: github.com/jackc/pgx
+              desc: database access lives only in storage packages
         users:
           files:
             - "**/internal/users/**"
           deny:
             - pkg: github.com/egor/k3s-base/internal/orders
-              desc: services talk to each other over HTTP through internal/clients
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/admin
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/common
+              desc: services never import each other, they talk over HTTP through internal/clients
         orders:
           files:
             - "**/internal/orders/**"
           deny:
             - pkg: github.com/egor/k3s-base/internal/users
-              desc: services talk to each other over HTTP through internal/clients
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/admin
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/common
+              desc: services never import each other, they talk over HTTP through internal/clients
+        admin:
+          files:
+            - "**/internal/admin/**"
+          deny:
+            - pkg: github.com/egor/k3s-base/internal/users
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/orders
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/common
+              desc: services never import each other, they talk over HTTP through internal/clients
+        common:
+          files:
+            - "**/internal/common/**"
+          deny:
+            - pkg: github.com/egor/k3s-base/internal/users
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/orders
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/admin
+              desc: services never import each other, they talk over HTTP through internal/clients
     revive:
       rules:
         - name: exported
@@ -48,6 +86,10 @@ linters:
           - bodyclose
           - gosec
           - noctx
+      - path: internal/gateway/admin\.go
+        linters:
+          - gosec
+        text: G101
       - path: internal/clients/
         linters:
           - gosec

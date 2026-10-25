@@ -14,18 +14,6 @@ func String(key, def string) string {
 	return def
 }
 
-func Int(key string, def int) int {
-	v, ok := os.LookupEnv(key)
-	if !ok || v == "" {
-		return def
-	}
-	n, err := strconv.Atoi(v)
-	if err != nil {
-		invalid(key, v)
-	}
-	return n
-}
-
 func Int32(key string, def int32) int32 {
 	v, ok := os.LookupEnv(key)
 	if !ok || v == "" {

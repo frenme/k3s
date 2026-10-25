@@ -4,6 +4,7 @@ package pg_test
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"testing/fstest"
@@ -11,6 +12,7 @@ import (
 	"github.com/egor/k3s-base/internal/lib/pg"
 	"github.com/egor/k3s-base/internal/lib/pg/pgtest"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
 var migrations = fstest.MapFS{
@@ -63,8 +65,8 @@ func TestMigrateIsIdempotentAndConcurrent(t *testing.T) {
 	}
 }
 
-func TestAllOneAndReplicaFallback(t *testing.T) {
-	pools := pgtest.Pools(t, "demo", migrations, "m")
+func TestReadFallsBackToPrimary(t *testing.T) {
+	db := pgtest.DB(t, "demo", migrations, "m")
 	ctx := t.Context()
 
 	broken, err := pgxpool.New(context.Background(), "postgres://app:app@127.0.0.1:1/app?sslmode=disable&connect_timeout=1")
@@ -72,21 +74,22 @@ func TestAllOneAndReplicaFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer broken.Close()
-	pools.Read = broken
+	replica, err := pg.NewDB(&pg.Pools{Write: broken})
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Read = replica.Write
 
-	items, err := pg.Query(pools, func(p *pgxpool.Pool) ([]item, error) {
-		return pg.All[item](ctx, p, "SELECT id, name FROM items")
+	items, err := pg.Read(db, func(g *gorm.DB) ([]item, error) {
+		var out []item
+		return out, g.WithContext(ctx).Table("items").Find(&out).Error
 	})
 	if err != nil || len(items) != 1 || items[0].Name != "one" {
 		t.Fatalf("items %v err %v", items, err)
 	}
 
-	empty, err := pg.All[item](ctx, pools.Write, "SELECT id, name FROM items WHERE id = 0")
-	if err != nil || empty == nil || len(empty) != 0 {
-		t.Fatalf("empty %v err %v", empty, err)
-	}
-
-	if _, err := pg.One[item](ctx, pools.Write, "SELECT id, name FROM items WHERE id = 0"); err == nil {
-		t.Fatal("expected no rows error")
+	var missing item
+	if err := db.Write.WithContext(ctx).Table("items").First(&missing, "id = ?", 0).Error; !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("missing err %v", err)
 	}
 }
