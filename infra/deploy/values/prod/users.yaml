@@ -9,6 +9,6 @@ env:
   DB_MAX_CONNS: "15"
 
 autoscaling:
-  minReplicas: 3
+  minReplicas: 2
   maxReplicas: 8
   scaleDownStabilizationSeconds: 300

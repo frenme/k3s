@@ -96,6 +96,7 @@ resource "hcloud_server" "server" {
     s3_access_key = local.secrets.s3.accessKeyId
     s3_secret_key = local.secrets.s3.secretAccessKey
     registry      = local.registry
+    coredns       = file("${path.module}/../k3s/coredns.yaml")
   })
 
   public_net {

@@ -11,6 +11,8 @@ write_files:
       token: ${token}
       cluster-init: true
       flannel-backend: wireguard-native
+      disable:
+        - coredns
       write-kubeconfig-mode: "0600"
       node-label:
         - role=core
@@ -23,6 +25,10 @@ write_files:
       etcd-s3-folder: ${etcd_folder}
       etcd-s3-access-key: ${s3_access_key}
       etcd-s3-secret-key: ${s3_secret_key}
+  - path: /var/lib/rancher/k3s/server/manifests/coredns-core.yaml
+    permissions: "0600"
+    content: |
+      ${indent(6, coredns)}
 %{ if registry != null ~}
   - path: /etc/rancher/k3s/registries.yaml
     permissions: "0600"

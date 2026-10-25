@@ -19,3 +19,7 @@ postgres:
 backup:
   destinationPath: s3://k3s-backups/dev/
   endpointURL: https://s3.example.com
+
+telemetry:
+  metrics: false
+  traces: false

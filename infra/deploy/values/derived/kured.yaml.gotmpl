@@ -1,0 +1,5 @@
+{{- if not .Values.telemetry.metrics }}
+configuration:
+  prometheusUrl: ""
+  alertFilterRegexp: ""
+{{- end }}

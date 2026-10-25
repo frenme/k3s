@@ -58,10 +58,6 @@ templates:
     inherit:
       - template: layered
     chart: ./helm/service
-    needs:
-      - postgres
-      - redis
-      - monitoring/monitoring
     values:
       - values/derived/app.yaml.gotmpl
 
@@ -83,6 +79,7 @@ releases:
       - monitoring/monitoring
 
   - name: tempo
+    installed: {{ .Values.telemetry.traces }}
     namespace: monitoring
     inherit:
       - template: layered
@@ -157,11 +154,22 @@ releases:
     needs:
       - monitoring/monitoring
 
-{{- range $name, $_ := .Values.apps }}
+{{- range $name, $app := .Values.apps }}
 
   - name: {{ $name }}
     inherit:
       - template: app
+    {{- if dig "gateway" false $app }}
+    timeout: 180
+    {{- end }}
+    needs:
+      - monitoring/monitoring
+      {{- if dig "database" false $app }}
+      - postgres
+      {{- end }}
+      {{- if dig "redis" false $app }}
+      - redis
+      {{- end }}
 {{- end }}
 
   - name: platform

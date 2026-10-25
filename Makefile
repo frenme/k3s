@@ -67,7 +67,7 @@ images: ## build container images tagged REGISTRY/<service>:TAG
 	@for s in $(GO_SERVICES); do docker build -q --build-arg SERVICE=$$s --build-arg VERSION=$(TAG) --build-arg COMMIT=$(COMMIT) -t $(REGISTRY)/$$s:$(TAG) . || exit 1; done
 
 up: local-only images ## build, create the local cluster if needed, load images and deploy
-	k3d cluster get $(CLUSTER) >/dev/null 2>&1 || k3d cluster create --config infra/k3d/cluster.yaml --wait
+	k3d cluster get $(CLUSTER) >/dev/null 2>&1 || k3d cluster create --config infra/k3d/cluster.yaml --volume "$(CURDIR)/infra/k3s/coredns.yaml:/var/lib/rancher/k3s/server/manifests/coredns-core.yaml@server:0" --wait
 	k3d image import -c $(CLUSTER) $(addprefix $(REGISTRY)/,$(addsuffix :$(TAG),$(GO_SERVICES)))
 	$(HELMFILE) sync
 
@@ -87,8 +87,8 @@ logs: ## tail logs: make logs s=users
 	$(KUBECTL) logs -l app.kubernetes.io/name=$(s) -f --tail=100
 
 restart: ## rolling restart: make restart s=gateway
-	$(KUBECTL) rollout restart deployment/$(s)
-	$(KUBECTL) rollout status deployment/$(s)
+	@r=$$($(KUBECTL) get deployment,daemonset -l app.kubernetes.io/name=$(s) -o name); \
+	$(KUBECTL) rollout restart $$r && $(KUBECTL) rollout status $$r
 
 grafana: ## open grafana on http://localhost:3000
 	kubectl --context $(CONTEXT) -n monitoring port-forward svc/monitoring-grafana 3000:80

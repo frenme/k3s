@@ -13,6 +13,10 @@ ports:
       - loadbalancer
 options:
   k3s:
+    extraArgs:
+      - arg: --disable=coredns
+        nodeFilters:
+          - server:*
     nodeLabels:
       - label: role=core
         nodeFilters:
