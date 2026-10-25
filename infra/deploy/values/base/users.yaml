@@ -13,4 +13,5 @@ networkPolicy:
     - monitoring
   allowFromPods:
     - gateway
+  internalFromPods:
     - orders

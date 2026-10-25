@@ -51,8 +51,10 @@ func TestProxyRoutes(t *testing.T) {
 		t.Fatalf("upstream request id leaked: %v", ids)
 	}
 
-	resp, _ = http.Get(srv.URL + "/api/nothing")
-	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("status %d", resp.StatusCode)
+	for _, path := range []string{"/api/nothing", "/api/users/internal", "/api/users/internal/users/1", "/api/users/a/internal/b"} {
+		resp, _ = http.Get(srv.URL + path)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("%s: status %d", path, resp.StatusCode)
+		}
 	}
 }

@@ -73,9 +73,9 @@ func NewProxy(routes map[string]*url.URL, log *slog.Logger, upstreamTimeout time
 		}
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		name, _, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/api/"), "/")
+		name, rest, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/api/"), "/")
 		p, ok := proxies[name]
-		if !ok {
+		if !ok || strings.Contains("/"+rest+"/", "/internal/") {
 			httpx.WriteError(w, http.StatusNotFound, "unknown route")
 			return
 		}

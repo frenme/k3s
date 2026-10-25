@@ -1,6 +1,6 @@
 env:
   DB_MAX_CONNS: "10"
-  USERS_URL: http://users:8080
+  USERS_URL: http://users:8081
 
 nodeSelector:
   role: core

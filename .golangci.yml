@@ -10,6 +10,7 @@ linters:
   enable:
     - bodyclose
     - copyloopvar
+    - depguard
     - errorlint
     - gosec
     - misspell
@@ -20,6 +21,20 @@ linters:
     - unparam
     - usestdlibvars
   settings:
+    depguard:
+      rules:
+        users:
+          files:
+            - "**/internal/users/**"
+          deny:
+            - pkg: github.com/egor/k3s-base/internal/orders
+              desc: services talk to each other over HTTP through internal/clients
+        orders:
+          files:
+            - "**/internal/orders/**"
+          deny:
+            - pkg: github.com/egor/k3s-base/internal/users
+              desc: services talk to each other over HTTP through internal/clients
     revive:
       rules:
         - name: exported
@@ -33,7 +48,7 @@ linters:
           - bodyclose
           - gosec
           - noctx
-      - path: internal/orders/usersclient\.go
+      - path: internal/clients/
         linters:
           - gosec
         text: G704

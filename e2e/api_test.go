@@ -122,6 +122,7 @@ func TestUnknownRoute(t *testing.T) {
 	}{
 		{http.MethodGet, "/api/unknown", http.StatusNotFound},
 		{http.MethodGet, "/api/users/1/nope", http.StatusNotFound},
+		{http.MethodGet, "/api/users/internal/users/11111111-1111-4111-8111-111111111111", http.StatusNotFound},
 		{http.MethodDelete, "/api/orders", http.StatusMethodNotAllowed},
 	}
 	for _, c := range cases {

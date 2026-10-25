@@ -1,17 +1,18 @@
 //go:build integration
 
-package users
+package storage
 
 import (
 	"errors"
 	"testing"
 
 	"github.com/egor/k3s-base/internal/lib/pg/pgtest"
+	"github.com/egor/k3s-base/internal/users/model"
 	"github.com/google/uuid"
 )
 
-func TestPgStore(t *testing.T) {
-	store := NewPgStore(pgtest.Pools(t, "users", Migrations, MigrationsDir), nil)
+func TestUsers(t *testing.T) {
+	store := NewUsers(pgtest.Pools(t, "users", Migrations, MigrationsDir), nil)
 	ctx := t.Context()
 
 	empty, err := store.List(ctx, 10)
@@ -23,7 +24,7 @@ func TestPgStore(t *testing.T) {
 	if err != nil || uuid.Validate(ann.ID) != nil || ann.CreatedAt.IsZero() {
 		t.Fatalf("create %+v err %v", ann, err)
 	}
-	if _, err := store.Create(ctx, "ann@example.com", "Other"); !errors.Is(err, ErrDuplicate) {
+	if _, err := store.Create(ctx, "ann@example.com", "Other"); !errors.Is(err, model.ErrDuplicate) {
 		t.Fatalf("duplicate err %v", err)
 	}
 	if _, err := store.Create(ctx, "bob@example.com", "Bob"); err != nil {
@@ -34,7 +35,7 @@ func TestPgStore(t *testing.T) {
 	if err != nil || got.Email != "ann@example.com" {
 		t.Fatalf("get %+v err %v", got, err)
 	}
-	if _, err := store.Get(ctx, uuid.NewString()); !errors.Is(err, ErrNotFound) {
+	if _, err := store.Get(ctx, uuid.NewString()); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("missing err %v", err)
 	}
 

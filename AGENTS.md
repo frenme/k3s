@@ -4,11 +4,33 @@ Guide for AI agents (Cursor, Claude Code, Codex) working on this repository and 
 
 ## Layout
 
-- `cmd/<service>` entrypoints, `internal/<service>` handlers and stores, `internal/lib` shared code (app bootstrap, httpx, pg, rds, logx, tracing).
+- `cmd/<service>` entrypoints, `internal/<service>` services (see Writing services), `internal/clients/<service>` HTTP clients of other services, `internal/lib` shared code (app bootstrap, httpx, pg, rds, logx, tracing).
 - `api/openapi.yaml` public API, validated by `e2e`.
 - `infra/deploy/helmfile.yaml.gotmpl` every release; `infra/deploy/environments/*.yaml` per-env settings; `infra/deploy/values/{base,local,dev,prod,derived}` release values; `infra/deploy/helm/*` own charts.
 - `infra/terraform` Hetzner servers, `infra/k3d` local cluster.
 - `make help` lists every command.
+
+## Writing services
+
+Every service follows the same layout, `internal/users` is the reference:
+
+```
+internal/<service>/
+  model/        plain structs and domain errors, one file per model
+  storage/      all SQL of the service, one file per table, plus migrations/
+  <feature>/    one package per feature (profile, auth, checkout)
+    handler.go  HTTP only: decode, call the service, map errors to status codes
+    service.go  business logic, no HTTP and no SQL; declares the small interfaces it needs
+  routes.go     Setup: opens Postgres, builds storage, wires features into the muxes
+```
+
+- SQL lives only in `storage/`. Feature packages never import each other; what they share lives in `model/` and `storage/`.
+- A growing `service.go` splits per use case inside the same package (`register.go`, `login.go`).
+- Each service owns one Postgres schema and one migration history in `storage/migrations`.
+- Services never import another service's `internal/<service>` packages (enforced by depguard). They call each other over HTTP through `internal/clients/<service>` (`users.New(url)`, `users.Client`), which mirrors only the fields the caller needs.
+- Two listeners per service: public routes on `:8080` (`s.Mux`, reached through the gateway) and internal routes on `:8081` (`s.Internal`, paths under `/internal/`, reached only by other services). The gateway refuses any path with an `internal` segment, and the NetworkPolicy opens `:8081` only to pods listed in `networkPolicy.internalFromPods`.
+- Public API changes go to `api/openapi.yaml` and are checked by `e2e`.
+- Migrations must stay compatible with the previous release during rolling updates: add first, switch code in the next release, drop last.
 
 ## Environments
 

@@ -43,3 +43,4 @@ networkPolicy:
   enabled: false
   allowFromPods: []
   allowFromNamespaces: []
+  internalFromPods: []

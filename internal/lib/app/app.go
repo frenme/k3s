@@ -20,20 +20,22 @@ import (
 )
 
 type Service struct {
-	Name    string
-	Public  bool
-	Log     *slog.Logger
-	Health  *httpx.Health
-	Mux     *http.ServeMux
-	closers []func()
+	Name     string
+	Public   bool
+	Log      *slog.Logger
+	Health   *httpx.Health
+	Mux      *http.ServeMux
+	Internal *http.ServeMux
+	closers  []func()
 }
 
 func Run(name string, setup func(ctx context.Context, s *Service) error) {
 	s := &Service{
-		Name:   name,
-		Log:    logx.New(name, config.String("LOG_LEVEL", "info")),
-		Health: httpx.NewHealth(),
-		Mux:    http.NewServeMux(),
+		Name:     name,
+		Log:      logx.New(name, config.String("LOG_LEVEL", "info")),
+		Health:   httpx.NewHealth(),
+		Mux:      http.NewServeMux(),
+		Internal: http.NewServeMux(),
 	}
 	s.Health.Mount(s.Mux)
 
@@ -60,7 +62,7 @@ func (s *Service) run(ctx context.Context, setup func(ctx context.Context, s *Se
 	if err := setup(ctx, s); err != nil {
 		return err
 	}
-	return httpx.Serve(ctx, s.Name, s.Public, s.Log, s.Health, s.Mux)
+	return httpx.Serve(ctx, s.Name, s.Public, s.Log, s.Health, s.Mux, s.Internal)
 }
 
 func (s *Service) OnClose(fn func()) {

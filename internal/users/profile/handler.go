@@ -1,29 +1,28 @@
-package users
+package profile
 
 import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"net/mail"
-	"strings"
 
 	"github.com/egor/k3s-base/internal/lib/httpx"
-	"github.com/google/uuid"
+	"github.com/egor/k3s-base/internal/users/model"
 )
 
 type Handler struct {
-	store Store
-	log   *slog.Logger
+	svc *Service
+	log *slog.Logger
 }
 
-func NewHandler(store Store, log *slog.Logger) *Handler {
-	return &Handler{store: store, log: log}
+func NewHandler(svc *Service, log *slog.Logger) *Handler {
+	return &Handler{svc: svc, log: log}
 }
 
-func (h *Handler) Mount(mux *http.ServeMux) {
-	mux.HandleFunc("GET /users", h.list)
-	mux.HandleFunc("POST /users", h.create)
-	mux.HandleFunc("GET /users/{id}", h.get)
+func (h *Handler) Mount(public, internal *http.ServeMux) {
+	public.HandleFunc("GET /users", h.list)
+	public.HandleFunc("POST /users", h.create)
+	public.HandleFunc("GET /users/{id}", h.get)
+	internal.HandleFunc("GET /internal/users/{id}", h.get)
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +31,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	items, err := h.store.List(r.Context(), limit)
+	items, err := h.svc.List(r.Context(), limit)
 	if err != nil {
 		h.respondError(w, r, err)
 		return
@@ -41,12 +40,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	if uuid.Validate(id) != nil {
-		h.respondError(w, r, ErrNotFound)
-		return
-	}
-	u, err := h.store.Get(r.Context(), id)
+	u, err := h.svc.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
 		h.respondError(w, r, err)
 		return
@@ -65,17 +59,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-	req.Name = strings.TrimSpace(req.Name)
-	if _, err := mail.ParseAddress(req.Email); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "invalid email")
-		return
-	}
-	if req.Name == "" {
-		httpx.WriteError(w, http.StatusBadRequest, "name is required")
-		return
-	}
-	u, err := h.store.Create(r.Context(), req.Email, req.Name)
+	u, err := h.svc.Create(r.Context(), req.Email, req.Name)
 	if err != nil {
 		h.respondError(w, r, err)
 		return
@@ -84,13 +68,16 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, err error) {
+	var invalid model.ValidationError
 	switch {
-	case errors.Is(err, ErrNotFound):
+	case errors.As(err, &invalid):
+		httpx.WriteError(w, http.StatusBadRequest, invalid.Error())
+	case errors.Is(err, model.ErrNotFound):
 		httpx.WriteError(w, http.StatusNotFound, err.Error())
-	case errors.Is(err, ErrDuplicate):
+	case errors.Is(err, model.ErrDuplicate):
 		httpx.WriteError(w, http.StatusConflict, err.Error())
 	default:
-		h.log.ErrorContext(r.Context(), "users handler", "err", err)
+		h.log.ErrorContext(r.Context(), "profile handler", "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal error")
 	}
 }
