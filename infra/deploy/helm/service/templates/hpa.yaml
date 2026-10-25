@@ -1,3 +1,4 @@
+{{- if eq .Values.kind "Deployment" }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -33,3 +34,4 @@ spec:
         - type: Pods
           value: 1
           periodSeconds: 30
+{{- end }}

@@ -69,6 +69,12 @@ resource "hcloud_firewall" "web" {
   }
 }
 
+resource "hcloud_placement_group" "core" {
+  name   = "${local.name}-core"
+  type   = "spread"
+  labels = local.labels
+}
+
 resource "hcloud_server" "server" {
   name         = "${local.name}-server"
   location     = var.server.location
@@ -77,6 +83,8 @@ resource "hcloud_server" "server" {
   ssh_keys     = [for key in hcloud_ssh_key.admin : key.id]
   firewall_ids = [hcloud_firewall.base.id]
   labels       = merge(local.labels, { role = "core" })
+
+  placement_group_id = hcloud_placement_group.core.id
 
   user_data = templatefile("${path.module}/templates/server.yaml.tftpl", {
     token         = random_password.token.result
@@ -100,20 +108,23 @@ resource "hcloud_server" "server" {
   }
 }
 
-resource "hcloud_server" "agent" {
-  for_each     = var.agents
+resource "hcloud_server" "node" {
+  for_each     = var.nodes
   name         = "${local.name}-${each.key}"
   location     = each.value.location
   server_type  = each.value.server_type
   image        = var.image
   ssh_keys     = [for key in hcloud_ssh_key.admin : key.id]
-  firewall_ids = [hcloud_firewall.base.id, hcloud_firewall.web.id]
-  labels       = merge(local.labels, { role = "edge" })
+  firewall_ids = each.value.role == "edge" ? [hcloud_firewall.base.id, hcloud_firewall.web.id] : [hcloud_firewall.base.id]
+  labels       = merge(local.labels, { role = each.value.role })
+
+  placement_group_id = each.value.role == "core" ? hcloud_placement_group.core.id : null
 
   user_data = templatefile("${path.module}/templates/agent.yaml.tftpl", {
     token       = random_password.token.result
     k3s_version = var.k3s_version
     server_ip   = hcloud_server.server.ipv4_address
+    role        = each.value.role
     region      = each.value.region
     registry    = local.registry
   })
@@ -131,7 +142,7 @@ resource "hcloud_server" "agent" {
 locals {
   node_cidrs = concat(
     ["${hcloud_server.server.ipv4_address}/32"],
-    [for agent in hcloud_server.agent : "${agent.ipv4_address}/32"],
+    [for node in hcloud_server.node : "${node.ipv4_address}/32"],
   )
 }
 
@@ -163,5 +174,5 @@ resource "hcloud_firewall" "nodes" {
 
 resource "hcloud_firewall_attachment" "nodes" {
   firewall_id = hcloud_firewall.nodes.id
-  server_ids  = concat([hcloud_server.server.id], [for agent in hcloud_server.agent : agent.id])
+  server_ids  = concat([hcloud_server.server.id], [for node in hcloud_server.node : node.id])
 }

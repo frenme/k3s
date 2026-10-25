@@ -1,6 +1,8 @@
 env:
   CORS_ORIGINS: ""
 
+kind: DaemonSet
+
 terminationGracePeriodSeconds: 90
 
 nodeSelector:

@@ -5,11 +5,6 @@ resources:
   limits:
     memory: 256Mi
 
-autoscaling:
-  minReplicas: 3
-  maxReplicas: 10
-  scaleDownStabilizationSeconds: 300
-
 env:
   CORS_ORIGINS: https://example.com
 

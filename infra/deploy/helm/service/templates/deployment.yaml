@@ -1,11 +1,15 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: {{ .Values.kind }}
 metadata:
   name: {{ include "service.fullname" . }}
   labels:
     {{- include "service.labels" . | nindent 4 }}
 spec:
+  {{- if eq .Values.kind "DaemonSet" }}
+  updateStrategy:
+  {{- else }}
   strategy:
+  {{- end }}
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 0
@@ -112,6 +116,7 @@ spec:
           operator: Exists
           effect: NoExecute
           tolerationSeconds: 30
+      {{- if eq .Values.kind "Deployment" }}
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
@@ -119,3 +124,4 @@ spec:
           labelSelector:
             matchLabels:
               {{- include "service.selectorLabels" . | nindent 14 }}
+      {{- end }}

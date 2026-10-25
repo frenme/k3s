@@ -12,16 +12,11 @@ server = {
   region      = "eu"
 }
 
-agents = {
-  asia = {
-    location    = "sin"
+nodes = {
+  edge-eu = {
+    location    = "nbg1"
     server_type = "cpx21"
-    region      = "asia"
-  }
-  us = {
-    location    = "ash"
-    server_type = "cpx21"
-    region      = "us"
+    region      = "eu"
   }
 }
 

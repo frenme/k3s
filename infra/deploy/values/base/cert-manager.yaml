@@ -1,2 +1,21 @@
 crds:
   enabled: true
+
+nodeSelector:
+  kubernetes.io/os: linux
+  role: core
+
+webhook:
+  nodeSelector:
+    kubernetes.io/os: linux
+    role: core
+
+cainjector:
+  nodeSelector:
+    kubernetes.io/os: linux
+    role: core
+
+startupapicheck:
+  nodeSelector:
+    kubernetes.io/os: linux
+    role: core

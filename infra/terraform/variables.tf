@@ -28,16 +28,22 @@ variable "server" {
   })
 }
 
-variable "agents" {
+variable "nodes" {
   type = map(object({
     location    = string
     server_type = string
     region      = string
+    role        = optional(string, "edge")
   }))
 
   validation {
-    condition     = length(var.agents) > 0
-    error_message = "at least one edge agent is required to serve ingress"
+    condition     = alltrue([for node in var.nodes : contains(["core", "edge"], node.role)])
+    error_message = "node role must be core or edge"
+  }
+
+  validation {
+    condition     = anytrue([for node in var.nodes : node.role == "edge"])
+    error_message = "at least one edge node is required to serve ingress"
   }
 }
 

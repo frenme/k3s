@@ -12,7 +12,7 @@ server = {
   region      = "eu"
 }
 
-agents = {
+nodes = {
   edge = {
     location    = "nbg1"
     server_type = "cpx11"
