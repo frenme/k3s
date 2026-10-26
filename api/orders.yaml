@@ -43,6 +43,8 @@ components:
             $ref: "#/components/schemas/Order"
           nullable: true
           type: array
+        next_cursor:
+          type: string
       required:
         - items
       type: object
@@ -93,6 +95,12 @@ paths:
           name: user_id
           schema:
             format: uuid
+            type: string
+        - explode: false
+          in: query
+          name: cursor
+          schema:
+            maxLength: 200
             type: string
       responses:
         "200":

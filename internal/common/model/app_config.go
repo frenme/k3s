@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type Config struct {
+type AppConfig struct {
 	Key       string
 	Value     json.RawMessage
 	Public    bool

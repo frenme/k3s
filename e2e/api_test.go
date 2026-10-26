@@ -19,6 +19,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 var (
@@ -29,6 +30,7 @@ var (
 	client = &http.Client{Timeout: 10 * time.Second}
 
 	adminCredentials = envOr("ADMIN_CREDENTIALS", "admin:admin-dev-password")
+	jwtSecret        = envOr("E2E_JWT_SECRET", "dev-jwt-secret")
 )
 
 func loadSpecs() []routers.Router {
@@ -84,6 +86,24 @@ func envOr(key, def string) string {
 	return def
 }
 
+const noAuth = "X-E2E-No-Auth"
+
+func userToken(t *testing.T) string {
+	t.Helper()
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+		Subject:   "e2e-user",
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	}).SignedString([]byte(jwtSecret))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return token
+}
+
+func basic(credentials string) map[string]string {
+	return map[string]string{"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte(credentials))}
+}
+
 type response struct {
 	status int
 	header http.Header
@@ -106,8 +126,13 @@ func call(t *testing.T, method, path string, body any, headers map[string]string
 	if host != "" {
 		req.Host = host
 	}
+	if _, skip := headers[noAuth]; !skip {
+		req.Header.Set("Authorization", "Bearer "+userToken(t))
+	}
 	for k, v := range headers {
-		req.Header.Set(k, v)
+		if k != noAuth {
+			req.Header.Set(k, v)
+		}
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -171,7 +196,7 @@ func TestDocsThroughGateway(t *testing.T) {
 }
 
 func TestCommon(t *testing.T) {
-	config := call(t, http.MethodGet, "/api/v1/common/config", nil, nil)
+	config := call(t, http.MethodGet, "/api/v1/common/app-config", nil, nil)
 	expect(t, config, http.StatusOK)
 	items, _ := config.body["items"].([]any)
 	found := false
@@ -183,27 +208,45 @@ func TestCommon(t *testing.T) {
 	if !found {
 		t.Fatalf("registration_enabled missing in %v", config.body)
 	}
-	health := call(t, http.MethodGet, "/api/v1/common/health", nil, nil)
+	health := call(t, http.MethodGet, "/api/v1/common/health", nil, map[string]string{noAuth: ""})
 	expect(t, health, http.StatusOK)
-	if health.body["status"] != "ok" {
+	if health.body["status"] != "ok" || len(health.body) != 1 {
 		t.Fatalf("health %v", health.body)
+	}
+	expect(t, call(t, http.MethodGet, "/api/v1/common/health/details", nil, map[string]string{noAuth: ""}), http.StatusUnauthorized)
+	details := call(t, http.MethodGet, "/api/v1/common/health/details", nil, basic(adminCredentials))
+	expect(t, details, http.StatusOK)
+	if checks, _ := details.body["checks"].([]any); len(checks) == 0 {
+		t.Fatalf("details %v", details.body)
 	}
 }
 
-func TestAdminNeedsPassword(t *testing.T) {
-	for _, path := range []string{"/api/v1/admin/users", "/api/v1/admin/orders"} {
-		denied := call(t, http.MethodGet, path, nil, nil)
+func TestAuthentication(t *testing.T) {
+	for _, path := range []string{"/api/v1/orders", "/api/v1/users/00000000-0000-0000-0000-000000000000"} {
+		denied := call(t, http.MethodGet, path, nil, map[string]string{noAuth: ""})
 		expect(t, denied, http.StatusUnauthorized)
 		if denied.body["code"] != "unauthorized" {
 			t.Fatalf("%s: body %v", path, denied.body)
 		}
-		auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(adminCredentials))
-		expect(t, call(t, http.MethodGet, path, nil, map[string]string{"Authorization": auth}), http.StatusOK)
+	}
+	expect(t, call(t, http.MethodGet, "/api/v1/orders", nil, map[string]string{"Authorization": "Bearer nope"}), http.StatusUnauthorized)
+	expect(t, call(t, http.MethodGet, "/api/v1/users", nil, nil), http.StatusUnauthorized)
+	expect(t, call(t, http.MethodGet, "/api/v1/users?limit=1", nil, basic(adminCredentials)), http.StatusOK)
+}
+
+func TestAdminNeedsPassword(t *testing.T) {
+	for _, path := range []string{"/api/v1/admin/users", "/api/v1/admin/orders"} {
+		denied := call(t, http.MethodGet, path, nil, map[string]string{noAuth: ""})
+		expect(t, denied, http.StatusUnauthorized)
+		if denied.body["code"] != "unauthorized" {
+			t.Fatalf("%s: body %v", path, denied.body)
+		}
+		expect(t, call(t, http.MethodGet, path, nil, basic(adminCredentials)), http.StatusOK)
 	}
 }
 
 func TestRequestIDIsFreshTraceID(t *testing.T) {
-	r := call(t, http.MethodGet, "/api/v1/users?limit=1", nil, map[string]string{
+	r := call(t, http.MethodGet, "/api/v1/orders?limit=1", nil, map[string]string{
 		"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
 	})
 	expect(t, r, http.StatusOK)
@@ -253,6 +296,13 @@ func TestUsersAndOrders(t *testing.T) {
 	expect(t, replay, http.StatusOK)
 	if replay.body["id"] != orderID {
 		t.Fatalf("replay returned another order: %v", replay.body["id"])
+	}
+
+	changed := map[string]any{"user_id": userID, "item": "widget", "amount_cents": 1}
+	reused := call(t, http.MethodPost, "/api/v1/orders", changed, key)
+	expect(t, reused, http.StatusUnprocessableEntity)
+	if reused.body["code"] != "idempotency_key_reused" {
+		t.Fatalf("reused key: %v", reused.body)
 	}
 
 	unknown := map[string]any{"user_id": "00000000-0000-0000-0000-000000000000", "item": "x", "amount_cents": 1}

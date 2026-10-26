@@ -13,15 +13,20 @@ import (
 	"github.com/egor/k3s-base/internal/admin/data"
 	"github.com/egor/k3s-base/internal/admin/model"
 	"github.com/egor/k3s-base/internal/lib/httpx"
+	"github.com/egor/k3s-base/internal/lib/pagination"
 )
 
 type fakeUsers []model.User
 
-func (f fakeUsers) List(ctx context.Context, limit int) ([]model.User, error) { return f, nil }
+func (f fakeUsers) List(ctx context.Context, limit int, after *pagination.Cursor) ([]model.User, error) {
+	return f, nil
+}
 
 type fakeOrders []model.Order
 
-func (f fakeOrders) List(ctx context.Context, limit int) ([]model.Order, error) { return f, nil }
+func (f fakeOrders) List(ctx context.Context, limit int, after *pagination.Cursor) ([]model.Order, error) {
+	return f, nil
+}
 
 func TestLists(t *testing.T) {
 	mux := http.NewServeMux()

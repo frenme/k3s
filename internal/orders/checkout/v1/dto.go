@@ -21,11 +21,13 @@ func toOrder(o model.Order) Order {
 type ListOrdersRequest struct {
 	Limit  int    `query:"limit" default:"50" minimum:"1" maximum:"500"`
 	UserID string `query:"user_id" format:"uuid"`
+	Cursor string `query:"cursor" maxLength:"200"`
 }
 
 type ListOrdersResponse struct {
 	Body struct {
-		Items []Order `json:"items"`
+		Items      []Order `json:"items"`
+		NextCursor string  `json:"next_cursor,omitempty"`
 	}
 }
 

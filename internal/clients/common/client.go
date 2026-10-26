@@ -9,10 +9,10 @@ import (
 	"net/url"
 	"time"
 
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
-var ErrConfigNotFound = errors.New("config not found")
+var ErrAppConfigNotFound = errors.New("config not found")
 
 type Client struct {
 	baseURL string
@@ -22,7 +22,7 @@ type Client struct {
 func New(baseURL string) *Client {
 	return &Client{
 		baseURL: baseURL,
-		http:    &http.Client{Timeout: 3 * time.Second, Transport: otelhttp.NewTransport(http.DefaultTransport)},
+		http:    httpx.NewClient("common", 3*time.Second),
 	}
 }
 
@@ -32,7 +32,7 @@ func (c *Client) Bool(ctx context.Context, key string) (bool, error) {
 }
 
 func (c *Client) config(ctx context.Context, key string, dst any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/internal/v1/common/config/"+url.PathEscape(key), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/internal/v1/common/app-config/"+url.PathEscape(key), nil)
 	if err != nil {
 		return err
 	}
@@ -51,8 +51,8 @@ func (c *Client) config(ctx context.Context, key string, dst any) error {
 	switch {
 	case resp.StatusCode == http.StatusOK:
 		return json.Unmarshal(body.Value, dst)
-	case body.Code == "config_not_found":
-		return ErrConfigNotFound
+	case body.Code == "app_config_not_found":
+		return ErrAppConfigNotFound
 	default:
 		return fmt.Errorf("common service returned %d %s", resp.StatusCode, body.Code)
 	}

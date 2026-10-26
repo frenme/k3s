@@ -11,28 +11,45 @@ import (
 	"time"
 
 	"github.com/egor/k3s-base/internal/lib/cache"
-	"github.com/egor/k3s-base/internal/lib/config"
+	"github.com/egor/k3s-base/internal/lib/envconfig"
 	"github.com/egor/k3s-base/internal/lib/httpx"
+	"github.com/egor/k3s-base/internal/lib/lock"
 	"github.com/egor/k3s-base/internal/lib/pg"
+	"github.com/redis/go-redis/v9"
 )
+
+type EnvConfig struct {
+	LogLevel      string `env:"LOG_LEVEL" default:"info"`
+	RedisAddr     string `env:"REDIS_ADDR"`
+	RedisPassword string `env:"REDIS_PASSWORD"`
+}
 
 type Service struct {
 	Name     string
 	Public   bool
+	Env      EnvConfig
 	Log      *slog.Logger
 	Health   *httpx.Health
 	Mux      *http.ServeMux
 	Internal *http.ServeMux
 	closers  []func()
+	redis    *redis.Client
 }
 
 func Run(name string, setup func(ctx context.Context, s *Service) error) {
+	var env EnvConfig
+	envErr := envconfig.Load(&env)
 	s := &Service{
 		Name:     name,
-		Log:      newLogger(name, config.String("LOG_LEVEL", "info")),
+		Env:      env,
+		Log:      newLogger(name, env.LogLevel),
 		Health:   httpx.NewHealth(),
 		Mux:      http.NewServeMux(),
 		Internal: http.NewServeMux(),
+	}
+	if envErr != nil {
+		s.Log.Error("fatal", "err", envErr)
+		os.Exit(1)
 	}
 	s.Health.Mount(s.Mux)
 
@@ -82,12 +99,20 @@ func (s *Service) Postgres(ctx context.Context, fsys fs.FS, dir string) (*pg.DB,
 	return pg.NewDB(pools)
 }
 
-func (s *Service) Cache() *cache.Cache {
-	addr := config.String("REDIS_ADDR", "")
-	if addr == "" {
-		return nil
+func (s *Service) Redis() *redis.Client {
+	if s.redis == nil && s.Env.RedisAddr != "" {
+		s.redis = cache.NewClient(s.Env.RedisAddr, s.Env.RedisPassword)
+		client := s.redis
+		s.OnClose(func() { _ = client.Close() })
 	}
-	client := cache.NewClient(addr, config.String("REDIS_PASSWORD", ""))
-	s.OnClose(func() { _ = client.Close() })
-	return cache.New(client, s.Name)
+	return s.redis
+}
+
+func (s *Service) Cache() *cache.Cache {
+	return cache.New(s.Redis(), s.Name)
+}
+
+func (s *Service) Locker() *lock.Locker {
+	owner, _ := os.Hostname()
+	return lock.New(s.Redis(), s.Name, owner)
 }

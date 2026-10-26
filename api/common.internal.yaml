@@ -1,6 +1,6 @@
 components:
   schemas:
-    Config:
+    AppConfig:
       additionalProperties: false
       properties:
         key:
@@ -31,7 +31,7 @@ info:
   version: dev
 openapi: 3.0.3
 paths:
-  /internal/v1/common/config/{key}:
+  /internal/v1/common/app-config/{key}:
     get:
       operationId: internal-get-config
       parameters:
@@ -47,7 +47,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Config"
+                $ref: "#/components/schemas/AppConfig"
           description: OK
         "404":
           content:

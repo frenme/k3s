@@ -16,6 +16,36 @@ components:
         - code
         - message
       type: object
+    Job:
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        next_run:
+          format: date-time
+          type: string
+        schedule:
+          type: string
+        timeout_seconds:
+          format: int64
+          type: integer
+      required:
+        - name
+        - schedule
+        - timeout_seconds
+        - next_run
+      type: object
+    ListJobsResponseBody:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/Job"
+          nullable: true
+          type: array
+      required:
+        - items
+      type: object
     ListOrdersResponseBody:
       additionalProperties: false
       properties:
@@ -24,6 +54,8 @@ components:
             $ref: "#/components/schemas/Order"
           nullable: true
           type: array
+        next_cursor:
+          type: string
       required:
         - items
       type: object
@@ -35,6 +67,8 @@ components:
             $ref: "#/components/schemas/User"
           nullable: true
           type: array
+        next_cursor:
+          type: string
       required:
         - items
       type: object
@@ -61,6 +95,26 @@ components:
         - item
         - amount_cents
         - created_at
+      type: object
+    Run:
+      additionalProperties: false
+      properties:
+        duration_ms:
+          format: int64
+          type: integer
+        error:
+          type: string
+        job:
+          type: string
+        status:
+          enum:
+            - succeeded
+            - failed
+          type: string
+      required:
+        - job
+        - status
+        - duration_ms
       type: object
     User:
       additionalProperties: false
@@ -100,6 +154,12 @@ paths:
             maximum: 500
             minimum: 1
             type: integer
+        - explode: false
+          in: query
+          name: cursor
+          schema:
+            maxLength: 200
+            type: string
       responses:
         "200":
           content:
@@ -116,6 +176,82 @@ paths:
       summary: List orders from the orders schema
       tags:
         - Admin
+  /v1/admin/scheduler/jobs:
+    get:
+      operationId: admin-list-jobs
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListJobsResponseBody"
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Internal Server Error
+        "502":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Bad Gateway
+      summary: List scheduled jobs
+      tags:
+        - Admin
+  /v1/admin/scheduler/jobs/{name}/run:
+    post:
+      operationId: admin-run-job
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            maxLength: 100
+            pattern: ^[a-z0-9-]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Conflict
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Internal Server Error
+        "502":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Bad Gateway
+      summary: Run a scheduled job now and wait for the result
+      tags:
+        - Admin
   /v1/admin/users:
     get:
       operationId: admin-list-users
@@ -129,6 +265,12 @@ paths:
             maximum: 500
             minimum: 1
             type: integer
+        - explode: false
+          in: query
+          name: cursor
+          schema:
+            maxLength: 200
+            type: string
       responses:
         "200":
           content:

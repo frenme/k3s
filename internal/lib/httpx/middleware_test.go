@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -160,5 +162,18 @@ func TestStatusLabel(t *testing.T) {
 		if got := statusLabel(code); got != want {
 			t.Fatalf("%d: got %s", code, got)
 		}
+	}
+}
+
+func TestObserveCountsPanics(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /boom", func(w http.ResponseWriter, r *http.Request) { panic("boom") })
+	h := Chain(mux, Observe(discard), Recover(discard))
+	before := testutil.ToFloat64(requestsTotal.WithLabelValues("GET", "GET /boom", "5xx"))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/boom", nil))
+	after := testutil.ToFloat64(requestsTotal.WithLabelValues("GET", "GET /boom", "5xx"))
+	if rec.Code != http.StatusInternalServerError || after != before+1 {
+		t.Fatalf("status %d counter %v -> %v", rec.Code, before, after)
 	}
 }

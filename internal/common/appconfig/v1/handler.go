@@ -6,16 +6,16 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/egor/k3s-base/internal/common/config"
+	"github.com/egor/k3s-base/internal/common/appconfig"
 	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
 type Handler struct {
-	svc *config.Service
+	svc *appconfig.Service
 	log *slog.Logger
 }
 
-func NewHandler(svc *config.Service, log *slog.Logger) *Handler {
+func NewHandler(svc *appconfig.Service, log *slog.Logger) *Handler {
 	return &Handler{svc: svc, log: log}
 }
 
@@ -23,37 +23,37 @@ func (h *Handler) Register(public, internal huma.API) {
 	huma.Register(public, huma.Operation{
 		OperationID: "list-public-config",
 		Method:      http.MethodGet,
-		Path:        "/v1/common/config",
-		Summary:     "Config visible to clients",
-		Tags:        []string{"Config"},
+		Path:        "/v1/common/app-config",
+		Summary:     "AppConfig visible to clients",
+		Tags:        []string{"AppConfig"},
 	}, h.listPublic)
 	huma.Register(internal, huma.Operation{
 		OperationID: "internal-get-config",
 		Method:      http.MethodGet,
-		Path:        "/internal/v1/common/config/{key}",
+		Path:        "/internal/v1/common/app-config/{key}",
 		Summary:     "Any config entry by key for other services",
 		Tags:        []string{"Internal"},
 		Errors:      []int{http.StatusNotFound},
 	}, h.get)
 }
 
-func (h *Handler) listPublic(ctx context.Context, _ *struct{}) (*ListConfigResponse, error) {
+func (h *Handler) listPublic(ctx context.Context, _ *struct{}) (*ListAppConfigResponse, error) {
 	items, err := h.svc.Public(ctx)
 	if err != nil {
 		return nil, httpx.Fail(ctx, h.log, err)
 	}
-	out := &ListConfigResponse{}
-	out.Body.Items = make([]Config, 0, len(items))
+	out := &ListAppConfigResponse{}
+	out.Body.Items = make([]AppConfig, 0, len(items))
 	for _, s := range items {
-		out.Body.Items = append(out.Body.Items, toConfig(s))
+		out.Body.Items = append(out.Body.Items, toAppConfig(s))
 	}
 	return out, nil
 }
 
-func (h *Handler) get(ctx context.Context, in *GetConfigRequest) (*ConfigResponse, error) {
+func (h *Handler) get(ctx context.Context, in *GetAppConfigRequest) (*AppConfigResponse, error) {
 	s, err := h.svc.Get(ctx, in.Key)
 	if err != nil {
 		return nil, httpx.Fail(ctx, h.log, err)
 	}
-	return &ConfigResponse{Body: toConfig(s)}, nil
+	return &AppConfigResponse{Body: toAppConfig(s)}, nil
 }

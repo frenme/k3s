@@ -7,29 +7,17 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/egor/k3s-base/internal/lib/config"
+	"github.com/egor/k3s-base/internal/lib/envconfig"
 )
 
 type ServerConfig struct {
-	Addr         string
-	InternalAddr string
-	DrainDelay   time.Duration
-	GraceTimeout time.Duration
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
-}
-
-func ServerConfigFromEnv() ServerConfig {
-	return ServerConfig{
-		Addr:         config.String("HTTP_ADDR", ":8080"),
-		InternalAddr: config.String("INTERNAL_ADDR", ":8081"),
-		DrainDelay:   config.Duration("DRAIN_DELAY", 5*time.Second),
-		GraceTimeout: config.Duration("GRACE_TIMEOUT", 20*time.Second),
-		ReadTimeout:  config.Duration("READ_TIMEOUT", 10*time.Second),
-		WriteTimeout: config.Duration("WRITE_TIMEOUT", 30*time.Second),
-		IdleTimeout:  config.Duration("IDLE_TIMEOUT", 60*time.Second),
-	}
+	Addr         string        `env:"HTTP_ADDR" default:":8080"`
+	InternalAddr string        `env:"INTERNAL_ADDR" default:":8081"`
+	DrainDelay   time.Duration `env:"DRAIN_DELAY" default:"5s"`
+	GraceTimeout time.Duration `env:"GRACE_TIMEOUT" default:"20s"`
+	ReadTimeout  time.Duration `env:"READ_TIMEOUT" default:"10s"`
+	WriteTimeout time.Duration `env:"WRITE_TIMEOUT" default:"30s"`
+	IdleTimeout  time.Duration `env:"IDLE_TIMEOUT" default:"60s"`
 }
 
 type Listener struct {
@@ -38,10 +26,13 @@ type Listener struct {
 }
 
 func Serve(ctx context.Context, name string, public bool, log *slog.Logger, health *Health, mux, internal *http.ServeMux) error {
-	cfg := ServerConfigFromEnv()
+	var cfg ServerConfig
+	if err := envconfig.Load(&cfg); err != nil {
+		return err
+	}
 	return Run(ctx, cfg, health, log,
-		Listener{Addr: cfg.Addr, Handler: Chain(JSONErrors(mux), Trace(name, public), Recover(log), Observe(log))},
-		Listener{Addr: cfg.InternalAddr, Handler: Chain(JSONErrors(internal), Trace(name, false), Recover(log), Observe(log))},
+		Listener{Addr: cfg.Addr, Handler: Chain(JSONErrors(mux), Trace(name, public), Observe(log), Recover(log))},
+		Listener{Addr: cfg.InternalAddr, Handler: Chain(JSONErrors(internal), Trace(name, false), Observe(log), Recover(log))},
 	)
 }
 

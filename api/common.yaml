@@ -1,6 +1,6 @@
 components:
   schemas:
-    Config:
+    AppConfig:
       additionalProperties: false
       properties:
         key:
@@ -9,6 +9,54 @@ components:
       required:
         - key
         - value
+      type: object
+    Check:
+      additionalProperties: false
+      properties:
+        details:
+          additionalProperties:
+            type: string
+          type: object
+        error:
+          type: string
+        healthy:
+          type: boolean
+        kind:
+          enum:
+            - service
+            - infra
+          type: string
+        latency_ms:
+          format: int64
+          type: integer
+        name:
+          type: string
+      required:
+        - name
+        - kind
+        - healthy
+        - latency_ms
+      type: object
+    DetailsResponseBody:
+      additionalProperties: false
+      properties:
+        checked_at:
+          format: date-time
+          type: string
+        checks:
+          items:
+            $ref: "#/components/schemas/Check"
+          nullable: true
+          type: array
+        status:
+          enum:
+            - ok
+            - unhealthy
+          type: string
+      required:
+        - checked_at
+        - checks
+        - status
       type: object
     Error:
       additionalProperties: false
@@ -26,51 +74,34 @@ components:
         - code
         - message
       type: object
-    HealthResponseBody:
-      additionalProperties: false
-      properties:
-        services:
-          items:
-            $ref: "#/components/schemas/Service"
-          nullable: true
-          type: array
-        status:
-          enum:
-            - ok
-            - degraded
-          type: string
-      required:
-        - status
-        - services
-      type: object
-    ListConfigResponseBody:
+    ListAppConfigResponseBody:
       additionalProperties: false
       properties:
         items:
           items:
-            $ref: "#/components/schemas/Config"
+            $ref: "#/components/schemas/AppConfig"
           nullable: true
           type: array
       required:
         - items
       type: object
-    Service:
+    StatusBody:
       additionalProperties: false
       properties:
-        healthy:
-          type: boolean
-        name:
+        status:
+          enum:
+            - ok
+            - unhealthy
           type: string
       required:
-        - name
-        - healthy
+        - status
       type: object
 info:
   title: common
   version: dev
 openapi: 3.0.3
 paths:
-  /v1/common/config:
+  /v1/common/app-config:
     get:
       operationId: list-public-config
       responses:
@@ -78,7 +109,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ListConfigResponseBody"
+                $ref: "#/components/schemas/ListAppConfigResponseBody"
           description: OK
         default:
           content:
@@ -86,9 +117,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Error
-      summary: Config visible to clients
+      summary: AppConfig visible to clients
       tags:
-        - Config
+        - AppConfig
   /v1/common/health:
     get:
       operationId: app-health
@@ -97,11 +128,26 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthResponseBody"
+                $ref: "#/components/schemas/StatusBody"
           description: OK
         "503":
-          description: At least one service is not ready
-      summary: Health of every service, 503 when any of them is not ready
+          description: At least one service or infrastructure component is down
+      summary: Public liveness of every service and infrastructure component, 503 when anything is down
+      tags:
+        - Health
+  /v1/common/health/details:
+    get:
+      operationId: app-health-details
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DetailsResponseBody"
+          description: OK
+        "503":
+          description: At least one service or infrastructure component is down
+      summary: Per service and infrastructure health with error details, admin only at the gateway
       tags:
         - Health
 servers:

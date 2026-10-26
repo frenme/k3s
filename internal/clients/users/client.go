@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
 type Client struct {
@@ -19,7 +19,7 @@ type Client struct {
 func New(baseURL string) *Client {
 	return &Client{
 		baseURL: baseURL,
-		http:    &http.Client{Timeout: 3 * time.Second, Transport: otelhttp.NewTransport(http.DefaultTransport)},
+		http:    httpx.NewClient("users", 3*time.Second),
 	}
 }
 

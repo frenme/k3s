@@ -39,6 +39,8 @@ components:
             $ref: "#/components/schemas/User"
           nullable: true
           type: array
+        next_cursor:
+          type: string
       required:
         - items
       type: object
@@ -80,6 +82,12 @@ paths:
             maximum: 500
             minimum: 1
             type: integer
+        - explode: false
+          in: query
+          name: cursor
+          schema:
+            maxLength: 200
+            type: string
       responses:
         "200":
           content:

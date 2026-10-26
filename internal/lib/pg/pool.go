@@ -6,46 +6,79 @@ import (
 	"io/fs"
 	"time"
 
-	"github.com/egor/k3s-base/internal/lib/config"
+	"github.com/egor/k3s-base/internal/lib/envconfig"
 	"github.com/exaring/otelpgx"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+type EnvConfig struct {
+	URL       string `env:"DATABASE_URL" required:"true"`
+	ReadURL   string `env:"DATABASE_READ_URL"`
+	DirectURL string `env:"DATABASE_DIRECT_URL"`
+	Schema    string `env:"DB_SCHEMA"`
+	MaxConns  int32  `env:"DB_MAX_CONNS" default:"10"`
+}
 
 type Config struct {
 	URL      string
 	Schema   string
 	MaxConns int32
+	Pooled   bool
 }
 
-func Open(ctx context.Context, defaultSchema string, fsys fs.FS, dir string) (*Pools, error) {
-	schema := config.String("DB_SCHEMA", defaultSchema)
-	maxConns := config.Int32("DB_MAX_CONNS", 10)
+func Open(ctx context.Context, name string, fsys fs.FS, dir string) (*Pools, error) {
+	var env EnvConfig
+	if err := envconfig.Load(&env); err != nil {
+		return nil, err
+	}
+	if env.Schema == "" {
+		env.Schema = name
+	}
+	pooled := env.DirectURL != ""
 
-	write, err := Connect(ctx, Config{
-		URL:      config.String("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/app?sslmode=disable"),
-		Schema:   schema,
-		MaxConns: maxConns,
-	})
+	var write *pgxpool.Pool
+	var err error
+	switch {
+	case fsys == nil:
+		write, err = Connect(ctx, Config{URL: env.URL, Schema: env.Schema, MaxConns: env.MaxConns, Pooled: pooled})
+	case pooled:
+		if err = migrateDirect(ctx, Config{URL: env.DirectURL, Schema: env.Schema, MaxConns: 2}, fsys, dir); err == nil {
+			write, err = Connect(ctx, Config{URL: env.URL, Schema: env.Schema, MaxConns: env.MaxConns, Pooled: true})
+		}
+	default:
+		write, err = Connect(ctx, Config{URL: env.URL, Schema: env.Schema, MaxConns: env.MaxConns})
+		if err == nil {
+			if err = migrateWhenReady(ctx, write, env.Schema, fsys, dir); err != nil {
+				write.Close()
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
-	if fsys != nil {
-		if err := migrateWhenReady(ctx, write, schema, fsys, dir); err != nil {
-			write.Close()
-			return nil, err
-		}
-	}
 
-	pools := &Pools{Write: write}
-	if url := config.String("DATABASE_READ_URL", ""); url != "" {
-		read, err := connectLazy(ctx, Config{URL: url, Schema: schema, MaxConns: maxConns})
+	pools := &Pools{Write: write, name: name}
+	pools.register("write", write)
+	if env.ReadURL != "" {
+		read, err := connectLazy(ctx, Config{URL: env.ReadURL, Schema: env.Schema, MaxConns: env.MaxConns, Pooled: pooled})
 		if err != nil {
-			write.Close()
+			pools.Close()
 			return nil, err
 		}
 		pools.Read = read
+		pools.register("read", read)
 	}
 	return pools, nil
+}
+
+func migrateDirect(ctx context.Context, c Config, fsys fs.FS, dir string) error {
+	pool, err := Connect(ctx, c)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	return migrateWhenReady(ctx, pool, c.Schema, fsys, dir)
 }
 
 func Connect(ctx context.Context, c Config) (*pgxpool.Pool, error) {
@@ -86,7 +119,9 @@ func poolConfig(c Config) (*pgxpool.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	if c.Schema != "" {
+	if c.Pooled {
+		cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeCacheDescribe
+	} else if c.Schema != "" {
 		cfg.ConnConfig.RuntimeParams["search_path"] = c.Schema
 	}
 	if c.MaxConns > 0 {

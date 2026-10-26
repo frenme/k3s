@@ -43,6 +43,8 @@ linters:
               desc: services never import each other, they talk over HTTP through internal/clients
             - pkg: github.com/egor/k3s-base/internal/common
               desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/scheduler
+              desc: services never import each other, they talk over HTTP through internal/clients
         orders:
           files:
             - "**/internal/orders/**"
@@ -52,6 +54,8 @@ linters:
             - pkg: github.com/egor/k3s-base/internal/admin
               desc: services never import each other, they talk over HTTP through internal/clients
             - pkg: github.com/egor/k3s-base/internal/common
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/scheduler
               desc: services never import each other, they talk over HTTP through internal/clients
         admin:
           files:
@@ -63,6 +67,8 @@ linters:
               desc: services never import each other, they talk over HTTP through internal/clients
             - pkg: github.com/egor/k3s-base/internal/common
               desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/scheduler
+              desc: services never import each other, they talk over HTTP through internal/clients
         common:
           files:
             - "**/internal/common/**"
@@ -72,6 +78,20 @@ linters:
             - pkg: github.com/egor/k3s-base/internal/orders
               desc: services never import each other, they talk over HTTP through internal/clients
             - pkg: github.com/egor/k3s-base/internal/admin
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/scheduler
+              desc: services never import each other, they talk over HTTP through internal/clients
+        scheduler:
+          files:
+            - "**/internal/scheduler/**"
+          deny:
+            - pkg: github.com/egor/k3s-base/internal/users
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/orders
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/admin
+              desc: services never import each other, they talk over HTTP through internal/clients
+            - pkg: github.com/egor/k3s-base/internal/common
               desc: services never import each other, they talk over HTTP through internal/clients
     revive:
       rules:
@@ -86,10 +106,14 @@ linters:
           - bodyclose
           - gosec
           - noctx
-      - path: internal/gateway/admin\.go
+      - path: internal/gateway/auth\.go
         linters:
           - gosec
         text: G101
+      - path: internal/lib/httpx/resilience\.go
+        linters:
+          - gosec
+        text: G404
       - path: internal/clients/
         linters:
           - gosec

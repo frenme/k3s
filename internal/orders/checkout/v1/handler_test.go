@@ -14,6 +14,8 @@ import (
 
 	"github.com/egor/k3s-base/internal/clients/users"
 	"github.com/egor/k3s-base/internal/lib/httpx"
+	"github.com/egor/k3s-base/internal/lib/idempotency"
+	"github.com/egor/k3s-base/internal/lib/pagination"
 	"github.com/egor/k3s-base/internal/orders/checkout"
 	"github.com/egor/k3s-base/internal/orders/model"
 	"github.com/google/uuid"
@@ -22,10 +24,11 @@ import (
 const knownUser = "11111111-1111-4111-8111-111111111111"
 
 type fakeStore struct {
-	byKey map[string]model.Order
+	byKey  map[string]model.Order
+	hashes map[string]string
 }
 
-func (f *fakeStore) List(ctx context.Context, userID string, limit int) ([]model.Order, error) {
+func (f *fakeStore) List(ctx context.Context, userID string, limit int, after *pagination.Cursor) ([]model.Order, error) {
 	return nil, nil
 }
 
@@ -38,14 +41,18 @@ func (f *fakeStore) Get(ctx context.Context, id string) (model.Order, error) {
 	return model.Order{}, model.ErrNotFound
 }
 
-func (f *fakeStore) Create(ctx context.Context, o model.Order, key string) (model.Order, bool, error) {
-	if existing, ok := f.byKey[key]; ok && key != "" {
+func (f *fakeStore) Create(ctx context.Context, o model.Order, idem idempotency.Request) (model.Order, bool, error) {
+	if existing, ok := f.byKey[idem.Key]; ok && !idem.Empty() {
+		if err := idem.Verify(f.hashes[idem.Key]); err != nil {
+			return model.Order{}, false, err
+		}
 		return existing, false, nil
 	}
 	o.ID = uuid.NewString()
 	o.CreatedAt = time.Now()
-	if key != "" {
-		f.byKey[key] = o
+	if !idem.Empty() {
+		f.byKey[idem.Key] = o
+		f.hashes[idem.Key] = idem.Fingerprint
 	}
 	return o, true, nil
 }
@@ -68,7 +75,7 @@ func (f fakeUsers) Get(ctx context.Context, id string) (users.User, error) {
 func newServer(t *testing.T, u fakeUsers) string {
 	t.Helper()
 	mux := http.NewServeMux()
-	svc := checkout.NewService(&fakeStore{byKey: map[string]model.Order{}}, u)
+	svc := checkout.NewService(&fakeStore{byKey: map[string]model.Order{}, hashes: map[string]string{}}, u)
 	NewHandler(svc, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewAPI(mux, "orders"))
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -129,6 +136,18 @@ func TestIdempotency(t *testing.T) {
 	}
 	if code, _ := send(t, url, body, "k1"); code != http.StatusOK {
 		t.Fatalf("second status %d", code)
+	}
+}
+
+func TestIdempotencyKeyReuseWithDifferentBody(t *testing.T) {
+	url := newServer(t, fakeUsers{}) + "/v1/orders"
+	first := `{"user_id":"` + knownUser + `","item":"book","amount_cents":1}`
+	changed := `{"user_id":"` + knownUser + `","item":"book","amount_cents":2}`
+	if code, _ := send(t, url, first, "k2"); code != http.StatusCreated {
+		t.Fatalf("first status %d", code)
+	}
+	if code, out := send(t, url, changed, "k2"); code != http.StatusUnprocessableEntity || out["code"] != "idempotency_key_reused" {
+		t.Fatalf("status %d body %v", code, out)
 	}
 }
 

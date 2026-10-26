@@ -31,7 +31,6 @@ func TestRunClosesWhenSetupFails(t *testing.T) {
 }
 
 func TestCacheDisabledWithoutRedis(t *testing.T) {
-	t.Setenv("REDIS_ADDR", "")
 	s := &Service{Name: "x"}
 	if s.Cache() != nil {
 		t.Fatal("expected nil cache")

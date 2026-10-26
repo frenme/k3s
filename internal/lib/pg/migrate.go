@@ -14,7 +14,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const insufficientPrivilege = "42501"
+const (
+	insufficientPrivilege = "42501"
+	noTxSuffix            = ".notx.sql"
+)
 
 func migrateWhenReady(ctx context.Context, pool *pgxpool.Pool, schema string, fsys fs.FS, dir string) error {
 	return retry(ctx, func() error {
@@ -39,6 +42,9 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, schema string, fsys fs.FS,
 	defer func() { _, _ = conn.Exec(context.Background(), "SELECT pg_advisory_unlock($1)", lockID) }()
 
 	if err := ensureSchema(ctx, conn, schema); err != nil {
+		return err
+	}
+	if _, err := conn.Exec(ctx, "ALTER ROLE CURRENT_USER SET search_path = "+pgx.Identifier{schema}.Sanitize()); err != nil {
 		return err
 	}
 	if _, err := conn.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -103,6 +109,13 @@ func apply(ctx context.Context, conn *pgxpool.Conn, fsys fs.FS, dir, name string
 	}
 	body, err := fs.ReadFile(fsys, dir+"/"+name)
 	if err != nil {
+		return err
+	}
+	if strings.HasSuffix(name, noTxSuffix) {
+		if _, err := conn.Exec(ctx, string(body)); err != nil {
+			return fmt.Errorf("migration %s: %w", name, err)
+		}
+		_, err := conn.Exec(ctx, "INSERT INTO schema_migrations (version) VALUES ($1)", name)
 		return err
 	}
 	tx, err := conn.Begin(ctx)

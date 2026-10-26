@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/egor/k3s-base/internal/lib/cache"
+	"github.com/egor/k3s-base/internal/lib/pagination"
 	"github.com/egor/k3s-base/internal/lib/pg"
 	"github.com/egor/k3s-base/internal/users/model"
 	"gorm.io/gorm"
@@ -35,10 +36,10 @@ func NewUsers(db *pg.DB, c *cache.Cache) *Users {
 	return &Users{db: db, cache: c}
 }
 
-func (s *Users) List(ctx context.Context, limit int) ([]model.User, error) {
-	return pg.Read(s.db, func(db *gorm.DB) ([]model.User, error) {
+func (s *Users) List(ctx context.Context, limit int, after *pagination.Cursor) ([]model.User, error) {
+	return pg.Read(ctx, s.db, func(db *gorm.DB) ([]model.User, error) {
 		var rows []userRow
-		if err := db.WithContext(ctx).Order("created_at DESC").Limit(limit).Find(&rows).Error; err != nil {
+		if err := pg.Keyset(db.WithContext(ctx), after, limit).Find(&rows).Error; err != nil {
 			return nil, err
 		}
 		users := make([]model.User, 0, len(rows))
@@ -51,7 +52,7 @@ func (s *Users) List(ctx context.Context, limit int) ([]model.User, error) {
 
 func (s *Users) Get(ctx context.Context, id string) (model.User, error) {
 	return cache.Fetch(ctx, s.cache, id, userCacheTTL, func() (model.User, error) {
-		u, err := pg.Read(s.db, func(db *gorm.DB) (model.User, error) {
+		u, err := pg.Read(ctx, s.db, func(db *gorm.DB) (model.User, error) {
 			var row userRow
 			err := db.WithContext(ctx).First(&row, "id = ?", id).Error
 			return row.model(), err
@@ -65,7 +66,7 @@ func (s *Users) Get(ctx context.Context, id string) (model.User, error) {
 
 func (s *Users) Create(ctx context.Context, email, name string) (model.User, error) {
 	row := userRow{Email: email, Name: name}
-	err := s.db.Write.WithContext(ctx).Create(&row).Error
+	err := s.db.Conn(ctx).Create(&row).Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		return model.User{}, model.ErrDuplicate
 	}

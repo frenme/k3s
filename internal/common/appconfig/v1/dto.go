@@ -6,25 +6,25 @@ import (
 	"github.com/egor/k3s-base/internal/common/model"
 )
 
-type Config struct {
+type AppConfig struct {
 	Key   string          `json:"key"`
 	Value json.RawMessage `json:"value"`
 }
 
-func toConfig(s model.Config) Config {
-	return Config{Key: s.Key, Value: s.Value}
+func toAppConfig(s model.AppConfig) AppConfig {
+	return AppConfig{Key: s.Key, Value: s.Value}
 }
 
-type ListConfigResponse struct {
+type ListAppConfigResponse struct {
 	Body struct {
-		Items []Config `json:"items"`
+		Items []AppConfig `json:"items"`
 	}
 }
 
-type GetConfigRequest struct {
+type GetAppConfigRequest struct {
 	Key string `path:"key" pattern:"^[a-z0-9_]+$" maxLength:"100"`
 }
 
-type ConfigResponse struct {
-	Body Config
+type AppConfigResponse struct {
+	Body AppConfig
 }

@@ -18,12 +18,14 @@ func toUser(u model.User) User {
 }
 
 type ListUsersRequest struct {
-	Limit int `query:"limit" default:"50" minimum:"1" maximum:"500"`
+	Limit  int    `query:"limit" default:"50" minimum:"1" maximum:"500"`
+	Cursor string `query:"cursor" maxLength:"200"`
 }
 
 type ListUsersResponse struct {
 	Body struct {
-		Items []User `json:"items"`
+		Items      []User `json:"items"`
+		NextCursor string `json:"next_cursor,omitempty"`
 	}
 }
 

@@ -55,15 +55,16 @@ func (h *Handler) Register(public, internal huma.API) {
 }
 
 func (h *Handler) list(ctx context.Context, in *ListUsersRequest) (*ListUsersResponse, error) {
-	users, err := h.svc.List(ctx, in.Limit)
+	page, err := h.svc.List(ctx, in.Limit, in.Cursor)
 	if err != nil {
 		return nil, h.fail(ctx, err)
 	}
 	out := &ListUsersResponse{}
-	out.Body.Items = make([]User, 0, len(users))
-	for _, u := range users {
+	out.Body.Items = make([]User, 0, len(page.Items))
+	for _, u := range page.Items {
 		out.Body.Items = append(out.Body.Items, toUser(u))
 	}
+	out.Body.NextCursor = page.Next
 	return out, nil
 }
 

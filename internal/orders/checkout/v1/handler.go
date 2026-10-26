@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/egor/k3s-base/internal/lib/httpx"
+	"github.com/egor/k3s-base/internal/lib/idempotency"
 	"github.com/egor/k3s-base/internal/orders/checkout"
 	"github.com/egor/k3s-base/internal/orders/model"
 )
@@ -53,15 +54,16 @@ func (h *Handler) Register(public huma.API) {
 }
 
 func (h *Handler) list(ctx context.Context, in *ListOrdersRequest) (*ListOrdersResponse, error) {
-	orders, err := h.svc.List(ctx, in.UserID, in.Limit)
+	page, err := h.svc.List(ctx, in.UserID, in.Limit, in.Cursor)
 	if err != nil {
 		return nil, h.fail(ctx, err)
 	}
 	out := &ListOrdersResponse{}
-	out.Body.Items = make([]Order, 0, len(orders))
-	for _, o := range orders {
+	out.Body.Items = make([]Order, 0, len(page.Items))
+	for _, o := range page.Items {
 		out.Body.Items = append(out.Body.Items, toOrder(o))
 	}
+	out.Body.NextCursor = page.Next
 	return out, nil
 }
 
@@ -74,11 +76,15 @@ func (h *Handler) get(ctx context.Context, in *GetOrderRequest) (*OrderResponse,
 }
 
 func (h *Handler) create(ctx context.Context, in *CreateOrderRequest) (*OrderResponse, error) {
+	idem, err := idempotency.New(in.Body.UserID, in.IdempotencyKey, in.Body)
+	if err != nil {
+		return nil, h.fail(ctx, err)
+	}
 	o, created, err := h.svc.Create(ctx, model.Order{
 		UserID:      in.Body.UserID,
 		Item:        in.Body.Item,
 		AmountCents: in.Body.AmountCents,
-	}, in.IdempotencyKey)
+	}, idem)
 	if err != nil {
 		return nil, h.fail(ctx, err)
 	}

@@ -1,4 +1,4 @@
-package config
+package appconfig
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 )
 
 type store interface {
-	ListPublic(ctx context.Context) ([]model.Config, error)
-	Get(ctx context.Context, key string) (model.Config, error)
+	ListPublic(ctx context.Context) ([]model.AppConfig, error)
+	Get(ctx context.Context, key string) (model.AppConfig, error)
 }
 
 type Service struct {
@@ -19,10 +19,10 @@ func NewService(store store) *Service {
 	return &Service{store: store}
 }
 
-func (s *Service) Public(ctx context.Context) ([]model.Config, error) {
+func (s *Service) Public(ctx context.Context) ([]model.AppConfig, error) {
 	return s.store.ListPublic(ctx)
 }
 
-func (s *Service) Get(ctx context.Context, key string) (model.Config, error) {
+func (s *Service) Get(ctx context.Context, key string) (model.AppConfig, error) {
 	return s.store.Get(ctx, key)
 }

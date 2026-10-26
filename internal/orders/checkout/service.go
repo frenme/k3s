@@ -9,9 +9,18 @@ import (
 
 	"github.com/egor/k3s-base/internal/clients/users"
 	"github.com/egor/k3s-base/internal/lib/httpx"
+	"github.com/egor/k3s-base/internal/lib/idempotency"
+	"github.com/egor/k3s-base/internal/lib/pagination"
 	"github.com/egor/k3s-base/internal/orders/model"
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
+
+var ordersTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "orders_created_total",
+	Help: "Order creation requests by result.",
+}, []string{"result"})
 
 var (
 	ErrUnknownUser      = httpx.Error{Status: http.StatusUnprocessableEntity, Code: "unknown_user", Message: "User does not exist"}
@@ -19,9 +28,9 @@ var (
 )
 
 type store interface {
-	List(ctx context.Context, userID string, limit int) ([]model.Order, error)
+	List(ctx context.Context, userID string, limit int, after *pagination.Cursor) ([]model.Order, error)
 	Get(ctx context.Context, id string) (model.Order, error)
-	Create(ctx context.Context, o model.Order, idempotencyKey string) (model.Order, bool, error)
+	Create(ctx context.Context, o model.Order, idem idempotency.Request) (model.Order, bool, error)
 }
 
 type userDirectory interface {
@@ -37,8 +46,18 @@ func NewService(store store, users userDirectory) *Service {
 	return &Service{store: store, users: users}
 }
 
-func (s *Service) List(ctx context.Context, userID string, limit int) ([]model.Order, error) {
-	return s.store.List(ctx, userID, limit)
+func (s *Service) List(ctx context.Context, userID string, limit int, cursor string) (pagination.Page[model.Order], error) {
+	after, err := pagination.Decode(cursor)
+	if err != nil {
+		return pagination.Page[model.Order]{}, err
+	}
+	orders, err := s.store.List(ctx, userID, limit, after)
+	if err != nil {
+		return pagination.Page[model.Order]{}, err
+	}
+	return pagination.NewPage(orders, limit, func(o model.Order) pagination.Cursor {
+		return pagination.Cursor{CreatedAt: o.CreatedAt, ID: o.ID}
+	}), nil
 }
 
 func (s *Service) Get(ctx context.Context, id string) (model.Order, error) {
@@ -48,12 +67,21 @@ func (s *Service) Get(ctx context.Context, id string) (model.Order, error) {
 	return s.store.Get(ctx, id)
 }
 
-func (s *Service) Create(ctx context.Context, o model.Order, idempotencyKey string) (model.Order, bool, error) {
+func (s *Service) Create(ctx context.Context, o model.Order, idem idempotency.Request) (model.Order, bool, error) {
 	o.Item = strings.TrimSpace(o.Item)
 	if _, err := s.users.Get(ctx, o.UserID); errors.Is(err, users.ErrNotFound) {
 		return model.Order{}, false, ErrUnknownUser
 	} else if err != nil {
 		return model.Order{}, false, fmt.Errorf("%w: %w", ErrUsersUnavailable, err)
 	}
-	return s.store.Create(ctx, o, idempotencyKey)
+	created, isNew, err := s.store.Create(ctx, o, idem)
+	if err != nil {
+		return model.Order{}, false, err
+	}
+	if isNew {
+		ordersTotal.WithLabelValues("created").Inc()
+	} else {
+		ordersTotal.WithLabelValues("replayed").Inc()
+	}
+	return created, isNew, nil
 }

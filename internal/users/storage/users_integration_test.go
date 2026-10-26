@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/egor/k3s-base/internal/lib/pagination"
 	"github.com/egor/k3s-base/internal/lib/pg/pgtest"
 	"github.com/egor/k3s-base/internal/users/model"
 	"github.com/google/uuid"
@@ -15,7 +16,7 @@ func TestUsers(t *testing.T) {
 	store := NewUsers(pgtest.DB(t, "users", Migrations, MigrationsDir), nil)
 	ctx := t.Context()
 
-	empty, err := store.List(ctx, 10)
+	empty, err := store.List(ctx, 10, nil)
 	if err != nil || empty == nil || len(empty) != 0 {
 		t.Fatalf("empty list %v err %v", empty, err)
 	}
@@ -39,8 +40,12 @@ func TestUsers(t *testing.T) {
 		t.Fatalf("missing err %v", err)
 	}
 
-	list, err := store.List(ctx, 1)
-	if err != nil || len(list) != 1 || list[0].Email != "bob@example.com" {
+	list, err := store.List(ctx, 1, nil)
+	if err != nil || len(list) != 2 || list[0].Email != "bob@example.com" {
 		t.Fatalf("list %+v err %v", list, err)
+	}
+	next, err := store.List(ctx, 1, &pagination.Cursor{CreatedAt: list[0].CreatedAt, ID: list[0].ID})
+	if err != nil || len(next) != 1 || next[0].Email != "ann@example.com" {
+		t.Fatalf("next page %+v err %v", next, err)
 	}
 }

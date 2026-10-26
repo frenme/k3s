@@ -30,17 +30,20 @@ func toOrder(o model.Order) Order {
 }
 
 type ListRequest struct {
-	Limit int `query:"limit" default:"50" minimum:"1" maximum:"500"`
+	Limit  int    `query:"limit" default:"50" minimum:"1" maximum:"500"`
+	Cursor string `query:"cursor" maxLength:"200"`
 }
 
 type ListUsersResponse struct {
 	Body struct {
-		Items []User `json:"items"`
+		Items      []User `json:"items"`
+		NextCursor string `json:"next_cursor,omitempty"`
 	}
 }
 
 type ListOrdersResponse struct {
 	Body struct {
-		Items []Order `json:"items"`
+		Items      []Order `json:"items"`
+		NextCursor string  `json:"next_cursor,omitempty"`
 	}
 }

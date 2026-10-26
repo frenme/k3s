@@ -37,27 +37,29 @@ func (h *Handler) Register(public huma.API) {
 }
 
 func (h *Handler) users(ctx context.Context, in *ListRequest) (*ListUsersResponse, error) {
-	users, err := h.svc.Users(ctx, in.Limit)
+	page, err := h.svc.Users(ctx, in.Limit, in.Cursor)
 	if err != nil {
 		return nil, httpx.Fail(ctx, h.log, err)
 	}
 	out := &ListUsersResponse{}
-	out.Body.Items = make([]User, 0, len(users))
-	for _, u := range users {
+	out.Body.Items = make([]User, 0, len(page.Items))
+	for _, u := range page.Items {
 		out.Body.Items = append(out.Body.Items, toUser(u))
 	}
+	out.Body.NextCursor = page.Next
 	return out, nil
 }
 
 func (h *Handler) orders(ctx context.Context, in *ListRequest) (*ListOrdersResponse, error) {
-	orders, err := h.svc.Orders(ctx, in.Limit)
+	page, err := h.svc.Orders(ctx, in.Limit, in.Cursor)
 	if err != nil {
 		return nil, httpx.Fail(ctx, h.log, err)
 	}
 	out := &ListOrdersResponse{}
-	out.Body.Items = make([]Order, 0, len(orders))
-	for _, o := range orders {
+	out.Body.Items = make([]Order, 0, len(page.Items))
+	for _, o := range page.Items {
 		out.Body.Items = append(out.Body.Items, toOrder(o))
 	}
+	out.Body.NextCursor = page.Next
 	return out, nil
 }
