@@ -3,6 +3,7 @@ package gateway
 import (
 	"crypto/subtle"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/egor/k3s-base/internal/lib/httpx"
@@ -29,17 +30,14 @@ type Rule struct {
 	Access Access
 }
 
-var DefaultRules = []Rule{
-	{http.MethodGet, "/api/v1/common/health", AccessPublic},
-	{http.MethodGet, "/api/v1/common/health/details", AccessAdmin},
-	{http.MethodGet, "/api/v1/common/app-config", AccessPublic},
-	{http.MethodPost, "/api/v1/users", AccessPublic},
-	{http.MethodGet, "/api/v1/users", AccessAdmin},
+var staticRules = []Rule{
 	{http.MethodGet, "/api/v1/*/docs", AccessPublic},
 	{http.MethodGet, "/api/v1/*/openapi.json", AccessPublic},
 	{http.MethodGet, "/api/v1/*/openapi.yaml", AccessPublic},
 	{"", "/api/v1/admin/**", AccessAdmin},
 }
+
+var DefaultRules = slices.Concat(staticRules, generatedRules)
 
 var (
 	errUnauthorized      = httpx.Error{Status: http.StatusUnauthorized, Code: "unauthorized", Message: "Valid access token required"}

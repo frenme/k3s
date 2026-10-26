@@ -20,20 +20,20 @@ func NewHandler(svc *data.Service, log *slog.Logger) *Handler {
 }
 
 func (h *Handler) Register(public huma.API) {
-	huma.Register(public, huma.Operation{
+	httpx.Register(public, huma.Operation{
 		OperationID: "admin-list-users",
 		Method:      http.MethodGet,
 		Path:        "/v1/admin/users",
 		Summary:     "List users from the users schema",
 		Tags:        []string{"Admin"},
-	}, h.users)
-	huma.Register(public, huma.Operation{
+	}, httpx.AccessAdmin, h.users)
+	httpx.Register(public, huma.Operation{
 		OperationID: "admin-list-orders",
 		Method:      http.MethodGet,
 		Path:        "/v1/admin/orders",
 		Summary:     "List orders from the orders schema",
 		Tags:        []string{"Admin"},
-	}, h.orders)
+	}, httpx.AccessAdmin, h.orders)
 }
 
 func (h *Handler) users(ctx context.Context, in *ListRequest) (*ListUsersResponse, error) {

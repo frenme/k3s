@@ -20,14 +20,14 @@ func NewHandler(svc *profile.Service, log *slog.Logger) *Handler {
 }
 
 func (h *Handler) Register(public, internal huma.API) {
-	huma.Register(public, huma.Operation{
+	httpx.Register(public, huma.Operation{
 		OperationID: "list-users",
 		Method:      http.MethodGet,
 		Path:        "/v1/users",
 		Summary:     "List users",
 		Tags:        []string{"Users"},
-	}, h.list)
-	huma.Register(public, huma.Operation{
+	}, httpx.AccessAdmin, h.list)
+	httpx.Register(public, huma.Operation{
 		OperationID:   "create-user",
 		Method:        http.MethodPost,
 		Path:          "/v1/users",
@@ -35,15 +35,15 @@ func (h *Handler) Register(public, internal huma.API) {
 		Tags:          []string{"Users"},
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusForbidden, http.StatusConflict, http.StatusBadGateway},
-	}, h.create)
-	huma.Register(public, huma.Operation{
+	}, httpx.AccessPublic, h.create)
+	httpx.Register(public, huma.Operation{
 		OperationID: "get-user",
 		Method:      http.MethodGet,
 		Path:        "/v1/users/{id}",
 		Summary:     "Get a user",
 		Tags:        []string{"Users"},
 		Errors:      []int{http.StatusNotFound},
-	}, h.get)
+	}, httpx.AccessUser, h.get)
 	huma.Register(internal, huma.Operation{
 		OperationID: "internal-get-user",
 		Method:      http.MethodGet,

@@ -20,13 +20,13 @@ func NewHandler(svc *appconfig.Service, log *slog.Logger) *Handler {
 }
 
 func (h *Handler) Register(public, internal huma.API) {
-	huma.Register(public, huma.Operation{
+	httpx.Register(public, huma.Operation{
 		OperationID: "list-public-config",
 		Method:      http.MethodGet,
 		Path:        "/v1/common/app-config",
 		Summary:     "AppConfig visible to clients",
 		Tags:        []string{"AppConfig"},
-	}, h.listPublic)
+	}, httpx.AccessPublic, h.listPublic)
 	huma.Register(internal, huma.Operation{
 		OperationID: "internal-get-config",
 		Method:      http.MethodGet,

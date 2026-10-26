@@ -22,14 +22,14 @@ func NewHandler(svc *checkout.Service, log *slog.Logger) *Handler {
 }
 
 func (h *Handler) Register(public huma.API) {
-	huma.Register(public, huma.Operation{
+	httpx.Register(public, huma.Operation{
 		OperationID: "list-orders",
 		Method:      http.MethodGet,
 		Path:        "/v1/orders",
 		Summary:     "List orders",
 		Tags:        []string{"Orders"},
-	}, h.list)
-	huma.Register(public, huma.Operation{
+	}, httpx.AccessUser, h.list)
+	httpx.Register(public, huma.Operation{
 		OperationID:   "create-order",
 		Method:        http.MethodPost,
 		Path:          "/v1/orders",
@@ -37,20 +37,20 @@ func (h *Handler) Register(public huma.API) {
 		Tags:          []string{"Orders"},
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadGateway},
-	}, h.create)
+	}, httpx.AccessUser, h.create)
 	create := public.OpenAPI().Paths["/v1/orders"].Post
 	create.Responses["200"] = &huma.Response{
 		Description: "Replay of an earlier order with the same Idempotency-Key",
 		Content:     create.Responses["201"].Content,
 	}
-	huma.Register(public, huma.Operation{
+	httpx.Register(public, huma.Operation{
 		OperationID: "get-order",
 		Method:      http.MethodGet,
 		Path:        "/v1/orders/{id}",
 		Summary:     "Get an order",
 		Tags:        []string{"Orders"},
 		Errors:      []int{http.StatusNotFound},
-	}, h.get)
+	}, httpx.AccessUser, h.get)
 }
 
 func (h *Handler) list(ctx context.Context, in *ListOrdersRequest) (*ListOrdersResponse, error) {

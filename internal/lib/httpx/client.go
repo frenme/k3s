@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"net"
 	"net/http"
 	"time"
 
@@ -45,9 +46,19 @@ func NewClient(name string, timeout time.Duration, opts ...ClientOption) *http.C
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	var transport http.RoundTripper = metricsTransport{client: name, next: http.DefaultTransport}
+	var transport http.RoundTripper = metricsTransport{client: name, next: tunedTransport()}
 	if cfg.resilience != nil {
 		transport = newResilientTransport(name, transport, *cfg.resilience)
 	}
 	return &http.Client{Timeout: timeout, Transport: otelhttp.NewTransport(transport)}
+}
+
+func tunedTransport() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.DialContext = (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext
+	t.TLSHandshakeTimeout = 5 * time.Second
+	t.MaxIdleConns = 200
+	t.MaxIdleConnsPerHost = 100
+	t.IdleConnTimeout = 60 * time.Second
+	return t
 }

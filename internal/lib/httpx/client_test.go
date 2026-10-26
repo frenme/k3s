@@ -30,3 +30,13 @@ func TestClientRecordsMetrics(t *testing.T) {
 		t.Fatalf("error counter %v", got)
 	}
 }
+
+func TestTransportKeepsConnectionsForOneHost(t *testing.T) {
+	a, b := tunedTransport(), tunedTransport()
+	if a.MaxIdleConnsPerHost != 100 || a.TLSHandshakeTimeout == 0 || a.Proxy == nil {
+		t.Fatalf("%+v", a)
+	}
+	if a == b {
+		t.Fatal("clients must not share a transport")
+	}
+}

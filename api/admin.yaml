@@ -136,6 +136,14 @@ components:
         - name
         - created_at
       type: object
+  securitySchemes:
+    basic:
+      scheme: basic
+      type: http
+    bearer:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http
 info:
   title: admin
   version: dev
@@ -167,15 +175,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListOrdersResponseBody"
           description: OK
-        default:
+        "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-          description: Error
+          description: Unauthorized
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Internal Server Error
+      security:
+        - basic: []
       summary: List orders from the orders schema
       tags:
         - Admin
+      x-access: admin
   /v1/admin/scheduler/jobs:
     get:
       operationId: admin-list-jobs
@@ -186,6 +209,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListJobsResponseBody"
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unauthorized
         "500":
           content:
             application/json:
@@ -198,9 +227,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Bad Gateway
+      security:
+        - basic: []
       summary: List scheduled jobs
       tags:
         - Admin
+      x-access: admin
   /v1/admin/scheduler/jobs/{name}/run:
     post:
       operationId: admin-run-job
@@ -219,6 +251,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Run"
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unauthorized
         "404":
           content:
             application/json:
@@ -249,9 +287,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Bad Gateway
+      security:
+        - basic: []
       summary: Run a scheduled job now and wait for the result
       tags:
         - Admin
+      x-access: admin
   /v1/admin/users:
     get:
       operationId: admin-list-users
@@ -278,14 +319,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListUsersResponseBody"
           description: OK
-        default:
+        "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-          description: Error
+          description: Unauthorized
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Internal Server Error
+      security:
+        - basic: []
       summary: List users from the users schema
       tags:
         - Admin
+      x-access: admin
 servers:
   - url: /api

@@ -25,6 +25,14 @@ func main() {
 		"common.internal.yaml":    commonInternal,
 		"scheduler.internal.yaml": scheduler.OpenAPI(),
 	}
+	if err := writeGatewayRules(map[string]*huma.OpenAPI{
+		"users":  usersPublic,
+		"orders": orders.OpenAPI(),
+		"admin":  admin.OpenAPI(),
+		"common": commonPublic,
+	}); err != nil {
+		log.Fatal(err)
+	}
 	for file, spec := range specs {
 		out, err := spec.DowngradeYAML()
 		if err != nil {

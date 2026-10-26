@@ -4,8 +4,10 @@ CREATE TABLE orders (
     item text NOT NULL,
     amount_cents bigint NOT NULL CHECK (amount_cents >= 0),
     idempotency_key text,
+    request_hash text,
     created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX orders_idempotency_key_idx ON orders (idempotency_key) WHERE idempotency_key IS NOT NULL;
-CREATE INDEX orders_user_id_idx ON orders (user_id, created_at DESC);
+CREATE INDEX orders_created_at_id_idx ON orders (created_at DESC, id DESC);
+CREATE INDEX orders_user_created_at_id_idx ON orders (user_id, created_at DESC, id DESC);

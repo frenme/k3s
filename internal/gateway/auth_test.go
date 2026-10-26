@@ -123,3 +123,26 @@ func TestRuleMatching(t *testing.T) {
 		}
 	}
 }
+
+func TestGeneratedRulesCoverTheAPI(t *testing.T) {
+	if len(generatedRules) == 0 {
+		t.Fatal("run make openapi: no rules were generated from the specs")
+	}
+	want := map[string]Access{
+		"GET /api/v1/common/health":         AccessPublic,
+		"GET /api/v1/common/health/details": AccessAdmin,
+		"POST /api/v1/users":                AccessPublic,
+		"GET /api/v1/users":                 AccessAdmin,
+		"GET /api/v1/orders/*":              AccessUser,
+		"GET /api/v1/admin/users":           AccessAdmin,
+	}
+	got := map[string]Access{}
+	for _, r := range generatedRules {
+		got[r.Method+" "+r.Path] = r.Access
+	}
+	for route, access := range want {
+		if got[route] != access {
+			t.Errorf("%s: access %v, want %v", route, got[route], access)
+		}
+	}
+}

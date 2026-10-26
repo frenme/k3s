@@ -20,22 +20,22 @@ func NewHandler(svc *scheduler.Service, log *slog.Logger) *Handler {
 }
 
 func (h *Handler) Register(public huma.API) {
-	huma.Register(public, huma.Operation{
+	httpx.Register(public, huma.Operation{
 		OperationID: "admin-list-jobs",
 		Method:      http.MethodGet,
 		Path:        "/v1/admin/scheduler/jobs",
 		Summary:     "List scheduled jobs",
 		Tags:        []string{"Admin"},
 		Errors:      []int{http.StatusBadGateway},
-	}, h.list)
-	huma.Register(public, huma.Operation{
+	}, httpx.AccessAdmin, h.list)
+	httpx.Register(public, huma.Operation{
 		OperationID: "admin-run-job",
 		Method:      http.MethodPost,
 		Path:        "/v1/admin/scheduler/jobs/{name}/run",
 		Summary:     "Run a scheduled job now and wait for the result",
 		Tags:        []string{"Admin"},
 		Errors:      []int{http.StatusNotFound, http.StatusConflict, http.StatusBadGateway},
-	}, h.run)
+	}, httpx.AccessAdmin, h.run)
 }
 
 func (h *Handler) list(ctx context.Context, _ *struct{}) (*ListJobsResponse, error) {

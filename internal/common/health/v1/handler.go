@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/egor/k3s-base/internal/common/health"
+	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
 type StatusBody struct {
@@ -45,7 +46,7 @@ func NewHandler(svc *health.Service) *Handler {
 }
 
 func (h *Handler) Register(public huma.API) {
-	huma.Register(public, huma.Operation{
+	httpx.Register(public, huma.Operation{
 		OperationID: "app-health",
 		Method:      http.MethodGet,
 		Path:        "/v1/common/health",
@@ -54,8 +55,8 @@ func (h *Handler) Register(public huma.API) {
 		Responses: map[string]*huma.Response{
 			"503": {Description: "At least one service or infrastructure component is down"},
 		},
-	}, h.check)
-	huma.Register(public, huma.Operation{
+	}, httpx.AccessPublic, h.check)
+	httpx.Register(public, huma.Operation{
 		OperationID: "app-health-details",
 		Method:      http.MethodGet,
 		Path:        "/v1/common/health/details",
@@ -64,7 +65,7 @@ func (h *Handler) Register(public huma.API) {
 		Responses: map[string]*huma.Response{
 			"503": {Description: "At least one service or infrastructure component is down"},
 		},
-	}, h.details)
+	}, httpx.AccessAdmin, h.details)
 }
 
 func (h *Handler) check(ctx context.Context, _ *struct{}) (*HealthResponse, error) {
