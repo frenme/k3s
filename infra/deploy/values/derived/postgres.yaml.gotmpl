@@ -1,5 +1,9 @@
 instances: {{ .Values.postgres.instances }}
 
+pooler:
+  enabled: {{ dig "pooler" "enabled" false .Values.postgres }}
+  instances: {{ dig "pooler" "instances" 2 .Values.postgres }}
+
 services:
   {{- range $name, $app := .Values.apps }}
   {{- if dig "database" false $app }}

@@ -8,6 +8,9 @@ telemetryRetention: 336h
 postgres:
   backupServerName: postgres
   instances: 1
+  pooler:
+    enabled: true
+    instances: 2
 
 backup:
   destinationPath: s3://k3s-backups/prod/

@@ -9,6 +9,7 @@ apps:
     route: true
   common:
     database: true
+    redis: true
     route: true
     healthCheck: true
   admin:
@@ -16,6 +17,9 @@ apps:
     readAllSchemas: true
     route: true
     singleton: true
+  scheduler:
+    redis: true
+    internalOnly: true
   gateway:
     gateway: true
 

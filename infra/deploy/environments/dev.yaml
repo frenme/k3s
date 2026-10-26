@@ -15,6 +15,9 @@ appDefaults:
 postgres:
   backupServerName: postgres
   instances: 1
+  pooler:
+    enabled: true
+    instances: 1
 
 backup:
   destinationPath: s3://k3s-backups/dev/

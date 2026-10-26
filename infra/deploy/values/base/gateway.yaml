@@ -26,6 +26,13 @@ ingress:
         average: 60
         period: 1m
         burst: 20
+    health:
+      path: /api/v1/common/health
+      pathType: Exact
+      rateLimit:
+        average: 10
+        period: 1m
+        burst: 5
     common:
       path: /api/v1/common
       rateLimit:

@@ -15,6 +15,9 @@ appDefaults:
 postgres:
   backupServerName: postgres
   instances: 1
+  pooler:
+    enabled: true
+    instances: 1
 
 secrets:
   postgres:
@@ -23,4 +26,5 @@ secrets:
     admin: dev-admin-password
     common: dev-common-password
   redis: dev-redis-password
+  jwt: dev-jwt-secret
   grafana: dev-grafana-password

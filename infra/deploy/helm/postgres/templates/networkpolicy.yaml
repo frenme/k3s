@@ -18,6 +18,12 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: cnpg-system
+        {{- if .Values.pooler.enabled }}
+        - podSelector:
+            matchExpressions:
+              - key: cnpg.io/poolerName
+                operator: Exists
+        {{- end }}
         {{- range $svc, $_ := .Values.services }}
         - podSelector:
             matchLabels:

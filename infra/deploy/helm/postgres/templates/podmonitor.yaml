@@ -11,3 +11,19 @@ spec:
       cnpg.io/podRole: instance
   podMetricsEndpoints:
     - port: metrics
+{{- if .Values.pooler.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: postgres-pooler
+  labels:
+    {{- include "postgres.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchExpressions:
+      - key: cnpg.io/poolerName
+        operator: Exists
+  podMetricsEndpoints:
+    - port: metrics
+{{- end }}

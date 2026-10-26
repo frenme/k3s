@@ -8,9 +8,15 @@ image:
 {{- if dig "database" false $app }}
 {{- $password := required (printf "secrets.postgres.%s must be set" $name) (dig $name "" .Values.secrets.postgres) }}
 {{- $_ := set $secret "PGPASSWORD" $password }}
-{{- $_ := set $env "DATABASE_URL" (printf "postgres://%s_svc@postgres-rw:5432/app?sslmode=require" $name) }}
+{{- $pooled := dig "pooler" "enabled" false .Values.postgres }}
+{{- $rw := ternary "postgres-pooler-rw" "postgres-rw" $pooled }}
+{{- $ro := ternary "postgres-pooler-ro" "postgres-ro" $pooled }}
+{{- $_ := set $env "DATABASE_URL" (printf "postgres://%s_svc@%s:5432/app?sslmode=require" $name $rw) }}
+{{- if $pooled }}
+{{- $_ := set $env "DATABASE_DIRECT_URL" (printf "postgres://%s_svc@postgres-rw:5432/app?sslmode=require" $name) }}
+{{- end }}
 {{- if gt (int .Values.postgres.instances) 1 }}
-{{- $_ := set $env "DATABASE_READ_URL" (printf "postgres://%s_svc@postgres-ro:5432/app?sslmode=require" $name) }}
+{{- $_ := set $env "DATABASE_READ_URL" (printf "postgres://%s_svc@%s:5432/app?sslmode=require" $name $ro) }}
 {{- end }}
 {{- end }}
 {{- if dig "redis" false $app }}
@@ -25,11 +31,12 @@ image:
 {{- end }}
 {{- end }}
 {{- $_ := set $env "ROUTES" (join "," $routes) }}
+{{- $_ := set $secret "JWT_SECRET" (required "secrets.jwt must be set (add it to the environment secrets file with sops)" (dig "jwt" "" .Values.secrets)) }}
 {{- end }}
 {{- if dig "healthCheck" false $app }}
 {{- $targets := list }}
 {{- range $target, $cfg := .Values.apps }}
-{{- if and (dig "route" false $cfg) (ne $target $name) }}
+{{- if and (or (dig "route" false $cfg) (dig "internalOnly" false $cfg)) (ne $target $name) }}
 {{- $targets = append $targets (printf "%s=http://%s:8080" $target $target) }}
 {{- end }}
 {{- end }}
