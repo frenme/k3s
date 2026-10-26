@@ -27,7 +27,7 @@ openapi:
   image: golang:1.26
   script:
     - go run ./api
-    - git diff --exit-code -- api
+    - git diff --exit-code -- api internal/gateway
 
 integration:
   stage: test
