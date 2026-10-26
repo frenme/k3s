@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-var ErrSettingNotFound = errors.New("setting not found")
+var ErrConfigNotFound = errors.New("config not found")
 
 type Client struct {
 	baseURL string
@@ -28,11 +28,11 @@ func New(baseURL string) *Client {
 
 func (c *Client) Bool(ctx context.Context, key string) (bool, error) {
 	var v bool
-	return v, c.setting(ctx, key, &v)
+	return v, c.config(ctx, key, &v)
 }
 
-func (c *Client) setting(ctx context.Context, key string, dst any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/internal/v1/common/settings/"+url.PathEscape(key), nil)
+func (c *Client) config(ctx context.Context, key string, dst any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/internal/v1/common/config/"+url.PathEscape(key), nil)
 	if err != nil {
 		return err
 	}
@@ -51,8 +51,8 @@ func (c *Client) setting(ctx context.Context, key string, dst any) error {
 	switch {
 	case resp.StatusCode == http.StatusOK:
 		return json.Unmarshal(body.Value, dst)
-	case body.Code == "setting_not_found":
-		return ErrSettingNotFound
+	case body.Code == "config_not_found":
+		return ErrConfigNotFound
 	default:
 		return fmt.Errorf("common service returned %d %s", resp.StatusCode, body.Code)
 	}

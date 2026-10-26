@@ -18,22 +18,22 @@ type store interface {
 	Create(ctx context.Context, email, name string) (model.User, error)
 }
 
-type settings interface {
+type configSource interface {
 	Bool(ctx context.Context, key string) (bool, error)
 }
 
 var (
-	ErrRegistrationClosed  = httpx.Error{Status: http.StatusForbidden, Code: "registration_closed", Message: "Registration is closed"}
-	ErrSettingsUnavailable = httpx.Error{Status: http.StatusBadGateway, Code: "settings_unavailable", Message: "Settings are temporarily unavailable"}
+	ErrRegistrationClosed = httpx.Error{Status: http.StatusForbidden, Code: "registration_closed", Message: "Registration is closed"}
+	ErrConfigUnavailable  = httpx.Error{Status: http.StatusBadGateway, Code: "config_unavailable", Message: "Config is temporarily unavailable"}
 )
 
 type Service struct {
-	store    store
-	settings settings
+	store store
+	cfg   configSource
 }
 
-func NewService(store store, settings settings) *Service {
-	return &Service{store: store, settings: settings}
+func NewService(store store, cfg configSource) *Service {
+	return &Service{store: store, cfg: cfg}
 }
 
 func (s *Service) List(ctx context.Context, limit int) ([]model.User, error) {
@@ -48,9 +48,9 @@ func (s *Service) Get(ctx context.Context, id string) (model.User, error) {
 }
 
 func (s *Service) Create(ctx context.Context, email, name string) (model.User, error) {
-	open, err := s.settings.Bool(ctx, "registration_enabled")
+	open, err := s.cfg.Bool(ctx, "registration_enabled")
 	if err != nil {
-		return model.User{}, fmt.Errorf("%w: %w", ErrSettingsUnavailable, err)
+		return model.User{}, fmt.Errorf("%w: %w", ErrConfigUnavailable, err)
 	}
 	if !open {
 		return model.User{}, ErrRegistrationClosed

@@ -22,8 +22,8 @@ func Setup(ctx context.Context, s *app.Service) error {
 	if err != nil {
 		return err
 	}
-	settings := common.New(config.String("COMMON_URL", "http://common:8081"))
-	svc := profile.NewService(storage.NewUsers(db, s.Cache()), settings)
+	cfg := common.New(config.String("COMMON_URL", "http://common:8081"))
+	svc := profile.NewService(storage.NewUsers(db, s.Cache()), cfg)
 	register(httpx.NewAPI(s.Mux, name), httpx.NewInternalAPI(s.Internal, name), svc, s.Log)
 	return nil
 }

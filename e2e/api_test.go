@@ -171,9 +171,9 @@ func TestDocsThroughGateway(t *testing.T) {
 }
 
 func TestCommon(t *testing.T) {
-	settings := call(t, http.MethodGet, "/api/v1/common/settings", nil, nil)
-	expect(t, settings, http.StatusOK)
-	items, _ := settings.body["items"].([]any)
+	config := call(t, http.MethodGet, "/api/v1/common/config", nil, nil)
+	expect(t, config, http.StatusOK)
+	items, _ := config.body["items"].([]any)
 	found := false
 	for _, item := range items {
 		if m, _ := item.(map[string]any); m["key"] == "registration_enabled" {
@@ -181,7 +181,7 @@ func TestCommon(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("registration_enabled missing in %v", settings.body)
+		t.Fatalf("registration_enabled missing in %v", config.body)
 	}
 	health := call(t, http.MethodGet, "/api/v1/common/health", nil, nil)
 	expect(t, health, http.StatusOK)

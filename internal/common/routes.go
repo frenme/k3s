@@ -6,10 +6,10 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	commonconfig "github.com/egor/k3s-base/internal/common/config"
+	configv1 "github.com/egor/k3s-base/internal/common/config/v1"
 	"github.com/egor/k3s-base/internal/common/health"
 	healthv1 "github.com/egor/k3s-base/internal/common/health/v1"
-	"github.com/egor/k3s-base/internal/common/settings"
-	settingsv1 "github.com/egor/k3s-base/internal/common/settings/v1"
 	"github.com/egor/k3s-base/internal/common/storage"
 	"github.com/egor/k3s-base/internal/lib/app"
 	"github.com/egor/k3s-base/internal/lib/config"
@@ -28,7 +28,7 @@ func Setup(ctx context.Context, s *app.Service) error {
 		return err
 	}
 	register(httpx.NewAPI(s.Mux, name), httpx.NewInternalAPI(s.Internal, name),
-		settings.NewService(storage.NewSettings(db)), health.NewService(targets), s.Log)
+		commonconfig.NewService(storage.NewConfig(db)), health.NewService(targets), s.Log)
 	return nil
 }
 
@@ -38,7 +38,7 @@ func OpenAPI() (public, internal *huma.OpenAPI) {
 	return pub.OpenAPI(), in.OpenAPI()
 }
 
-func register(public, internal huma.API, settingsSvc *settings.Service, healthSvc *health.Service, log *slog.Logger) {
-	settingsv1.NewHandler(settingsSvc, log).Register(public, internal)
+func register(public, internal huma.API, configSvc *commonconfig.Service, healthSvc *health.Service, log *slog.Logger) {
+	configv1.NewHandler(configSvc, log).Register(public, internal)
 	healthv1.NewHandler(healthSvc).Register(public)
 }

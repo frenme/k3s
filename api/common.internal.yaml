@@ -1,5 +1,15 @@
 components:
   schemas:
+    Config:
+      additionalProperties: false
+      properties:
+        key:
+          type: string
+        value: {}
+      required:
+        - key
+        - value
+      type: object
     Error:
       additionalProperties: false
       properties:
@@ -16,24 +26,14 @@ components:
         - code
         - message
       type: object
-    Setting:
-      additionalProperties: false
-      properties:
-        key:
-          type: string
-        value: {}
-      required:
-        - key
-        - value
-      type: object
 info:
   title: common internal
   version: dev
 openapi: 3.0.3
 paths:
-  /internal/v1/common/settings/{key}:
+  /internal/v1/common/config/{key}:
     get:
-      operationId: internal-get-setting
+      operationId: internal-get-config
       parameters:
         - in: path
           name: key
@@ -47,7 +47,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Setting"
+                $ref: "#/components/schemas/Config"
           description: OK
         "404":
           content:
@@ -67,6 +67,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Internal Server Error
-      summary: Any setting by key for other services
+      summary: Any config entry by key for other services
       tags:
         - Internal

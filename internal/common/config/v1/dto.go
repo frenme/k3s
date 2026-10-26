@@ -6,25 +6,25 @@ import (
 	"github.com/egor/k3s-base/internal/common/model"
 )
 
-type Setting struct {
+type Config struct {
 	Key   string          `json:"key"`
 	Value json.RawMessage `json:"value"`
 }
 
-func toSetting(s model.Setting) Setting {
-	return Setting{Key: s.Key, Value: s.Value}
+func toConfig(s model.Config) Config {
+	return Config{Key: s.Key, Value: s.Value}
 }
 
-type ListSettingsResponse struct {
+type ListConfigResponse struct {
 	Body struct {
-		Items []Setting `json:"items"`
+		Items []Config `json:"items"`
 	}
 }
 
-type GetSettingRequest struct {
+type GetConfigRequest struct {
 	Key string `path:"key" pattern:"^[a-z0-9_]+$" maxLength:"100"`
 }
 
-type SettingResponse struct {
-	Body Setting
+type ConfigResponse struct {
+	Body Config
 }

@@ -1,5 +1,15 @@
 components:
   schemas:
+    Config:
+      additionalProperties: false
+      properties:
+        key:
+          type: string
+        value: {}
+      required:
+        - key
+        - value
+      type: object
     Error:
       additionalProperties: false
       properties:
@@ -33,12 +43,12 @@ components:
         - status
         - services
       type: object
-    ListSettingsResponseBody:
+    ListConfigResponseBody:
       additionalProperties: false
       properties:
         items:
           items:
-            $ref: "#/components/schemas/Setting"
+            $ref: "#/components/schemas/Config"
           nullable: true
           type: array
       required:
@@ -55,21 +65,30 @@ components:
         - name
         - healthy
       type: object
-    Setting:
-      additionalProperties: false
-      properties:
-        key:
-          type: string
-        value: {}
-      required:
-        - key
-        - value
-      type: object
 info:
   title: common
   version: dev
 openapi: 3.0.3
 paths:
+  /v1/common/config:
+    get:
+      operationId: list-public-config
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListConfigResponseBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Error
+      summary: Config visible to clients
+      tags:
+        - Config
   /v1/common/health:
     get:
       operationId: app-health
@@ -85,24 +104,5 @@ paths:
       summary: Health of every service, 503 when any of them is not ready
       tags:
         - Health
-  /v1/common/settings:
-    get:
-      operationId: list-public-settings
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ListSettingsResponseBody"
-          description: OK
-        default:
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-          description: Error
-      summary: Settings visible to clients
-      tags:
-        - Settings
 servers:
   - url: /api

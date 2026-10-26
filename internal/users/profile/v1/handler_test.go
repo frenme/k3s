@@ -49,12 +49,12 @@ func (f *fakeStore) Create(ctx context.Context, email, name string) (model.User,
 	return u, nil
 }
 
-type fakeSettings struct {
+type fakeConfig struct {
 	registration bool
 	down         bool
 }
 
-func (f *fakeSettings) Bool(ctx context.Context, key string) (bool, error) {
+func (f *fakeConfig) Bool(ctx context.Context, key string) (bool, error) {
 	if f.down {
 		return false, errors.New("connection refused")
 	}
@@ -63,13 +63,13 @@ func (f *fakeSettings) Bool(ctx context.Context, key string) (bool, error) {
 
 func newServers(t *testing.T) (public, internal string) {
 	t.Helper()
-	return newServersWith(t, &fakeSettings{registration: true})
+	return newServersWith(t, &fakeConfig{registration: true})
 }
 
-func newServersWith(t *testing.T, settings *fakeSettings) (public, internal string) {
+func newServersWith(t *testing.T, cfg *fakeConfig) (public, internal string) {
 	t.Helper()
 	pubMux, inMux := http.NewServeMux(), http.NewServeMux()
-	svc := profile.NewService(&fakeStore{items: map[string]model.User{}}, settings)
+	svc := profile.NewService(&fakeStore{items: map[string]model.User{}}, cfg)
 	NewHandler(svc, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewAPI(pubMux, "users"), httpx.NewInternalAPI(inMux, "users"))
 	pub, in := httptest.NewServer(pubMux), httptest.NewServer(inMux)
 	t.Cleanup(pub.Close)
@@ -155,20 +155,20 @@ func TestErrorsAreJSON(t *testing.T) {
 	}
 }
 
-func TestRegistrationSetting(t *testing.T) {
+func TestRegistrationConfig(t *testing.T) {
 	cases := []struct {
-		settings *fakeSettings
-		status   int
-		code     string
+		cfg    *fakeConfig
+		status int
+		code   string
 	}{
-		{&fakeSettings{registration: false}, http.StatusForbidden, "registration_closed"},
-		{&fakeSettings{down: true}, http.StatusBadGateway, "settings_unavailable"},
+		{&fakeConfig{registration: false}, http.StatusForbidden, "registration_closed"},
+		{&fakeConfig{down: true}, http.StatusBadGateway, "config_unavailable"},
 	}
 	for _, c := range cases {
-		public, _ := newServersWith(t, c.settings)
+		public, _ := newServersWith(t, c.cfg)
 		status, body := post(t, public+"/v1/users", `{"email":"a@b.co","name":"Ann"}`)
 		if status != c.status || body["code"] != c.code {
-			t.Fatalf("%+v: %d %v", c.settings, status, body)
+			t.Fatalf("%+v: %d %v", c.cfg, status, body)
 		}
 	}
 }
