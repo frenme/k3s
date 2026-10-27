@@ -15,6 +15,7 @@ thresholds:
   replicationLagSeconds: 30
   walArchiveBacklog: 10
   backupAgeHours: 26
+  certificateExpiryDays: 14
 
 k3sVersion: ""
 

@@ -18,6 +18,7 @@
       "customType": "regex",
       "managerFilePatterns": [
         "/infra/deploy/helm/.+/values\\.yaml$/",
+        "/infra/k3s/.+\\.yaml$/",
         "/^Makefile$/"
       ],
       "matchStrings": [
