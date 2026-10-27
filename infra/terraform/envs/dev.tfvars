@@ -10,6 +10,7 @@ server = {
   location    = "fsn1"
   server_type = "cpx21"
   region      = "eu"
+  protected   = false
 }
 
 nodes = {

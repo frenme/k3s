@@ -9,6 +9,7 @@ write_files:
     permissions: "0600"
     content: |
       token: ${token}
+      agent-token: ${agent_token}
       cluster-init: true
       flannel-backend: wireguard-native
       disable:

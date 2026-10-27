@@ -10,6 +10,7 @@ server = {
   location    = "fsn1"
   server_type = "cpx41"
   region      = "eu"
+  backups     = true
 }
 
 nodes = {

@@ -18,6 +18,11 @@ resource "random_password" "token" {
   special = false
 }
 
+resource "random_password" "agent_token" {
+  length  = 48
+  special = false
+}
+
 resource "hcloud_ssh_key" "admin" {
   for_each   = { for i, key in var.ssh_public_keys : tostring(i) => key }
   name       = "${local.name}-${each.key}"
@@ -84,10 +89,15 @@ resource "hcloud_server" "server" {
   firewall_ids = [hcloud_firewall.base.id]
   labels       = merge(local.labels, { role = "core" })
 
-  placement_group_id = hcloud_placement_group.core.id
+  ignore_remote_firewall_ids = true
+  placement_group_id         = hcloud_placement_group.core.id
+  backups                    = var.server.backups
+  delete_protection          = var.server.protected
+  rebuild_protection         = var.server.protected
 
   user_data = templatefile("${path.module}/templates/server.yaml.tftpl", {
     token         = random_password.token.result
+    agent_token   = random_password.agent_token.result
     k3s_version   = var.k3s_version
     region        = var.server.region
     etcd_endpoint = var.etcd_s3.endpoint
@@ -119,10 +129,14 @@ resource "hcloud_server" "node" {
   firewall_ids = each.value.role == "edge" ? [hcloud_firewall.base.id, hcloud_firewall.web.id] : [hcloud_firewall.base.id]
   labels       = merge(local.labels, { role = each.value.role })
 
-  placement_group_id = each.value.role == "core" ? hcloud_placement_group.core.id : null
+  ignore_remote_firewall_ids = true
+  placement_group_id         = each.value.role == "core" ? hcloud_placement_group.core.id : null
+  backups                    = each.value.backups
+  delete_protection          = coalesce(each.value.protected, each.value.role == "core")
+  rebuild_protection         = coalesce(each.value.protected, each.value.role == "core")
 
   user_data = templatefile("${path.module}/templates/agent.yaml.tftpl", {
-    token       = random_password.token.result
+    token       = random_password.agent_token.result
     k3s_version = var.k3s_version
     server_ip   = hcloud_server.server.ipv4_address
     role        = each.value.role

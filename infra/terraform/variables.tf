@@ -25,6 +25,8 @@ variable "server" {
     location    = string
     server_type = string
     region      = string
+    protected   = optional(bool, true)
+    backups     = optional(bool, false)
   })
 }
 
@@ -34,6 +36,8 @@ variable "nodes" {
     server_type = string
     region      = string
     role        = optional(string, "edge")
+    protected   = optional(bool)
+    backups     = optional(bool, false)
   }))
 
   validation {
