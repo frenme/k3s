@@ -17,3 +17,4 @@ networkPolicy:
     - common
   internalFromPods:
     - orders
+    - gateway

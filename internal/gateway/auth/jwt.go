@@ -1,47 +1,68 @@
-package gateway
+package auth
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type JWTConfig struct {
-	Secret    string        `env:"JWT_SECRET"`
-	PublicKey string        `env:"JWT_PUBLIC_KEY"`
-	Issuer    string        `env:"JWT_ISSUER"`
-	Audience  string        `env:"JWT_AUDIENCE"`
-	Leeway    time.Duration `env:"JWT_LEEWAY" default:"30s"`
+	Secret      string        `env:"JWT_SECRET"`
+	PublicKey   string        `env:"JWT_PUBLIC_KEY"`
+	JWKSURL     string        `env:"JWT_JWKS_URL"`
+	JWKSRefresh time.Duration `env:"JWT_JWKS_REFRESH" default:"10m"`
+	Issuer      string        `env:"JWT_ISSUER"`
+	Audience    string        `env:"JWT_AUDIENCE"`
+	Leeway      time.Duration `env:"JWT_LEEWAY" default:"30s"`
 }
 
 type Verifier struct {
-	key    any
-	parser *jwt.Parser
+	keyFunc jwt.Keyfunc
+	parser  *jwt.Parser
+	jwks    *JWKS
 }
 
-func NewVerifier(cfg JWTConfig) (*Verifier, error) {
-	var (
-		key     any
-		methods []string
-	)
+func NewVerifier(cfg JWTConfig, log *slog.Logger) (*Verifier, error) {
+	sources := 0
+	for _, set := range []bool{cfg.Secret != "", cfg.PublicKey != "", cfg.JWKSURL != ""} {
+		if set {
+			sources++
+		}
+	}
+	switch sources {
+	case 0:
+		return nil, errors.New("one of JWT_SECRET, JWT_PUBLIC_KEY or JWT_JWKS_URL is required")
+	case 1:
+	default:
+		return nil, errors.New("set only one of JWT_SECRET, JWT_PUBLIC_KEY and JWT_JWKS_URL")
+	}
+
+	v := &Verifier{}
+	var methods []string
 	switch {
-	case cfg.Secret != "" && cfg.PublicKey != "":
-		return nil, errors.New("set either JWT_SECRET or JWT_PUBLIC_KEY, not both")
 	case cfg.Secret != "":
-		key, methods = []byte(cfg.Secret), []string{"HS256", "HS384", "HS512"}
+		secret := []byte(cfg.Secret)
+		v.keyFunc = func(*jwt.Token) (any, error) { return secret, nil }
+		methods = []string{"HS256", "HS384", "HS512"}
 	case cfg.PublicKey != "":
 		pub, err := parsePublicKey(cfg.PublicKey)
 		if err != nil {
 			return nil, err
 		}
-		key, methods = pub, []string{"RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"}
+		v.keyFunc = func(*jwt.Token) (any, error) { return pub, nil }
+		methods = asymmetricMethods
 	default:
-		return nil, errors.New("JWT_SECRET or JWT_PUBLIC_KEY is required")
+		v.jwks = NewJWKS(cfg.JWKSURL, cfg.JWKSRefresh, log)
+		v.keyFunc = v.jwks.KeyFunc
+		methods = asymmetricMethods
 	}
+
 	opts := []jwt.ParserOption{
 		jwt.WithValidMethods(methods),
 		jwt.WithExpirationRequired(),
@@ -53,7 +74,16 @@ func NewVerifier(cfg JWTConfig) (*Verifier, error) {
 	if cfg.Audience != "" {
 		opts = append(opts, jwt.WithAudience(cfg.Audience))
 	}
-	return &Verifier{key: key, parser: jwt.NewParser(opts...)}, nil
+	v.parser = jwt.NewParser(opts...)
+	return v, nil
+}
+
+var asymmetricMethods = []string{"RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"}
+
+func (v *Verifier) Start(ctx context.Context) {
+	if v.jwks != nil {
+		go v.jwks.Run(ctx)
+	}
 }
 
 func parsePublicKey(raw string) (any, error) {
@@ -70,7 +100,7 @@ func parsePublicKey(raw string) (any, error) {
 
 func (v *Verifier) Subject(token string) (string, error) {
 	claims := jwt.RegisteredClaims{}
-	if _, err := v.parser.ParseWithClaims(token, &claims, func(*jwt.Token) (any, error) { return v.key, nil }); err != nil {
+	if _, err := v.parser.ParseWithClaims(token, &claims, v.keyFunc); err != nil {
 		return "", err
 	}
 	if claims.Subject == "" {

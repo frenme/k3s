@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/egor/k3s-base/internal/common/appconfig"
@@ -26,7 +27,7 @@ func (h *Handler) Register(public, internal huma.API) {
 		Path:        "/v1/common/app-config",
 		Summary:     "AppConfig visible to clients",
 		Tags:        []string{"AppConfig"},
-	}, httpx.AccessPublic, h.listPublic)
+	}, httpx.AccessPublic, h.listPublic, httpx.WithCache(10*time.Second))
 	huma.Register(internal, huma.Operation{
 		OperationID: "internal-get-config",
 		Method:      http.MethodGet,

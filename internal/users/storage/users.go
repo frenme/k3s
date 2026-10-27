@@ -58,7 +58,7 @@ func (s *Users) Get(ctx context.Context, id string) (model.User, error) {
 			return row.model(), err
 		})
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.User{}, model.ErrNotFound
+			return model.User{}, model.ErrUserNotFound
 		}
 		return u, err
 	})
@@ -68,7 +68,7 @@ func (s *Users) Create(ctx context.Context, email, name string) (model.User, err
 	row := userRow{Email: email, Name: name}
 	err := s.db.Conn(ctx).Create(&row).Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		return model.User{}, model.ErrDuplicate
+		return model.User{}, model.ErrEmailTaken
 	}
 	return row.model(), err
 }

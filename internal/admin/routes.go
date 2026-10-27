@@ -6,12 +6,11 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/egor/k3s-base/internal/admin/data"
-	datav1 "github.com/egor/k3s-base/internal/admin/data/v1"
-	"github.com/egor/k3s-base/internal/admin/scheduler"
+	ordersv1 "github.com/egor/k3s-base/internal/admin/orders/v1"
 	schedulerv1 "github.com/egor/k3s-base/internal/admin/scheduler/v1"
 	"github.com/egor/k3s-base/internal/admin/storage"
-	clients "github.com/egor/k3s-base/internal/clients/scheduler"
+	usersv1 "github.com/egor/k3s-base/internal/admin/users/v1"
+	"github.com/egor/k3s-base/internal/clients/scheduler"
 	"github.com/egor/k3s-base/internal/lib/app"
 	"github.com/egor/k3s-base/internal/lib/envconfig"
 	"github.com/egor/k3s-base/internal/lib/httpx"
@@ -32,19 +31,18 @@ func Setup(ctx context.Context, s *app.Service) error {
 	if err != nil {
 		return err
 	}
-	register(httpx.NewAPI(s.Mux, name),
-		data.NewService(storage.NewUsers(db), storage.NewOrders(db)),
-		scheduler.NewService(clients.New(env.SchedulerURL)), s.Log)
+	register(httpx.NewAPI(s.Mux, name), storage.NewUsers(db), storage.NewOrders(db), scheduler.New(env.SchedulerURL), s.Log)
 	return nil
 }
 
 func OpenAPI() *huma.OpenAPI {
 	api := httpx.NewAPI(http.NewServeMux(), name)
-	register(api, nil, nil, nil)
+	register(api, nil, nil, nil, nil)
 	return api.OpenAPI()
 }
 
-func register(public huma.API, dataSvc *data.Service, schedulerSvc *scheduler.Service, log *slog.Logger) {
-	datav1.NewHandler(dataSvc, log).Register(public)
-	schedulerv1.NewHandler(schedulerSvc, log).Register(public)
+func register(public huma.API, users *storage.Users, orders *storage.Orders, jobs *scheduler.Client, log *slog.Logger) {
+	usersv1.NewHandler(users, log).Register(public)
+	ordersv1.NewHandler(orders, log).Register(public)
+	schedulerv1.NewHandler(jobs, log).Register(public)
 }

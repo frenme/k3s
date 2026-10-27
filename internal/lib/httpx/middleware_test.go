@@ -1,10 +1,13 @@
 package httpx
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
@@ -175,5 +178,38 @@ func TestObserveCountsPanics(t *testing.T) {
 	after := testutil.ToFloat64(requestsTotal.WithLabelValues("GET", "GET /boom", "5xx"))
 	if rec.Code != http.StatusInternalServerError || after != before+1 {
 		t.Fatalf("status %d counter %v -> %v", rec.Code, before, after)
+	}
+}
+
+func TestObserveUsesTheRouteSetByHandlers(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		SetRoute(r.Context(), "GET /api/v1/orders/*")
+		LogAttrs(r.Context(), slog.String("user_id", "u-1"))
+		MarkAudit(r.Context())
+		_, _ = w.Write([]byte("hello"))
+	})
+	var buf bytes.Buffer
+	log := slog.New(slog.NewJSONHandler(&buf, nil))
+	h := Chain(mux, Observe(log))
+
+	counted := testutil.ToFloat64(requestsTotal.WithLabelValues("GET", "GET /api/v1/orders/*", "2xx"))
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/orders/42", nil))
+	if got := testutil.ToFloat64(requestsTotal.WithLabelValues("GET", "GET /api/v1/orders/*", "2xx")); got != counted+1 {
+		t.Fatalf("the request was counted under another route: %v -> %v", counted, got)
+	}
+
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected a request and an audit line, got %d: %s", len(lines), buf.String())
+	}
+	for i, msg := range []string{"request", "audit"} {
+		var rec map[string]any
+		if err := json.Unmarshal([]byte(lines[i]), &rec); err != nil {
+			t.Fatal(err)
+		}
+		if rec["msg"] != msg || rec["route"] != "GET /api/v1/orders/*" || rec["user_id"] != "u-1" || rec["bytes"] != float64(5) || rec["status"] != float64(200) {
+			t.Fatalf("%s line: %v", msg, rec)
+		}
 	}
 }

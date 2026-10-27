@@ -41,7 +41,7 @@ func TestAdminReadsServiceViews(t *testing.T) {
 	if _, err := usersPool.Exec(ctx, `INSERT INTO users (email, name) VALUES ('ann@example.com', 'Ann')`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ordersPool.Exec(ctx, `INSERT INTO orders (user_id, item, amount_cents) SELECT id, 'book', 1500 FROM users.users`); err != nil {
+	if _, err := ordersPool.Exec(ctx, `INSERT INTO orders (user_id, item, amount_cents) SELECT id, 'book', 1500 FROM users.users WHERE email = 'ann@example.com'`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -50,7 +50,7 @@ func TestAdminReadsServiceViews(t *testing.T) {
 		t.Fatal(err)
 	}
 	users, err := adminstorage.NewUsers(db).List(ctx, 10, nil)
-	if err != nil || len(users) != 1 || users[0].Email != "ann@example.com" || users[0].ID == "" {
+	if err != nil || len(users) != 2 || users[0].Email != "ann@example.com" || users[0].ID == "" || users[1].Email != "admin@example.com" {
 		t.Fatalf("users %+v err %v", users, err)
 	}
 	orders, err := adminstorage.NewOrders(db).List(ctx, 10, nil)

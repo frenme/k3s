@@ -1,4 +1,4 @@
-package gateway
+package auth
 
 import (
 	"crypto/ecdsa"
@@ -28,7 +28,7 @@ func validClaims() jwt.RegisteredClaims {
 }
 
 func TestVerifierHMAC(t *testing.T) {
-	v, err := NewVerifier(JWTConfig{Secret: testSecret, Issuer: "idp", Audience: "api"})
+	v, err := NewVerifier(JWTConfig{Secret: testSecret, Issuer: "idp", Audience: "api"}, discard())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestVerifierPublicKeyRejectsHMACConfusion(t *testing.T) {
 		t.Fatal(err)
 	}
 	pemKey := string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}))
-	v, err := NewVerifier(JWTConfig{PublicKey: pemKey})
+	v, err := NewVerifier(JWTConfig{PublicKey: pemKey}, discard())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,12 +87,13 @@ func TestVerifierPublicKeyRejectsHMACConfusion(t *testing.T) {
 
 func TestNewVerifierValidatesConfig(t *testing.T) {
 	for name, cfg := range map[string]JWTConfig{
-		"empty":    {},
-		"both":     {Secret: "a", PublicKey: "b"},
-		"not pem":  {PublicKey: "nope"},
-		"bad body": {PublicKey: "-----BEGIN PUBLIC KEY-----\nAAAA\n-----END PUBLIC KEY-----"},
+		"empty":           {},
+		"both":            {Secret: "a", PublicKey: "b"},
+		"secret and jwks": {Secret: "a", JWKSURL: "http://idp/jwks"},
+		"not pem":         {PublicKey: "nope"},
+		"bad body":        {PublicKey: "-----BEGIN PUBLIC KEY-----\nAAAA\n-----END PUBLIC KEY-----"},
 	} {
-		if _, err := NewVerifier(cfg); err == nil {
+		if _, err := NewVerifier(cfg, discard()); err == nil {
 			t.Errorf("%s: expected error", name)
 		}
 	}

@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -34,6 +35,7 @@ var (
 type statusWriter struct {
 	http.ResponseWriter
 	status int
+	bytes  int
 }
 
 func (w *statusWriter) WriteHeader(code int) {
@@ -45,7 +47,9 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 	if w.status == 0 {
 		w.status = http.StatusOK
 	}
-	return w.ResponseWriter.Write(b)
+	n, err := w.ResponseWriter.Write(b)
+	w.bytes += n
+	return n, err
 }
 
 func (w *statusWriter) Unwrap() http.ResponseWriter {
@@ -96,12 +100,20 @@ func Observe(log *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
+			meta := &requestMeta{}
+			outer := r
+			r = r.WithContext(context.WithValue(r.Context(), metaKey{}, meta))
 			sw := &statusWriter{ResponseWriter: w}
 			next.ServeHTTP(sw, r)
+			outer.Pattern = r.Pattern
 			if sw.status == 0 {
 				sw.status = http.StatusOK
 			}
-			route := r.Pattern
+			attrs, audit := meta.snapshot()
+			route := meta.route()
+			if route == "" {
+				route = r.Pattern
+			}
 			if route == "" {
 				route = "unmatched"
 			}
@@ -111,16 +123,21 @@ func Observe(log *slog.Logger) Middleware {
 			if isProbe(r.URL.Path) {
 				return
 			}
-			if r.Pattern != "" {
-				trace.SpanFromContext(r.Context()).SetAttributes(semconv.HTTPRoute(routePath(r.Pattern)))
+			if route != "unmatched" {
+				trace.SpanFromContext(r.Context()).SetAttributes(semconv.HTTPRoute(routePath(route)))
 			}
-			log.InfoContext(r.Context(), "request",
+			fields := append([]any{
 				"method", r.Method,
 				"path", r.URL.Path,
 				"route", route,
 				"status", sw.status,
 				"duration_ms", elapsed.Milliseconds(),
-			)
+				"bytes", sw.bytes,
+			}, attrsToArgs(attrs)...)
+			log.InfoContext(r.Context(), "request", fields...)
+			if audit {
+				log.InfoContext(r.Context(), "audit", fields...)
+			}
 		})
 	}
 }

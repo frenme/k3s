@@ -73,9 +73,6 @@ components:
         - created_at
       type: object
   securitySchemes:
-    basic:
-      scheme: basic
-      type: http
     bearer:
       bearerFormat: JWT
       scheme: bearer
@@ -198,6 +195,8 @@ paths:
       tags:
         - Orders
       x-access: user
+      x-max-body: 65536
+      x-timeout: 5s
   /v1/orders/{id}:
     get:
       operationId: get-order

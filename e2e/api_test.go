@@ -5,13 +5,13 @@ package e2e
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,8 +29,7 @@ var (
 	origin = envOr("CORS_ORIGIN", "http://localhost:5173")
 	client = &http.Client{Timeout: 10 * time.Second}
 
-	adminCredentials = envOr("ADMIN_CREDENTIALS", "admin:admin-dev-password")
-	jwtSecret        = envOr("E2E_JWT_SECRET", "dev-jwt-secret")
+	jwtSecret = envOr("E2E_JWT_SECRET", "dev-jwt-secret")
 )
 
 func loadSpecs() []routers.Router {
@@ -86,22 +85,31 @@ func envOr(key, def string) string {
 	return def
 }
 
-const noAuth = "X-E2E-No-Auth"
+const (
+	noAuth     = "X-E2E-No-Auth"
+	noValidate = "X-E2E-No-Validate"
+)
+
+const seededAdminID = "00000000-0000-4000-8000-000000000001"
 
 func userToken(t *testing.T) string {
+	return tokenFor(t, "e2e-user")
+}
+
+func adminAuth(t *testing.T) map[string]string {
+	return map[string]string{"Authorization": "Bearer " + tokenFor(t, seededAdminID)}
+}
+
+func tokenFor(t *testing.T, subject string) string {
 	t.Helper()
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		Subject:   "e2e-user",
+		Subject:   subject,
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 	}).SignedString([]byte(jwtSecret))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return token
-}
-
-func basic(credentials string) map[string]string {
-	return map[string]string{"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte(credentials))}
 }
 
 type response struct {
@@ -130,7 +138,7 @@ func call(t *testing.T, method, path string, body any, headers map[string]string
 		req.Header.Set("Authorization", "Bearer "+userToken(t))
 	}
 	for k, v := range headers {
-		if k != noAuth {
+		if k != noAuth && k != noValidate {
 			req.Header.Set(k, v)
 		}
 	}
@@ -143,7 +151,9 @@ func call(t *testing.T, method, path string, body any, headers map[string]string
 	if err != nil {
 		t.Fatal(err)
 	}
-	validate(t, req, resp.StatusCode, resp.Header, raw)
+	if _, skip := headers[noValidate]; !skip {
+		validate(t, req, resp.StatusCode, resp.Header, raw)
+	}
 	out := response{status: resp.StatusCode, header: resp.Header}
 	_ = json.Unmarshal(raw, &out.body)
 	return out
@@ -214,7 +224,8 @@ func TestCommon(t *testing.T) {
 		t.Fatalf("health %v", health.body)
 	}
 	expect(t, call(t, http.MethodGet, "/api/v1/common/health/details", nil, map[string]string{noAuth: ""}), http.StatusUnauthorized)
-	details := call(t, http.MethodGet, "/api/v1/common/health/details", nil, basic(adminCredentials))
+	expect(t, call(t, http.MethodGet, "/api/v1/common/health/details", nil, nil), http.StatusForbidden)
+	details := call(t, http.MethodGet, "/api/v1/common/health/details", nil, adminAuth(t))
 	expect(t, details, http.StatusOK)
 	if checks, _ := details.body["checks"].([]any); len(checks) == 0 {
 		t.Fatalf("details %v", details.body)
@@ -230,18 +241,77 @@ func TestAuthentication(t *testing.T) {
 		}
 	}
 	expect(t, call(t, http.MethodGet, "/api/v1/orders", nil, map[string]string{"Authorization": "Bearer nope"}), http.StatusUnauthorized)
-	expect(t, call(t, http.MethodGet, "/api/v1/users", nil, nil), http.StatusUnauthorized)
-	expect(t, call(t, http.MethodGet, "/api/v1/users?limit=1", nil, basic(adminCredentials)), http.StatusOK)
 }
 
-func TestAdminNeedsPassword(t *testing.T) {
-	for _, path := range []string{"/api/v1/admin/users", "/api/v1/admin/orders"} {
-		denied := call(t, http.MethodGet, path, nil, map[string]string{noAuth: ""})
-		expect(t, denied, http.StatusUnauthorized)
-		if denied.body["code"] != "unauthorized" {
+func TestAdminNeedsTheAdminRole(t *testing.T) {
+	for _, path := range []string{"/api/v1/admin/users", "/api/v1/admin/orders", "/api/v1/users?limit=1"} {
+		expect(t, call(t, http.MethodGet, path, nil, map[string]string{noAuth: ""}), http.StatusUnauthorized)
+		denied := call(t, http.MethodGet, path, nil, nil)
+		expect(t, denied, http.StatusForbidden)
+		if denied.body["code"] != "forbidden" {
 			t.Fatalf("%s: body %v", path, denied.body)
 		}
-		expect(t, call(t, http.MethodGet, path, nil, basic(adminCredentials)), http.StatusOK)
+		expect(t, call(t, http.MethodGet, path, nil, adminAuth(t)), http.StatusOK)
+	}
+}
+
+func TestGrantingTheAdminRole(t *testing.T) {
+	created := call(t, http.MethodPost, "/api/v1/users", map[string]string{"email": fmt.Sprintf("role-%d@example.com", time.Now().UnixNano()), "name": "Role"}, nil)
+	expect(t, created, http.StatusCreated)
+	id, _ := created.body["id"].(string)
+
+	roles := call(t, http.MethodGet, "/api/v1/users/"+id+"/roles", nil, adminAuth(t))
+	expect(t, roles, http.StatusOK)
+	if got, _ := roles.body["roles"].([]any); len(got) != 1 || got[0] != "user" {
+		t.Fatalf("a new user must only have the user role: %v", roles.body)
+	}
+	expect(t, call(t, http.MethodPut, "/api/v1/users/"+id+"/roles/admin", nil, adminAuth(t)), http.StatusOK)
+
+	promoted := map[string]string{"Authorization": "Bearer " + tokenFor(t, id)}
+	expect(t, call(t, http.MethodGet, "/api/v1/admin/users", nil, promoted), http.StatusOK)
+	expect(t, call(t, http.MethodPut, "/api/v1/users/"+id+"/roles/root", nil, adminAuth(t)), http.StatusUnprocessableEntity)
+}
+
+func TestRequestsAreValidatedAtTheGateway(t *testing.T) {
+	r := call(t, http.MethodPost, "/api/v1/users", map[string]string{"email": "nope", "name": "x"}, nil)
+	expect(t, r, http.StatusUnprocessableEntity)
+	if details, _ := r.body["details"].([]any); r.body["code"] != "invalid_input" || len(details) == 0 {
+		t.Fatalf("body %v", r.body)
+	}
+	expect(t, call(t, http.MethodGet, "/api/v1/orders?limit=0", nil, nil), http.StatusUnprocessableEntity)
+}
+
+func TestBodyLimitAndRouteTimeoutSettings(t *testing.T) {
+	huge := map[string]any{"user_id": seededAdminID, "item": strings.Repeat("x", 70000), "amount_cents": 1}
+	expect(t, call(t, http.MethodPost, "/api/v1/orders", huge, map[string]string{noValidate: ""}), http.StatusRequestEntityTooLarge)
+}
+
+func TestPublicConfigIsCachedAtTheGateway(t *testing.T) {
+	call(t, http.MethodGet, "/api/v1/common/app-config", nil, nil)
+	second := call(t, http.MethodGet, "/api/v1/common/app-config", nil, nil)
+	expect(t, second, http.StatusOK)
+	if got := second.header.Get("X-Cache"); got != "HIT" {
+		t.Fatalf("X-Cache %q", got)
+	}
+}
+
+func TestAggregatedDocumentation(t *testing.T) {
+	for _, path := range []string{"/api/docs", "/api/openapi.json"} {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, base+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if host != "" {
+			req.Host = host
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("%s: status %d", path, resp.StatusCode)
+		}
 	}
 }
 

@@ -44,6 +44,17 @@ components:
       required:
         - items
       type: object
+    RolesBody:
+      additionalProperties: false
+      properties:
+        roles:
+          items:
+            type: string
+          nullable: true
+          type: array
+      required:
+        - roles
+      type: object
     User:
       additionalProperties: false
       properties:
@@ -65,9 +76,6 @@ components:
         - created_at
       type: object
   securitySchemes:
-    basic:
-      scheme: basic
-      type: http
     bearer:
       bearerFormat: JWT
       scheme: bearer
@@ -109,6 +117,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Forbidden
         "422":
           content:
             application/json:
@@ -122,7 +136,7 @@ paths:
                 $ref: "#/components/schemas/Error"
           description: Internal Server Error
       security:
-        - basic: []
+        - bearer: []
       summary: List users
       tags:
         - Users
@@ -222,5 +236,176 @@ paths:
       tags:
         - Users
       x-access: user
+  /v1/users/{id}/roles:
+    get:
+      operationId: list-user-roles
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RolesBody"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Internal Server Error
+      security:
+        - bearer: []
+      summary: Roles of a user, every user has the user role
+      tags:
+        - Roles
+      x-access: admin
+  /v1/users/{id}/roles/{role}:
+    delete:
+      operationId: revoke-user-role
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: role
+          required: true
+          schema:
+            enum:
+              - user
+              - admin
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RolesBody"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Internal Server Error
+      security:
+        - bearer: []
+      summary: Revoke a role from a user
+      tags:
+        - Roles
+      x-access: admin
+    put:
+      operationId: grant-user-role
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: role
+          required: true
+          schema:
+            enum:
+              - user
+              - admin
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RolesBody"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Internal Server Error
+      security:
+        - bearer: []
+      summary: Grant a role to a user
+      tags:
+        - Roles
+      x-access: admin
 servers:
   - url: /api

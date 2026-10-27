@@ -97,9 +97,6 @@ components:
         - status
       type: object
   securitySchemes:
-    basic:
-      scheme: basic
-      type: http
     bearer:
       bearerFormat: JWT
       scheme: bearer
@@ -129,6 +126,7 @@ paths:
       tags:
         - AppConfig
       x-access: public
+      x-cache-ttl: 10s
   /v1/common/health:
     get:
       operationId: app-health
@@ -161,6 +159,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Forbidden
         "500":
           content:
             application/json:
@@ -170,7 +174,7 @@ paths:
         "503":
           description: At least one service or infrastructure component is down
       security:
-        - basic: []
+        - bearer: []
       summary: Per service and infrastructure health with error details, admin only at the gateway
       tags:
         - Health

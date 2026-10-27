@@ -6,17 +6,22 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/egor/k3s-base/internal/admin/scheduler"
+	"github.com/egor/k3s-base/internal/clients/scheduler"
 	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
-type Handler struct {
-	svc *scheduler.Service
-	log *slog.Logger
+type jobs interface {
+	Jobs(ctx context.Context) ([]scheduler.Job, error)
+	Run(ctx context.Context, name string) (scheduler.Run, error)
 }
 
-func NewHandler(svc *scheduler.Service, log *slog.Logger) *Handler {
-	return &Handler{svc: svc, log: log}
+type Handler struct {
+	jobs jobs
+	log  *slog.Logger
+}
+
+func NewHandler(jobs jobs, log *slog.Logger) *Handler {
+	return &Handler{jobs: jobs, log: log}
 }
 
 func (h *Handler) Register(public huma.API) {
@@ -39,7 +44,7 @@ func (h *Handler) Register(public huma.API) {
 }
 
 func (h *Handler) list(ctx context.Context, _ *struct{}) (*ListJobsResponse, error) {
-	items, err := h.svc.Jobs(ctx)
+	items, err := h.jobs.Jobs(ctx)
 	if err != nil {
 		return nil, httpx.Fail(ctx, h.log, err)
 	}
@@ -52,7 +57,7 @@ func (h *Handler) list(ctx context.Context, _ *struct{}) (*ListJobsResponse, err
 }
 
 func (h *Handler) run(ctx context.Context, in *RunJobRequest) (*RunJobResponse, error) {
-	run, err := h.svc.Run(ctx, in.Name)
+	run, err := h.jobs.Run(ctx, in.Name)
 	if err != nil {
 		return nil, httpx.Fail(ctx, h.log, err)
 	}

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
 func TestCursorRoundTrip(t *testing.T) {
@@ -22,7 +24,7 @@ func TestDecodeEmptyMeansFirstPage(t *testing.T) {
 
 func TestDecodeRejectsGarbage(t *testing.T) {
 	for _, s := range []string{"!!!", "bm9wZQ", "YWJjfGlk"} {
-		if _, err := Decode(s); !errors.Is(err, ErrInvalidCursor) {
+		if _, err := Decode(s); !errors.Is(err, httpx.ErrInvalidCursor) {
 			t.Fatalf("%q: %v", s, err)
 		}
 	}

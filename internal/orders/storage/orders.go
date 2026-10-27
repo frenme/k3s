@@ -68,7 +68,7 @@ func (s *Orders) Get(ctx context.Context, id string) (model.Order, error) {
 		return row.model(), err
 	})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.Order{}, model.ErrNotFound
+		return model.Order{}, model.ErrOrderNotFound
 	}
 	return o, err
 }

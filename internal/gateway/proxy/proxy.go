@@ -1,18 +1,30 @@
-package gateway
+package proxy
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/egor/k3s-base/internal/gateway/edge"
+	"github.com/egor/k3s-base/internal/gateway/model"
+	"github.com/egor/k3s-base/internal/gateway/policy"
 	"github.com/egor/k3s-base/internal/lib/httpx"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
+
+type Options struct {
+	Routes         map[string]*url.URL
+	Log            *slog.Logger
+	DefaultTimeout time.Duration
+	Guard          GuardConfig
+}
 
 func ParseRoutes(spec string) (map[string]*url.URL, error) {
 	routes := map[string]*url.URL{}
@@ -37,39 +49,18 @@ func ParseRoutes(spec string) (map[string]*url.URL, error) {
 	return routes, nil
 }
 
-func newTransport(timeout time.Duration) *http.Transport {
-	return &http.Transport{
-		DialContext:           (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
-		ResponseHeaderTimeout: timeout,
-		MaxIdleConns:          200,
-		MaxIdleConnsPerHost:   100,
-		IdleConnTimeout:       60 * time.Second,
-	}
-}
-
-func NewProxy(routes map[string]*url.URL, log *slog.Logger, upstreamTimeout time.Duration) http.Handler {
-	transport := otelhttp.NewTransport(newTransport(upstreamTimeout))
-	proxies := make(map[string]*httputil.ReverseProxy, len(routes))
-	for name, target := range routes {
+func New(opts Options) http.Handler {
+	proxies := make(map[string]*httputil.ReverseProxy, len(opts.Routes))
+	for name, target := range opts.Routes {
+		transport := newGuard(name, httpx.NewTransport("gateway-"+name), opts.Guard)
 		proxies[name] = &httputil.ReverseProxy{
 			Transport: transport,
-			Rewrite: func(pr *httputil.ProxyRequest) {
-				pr.SetURL(target)
-				pr.Out.URL.Path = "/" + strings.TrimPrefix(pr.In.URL.Path, "/api/")
-				pr.Out.URL.RawPath = ""
-				if prior := pr.In.Header.Values("X-Forwarded-For"); len(prior) > 0 {
-					pr.Out.Header["X-Forwarded-For"] = prior
-				}
-				pr.SetXForwarded()
-			},
+			Rewrite:   rewrite(target),
 			ModifyResponse: func(resp *http.Response) error {
 				resp.Header.Del(httpx.RequestIDHeader)
 				return nil
 			},
-			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-				log.ErrorContext(r.Context(), "upstream error", "upstream", name, "err", err)
-				httpx.WriteError(w, errUpstreamUnavailable)
-			},
+			ErrorHandler: errorHandler(name, opts.Log),
 		}
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -77,11 +68,69 @@ func NewProxy(routes map[string]*url.URL, log *slog.Logger, upstreamTimeout time
 		name, _, _ := strings.Cut(rest, "/")
 		p, ok := proxies[name]
 		if !ok || !isVersion(version) || strings.Contains("/"+rest+"/", "/internal/") {
-			httpx.WriteError(w, errUnknownRoute)
+			httpx.WriteError(w, model.ErrUnknownRoute)
 			return
 		}
-		p.ServeHTTP(w, r)
+		httpx.LogAttrs(r.Context(), slog.String("upstream", name))
+
+		timeout := policy.From(r.Context()).Rule.Timeout
+		if timeout <= 0 {
+			timeout = opts.DefaultTimeout
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
+		defer cancel()
+		p.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func rewrite(target *url.URL) func(*httputil.ProxyRequest) {
+	return func(pr *httputil.ProxyRequest) {
+		pr.SetURL(target)
+		pr.Out.URL.Path = "/" + strings.TrimPrefix(pr.In.URL.Path, "/api/")
+		pr.Out.URL.RawPath = ""
+		pr.Out.Header.Set("X-Forwarded-For", edge.IPFrom(pr.In.Context()))
+		pr.Out.Header.Set("X-Forwarded-Host", pr.In.Host)
+		pr.Out.Header.Set("X-Forwarded-Proto", forwardedProto(pr.In))
+	}
+}
+
+func forwardedProto(r *http.Request) string {
+	if r.TLS != nil {
+		return "https"
+	}
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto == "https" {
+		return proto
+	}
+	return "http"
+}
+
+func errorHandler(upstream string, log *slog.Logger) func(http.ResponseWriter, *http.Request, error) {
+	return func(w http.ResponseWriter, r *http.Request, err error) {
+		var tooLarge *http.MaxBytesError
+		switch {
+		case errors.As(err, &tooLarge):
+			httpx.WriteError(w, model.ErrPayloadTooLarge)
+		case errors.Is(err, ErrCircuitOpen):
+			w.Header().Set("Retry-After", strconv.Itoa(10))
+			httpx.WriteError(w, model.ErrUpstreamOpen)
+		case errors.Is(err, ErrOverloaded):
+			w.Header().Set("Retry-After", "1")
+			httpx.WriteError(w, model.ErrUpstreamOverload)
+		case errors.Is(err, context.DeadlineExceeded) || isTimeout(err):
+			log.WarnContext(r.Context(), "upstream timeout", "upstream", upstream, "err", err)
+			httpx.WriteError(w, model.ErrUpstreamTimeout)
+		case errors.Is(err, context.Canceled):
+			w.WriteHeader(499)
+		default:
+			log.ErrorContext(r.Context(), "upstream error", "upstream", upstream, "err", err)
+			httpx.WriteError(w, httpx.ErrUnavailable)
+		}
+	}
+}
+
+func isTimeout(err error) bool {
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 func isVersion(s string) bool {

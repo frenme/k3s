@@ -4,16 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"net/http"
 
 	"github.com/egor/k3s-base/internal/lib/httpx"
 )
-
-var ErrKeyReused = httpx.Error{
-	Status:  http.StatusUnprocessableEntity,
-	Code:    "idempotency_key_reused",
-	Message: "Idempotency-Key was already used with a different request",
-}
 
 type Request struct {
 	Key         string
@@ -37,7 +30,7 @@ func (r Request) Empty() bool {
 
 func (r Request) Verify(storedFingerprint string) error {
 	if storedFingerprint != r.Fingerprint {
-		return ErrKeyReused
+		return httpx.ErrIdempotencyKeyReused
 	}
 	return nil
 }

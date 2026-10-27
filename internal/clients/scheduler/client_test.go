@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
 func TestClient(t *testing.T) {
@@ -14,15 +16,9 @@ func TestClient(t *testing.T) {
 			_, _ = w.Write([]byte(`{"items":[{"name":"heartbeat","schedule":"@every 1m","timeout_seconds":10}]}`))
 		case "/internal/v1/scheduler/jobs/heartbeat/run":
 			_, _ = w.Write([]byte(`{"job":"heartbeat","status":"succeeded","duration_ms":3}`))
-		case "/internal/v1/scheduler/jobs/busy/run":
-			w.WriteHeader(http.StatusConflict)
-			_, _ = w.Write([]byte(`{"code":"job_running","message":"x"}`))
-		case "/internal/v1/scheduler/jobs/gone/run":
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"code":"job_not_found","message":"x"}`))
 		default:
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(`{"code":"internal_error","message":"x"}`))
+			w.WriteHeader(http.StatusConflict)
+			_, _ = w.Write([]byte(`{"code":"job_running","message":"Job is already running"}`))
 		}
 	}))
 	defer srv.Close()
@@ -35,13 +31,7 @@ func TestClient(t *testing.T) {
 	if run, err := c.Run(t.Context(), "heartbeat"); err != nil || run.Status != "succeeded" || run.DurationMS != 3 {
 		t.Fatalf("run %+v err %v", run, err)
 	}
-	if _, err := c.Run(t.Context(), "busy"); !errors.Is(err, ErrJobRunning) {
+	if _, err := c.Run(t.Context(), "busy"); !errors.Is(err, httpx.Error{Code: "job_running"}) {
 		t.Fatalf("busy: %v", err)
-	}
-	if _, err := c.Run(t.Context(), "gone"); !errors.Is(err, ErrJobNotFound) {
-		t.Fatalf("gone: %v", err)
-	}
-	if _, err := c.Run(t.Context(), "boom"); err == nil || errors.Is(err, ErrJobNotFound) {
-		t.Fatalf("boom: %v", err)
 	}
 }

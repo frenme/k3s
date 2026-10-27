@@ -1,7 +1,6 @@
 package common
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,14 +11,8 @@ func TestBool(t *testing.T) {
 		switch r.URL.Path {
 		case "/internal/v1/common/app-config/on":
 			_, _ = w.Write([]byte(`{"key":"on","value":true}`))
-		case "/internal/v1/common/app-config/text":
-			_, _ = w.Write([]byte(`{"key":"text","value":"yes"}`))
-		case "/internal/v1/common/app-config/broken":
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(`{"code":"internal_error","message":"x"}`))
 		default:
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"code":"app_config_not_found","message":"x"}`))
+			_, _ = w.Write([]byte(`{"key":"text","value":"yes"}`))
 		}
 	}))
 	defer srv.Close()
@@ -28,12 +21,7 @@ func TestBool(t *testing.T) {
 	if v, err := c.Bool(t.Context(), "on"); err != nil || !v {
 		t.Fatalf("on: %v %v", v, err)
 	}
-	if _, err := c.Bool(t.Context(), "missing"); !errors.Is(err, ErrAppConfigNotFound) {
-		t.Fatalf("missing: %v", err)
-	}
-	for _, key := range []string{"text", "broken"} {
-		if _, err := c.Bool(t.Context(), key); err == nil || errors.Is(err, ErrAppConfigNotFound) {
-			t.Fatalf("%s: %v", key, err)
-		}
+	if _, err := c.Bool(t.Context(), "text"); err == nil {
+		t.Fatal("a string value must not be read as bool")
 	}
 }

@@ -25,7 +25,7 @@ func main() {
 		"common.internal.yaml":    commonInternal,
 		"scheduler.internal.yaml": scheduler.OpenAPI(),
 	}
-	if err := writeGatewayRules(map[string]*huma.OpenAPI{
+	if err := writeGateway(map[string]*huma.OpenAPI{
 		"users":  usersPublic,
 		"orders": orders.OpenAPI(),
 		"admin":  admin.OpenAPI(),

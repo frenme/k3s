@@ -10,8 +10,8 @@ import (
 	"github.com/egor/k3s-base/internal/lib/app"
 	"github.com/egor/k3s-base/internal/lib/envconfig"
 	"github.com/egor/k3s-base/internal/lib/httpx"
-	"github.com/egor/k3s-base/internal/orders/checkout"
-	checkoutv1 "github.com/egor/k3s-base/internal/orders/checkout/v1"
+	"github.com/egor/k3s-base/internal/orders/order"
+	orderv1 "github.com/egor/k3s-base/internal/orders/order/v1"
 	"github.com/egor/k3s-base/internal/orders/storage"
 )
 
@@ -31,7 +31,7 @@ func Setup(ctx context.Context, s *app.Service) error {
 		return err
 	}
 	usersClient := users.New(env.UsersURL)
-	svc := checkout.NewService(storage.NewOrders(db), usersClient)
+	svc := order.NewService(storage.NewOrders(db), usersClient)
 	register(httpx.NewAPI(s.Mux, name), svc, s.Log)
 	return nil
 }
@@ -42,6 +42,6 @@ func OpenAPI() *huma.OpenAPI {
 	return api.OpenAPI()
 }
 
-func register(public huma.API, svc *checkout.Service, log *slog.Logger) {
-	checkoutv1.NewHandler(svc, log).Register(public)
+func register(public huma.API, svc *order.Service, log *slog.Logger) {
+	orderv1.NewHandler(svc, log).Register(public)
 }

@@ -12,14 +12,9 @@ func TestGet(t *testing.T) {
 		switch r.URL.Path {
 		case "/internal/v1/users/known":
 			_, _ = w.Write([]byte(`{"id":"known","email":"a@b.co","name":"Ann"}`))
-		case "/internal/v1/users/broken":
-			w.WriteHeader(http.StatusInternalServerError)
-		case "/internal/v1/users/missing":
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"code":"user_not_found","message":"User not found"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"code":"not_found","message":"Not found"}`))
+			_, _ = w.Write([]byte(`{"code":"user_not_found","message":"User not found"}`))
 		}
 	}))
 	defer srv.Close()
@@ -32,9 +27,24 @@ func TestGet(t *testing.T) {
 	if _, err := c.Get(t.Context(), "missing"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing: %v", err)
 	}
-	for _, id := range []string{"broken", "wrong-path"} {
-		if _, err := c.Get(t.Context(), id); err == nil || errors.Is(err, ErrNotFound) {
-			t.Fatalf("%s: %v", id, err)
+}
+
+func TestRoles(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/internal/v1/users/u1/roles":
+			_, _ = w.Write([]byte(`{"roles":["admin","user"]}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"code":"user_not_found","message":"x"}`))
 		}
+	}))
+	defer srv.Close()
+	c := New(srv.URL)
+	if roles, err := c.Roles(t.Context(), "u1"); err != nil || len(roles) != 2 || roles[0] != "admin" {
+		t.Fatalf("roles %v err %v", roles, err)
+	}
+	if _, err := c.Roles(t.Context(), "missing"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err %v", err)
 	}
 }

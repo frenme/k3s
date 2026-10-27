@@ -82,7 +82,7 @@ func NewService(targets []Target, probes ...Probe) *Service {
 	return &Service{
 		targets: targets,
 		probes:  probes,
-		client:  httpx.NewClient("health", 2*time.Second, httpx.WithoutResilience()),
+		client:  httpx.NewClient("health", 2*time.Second, httpx.WithoutRetries()),
 	}
 }
 

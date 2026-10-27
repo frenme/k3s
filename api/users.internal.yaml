@@ -16,6 +16,17 @@ components:
         - code
         - message
       type: object
+    RolesBody:
+      additionalProperties: false
+      properties:
+        roles:
+          items:
+            type: string
+          nullable: true
+          type: array
+      required:
+        - roles
+      type: object
     User:
       additionalProperties: false
       properties:
@@ -76,5 +87,42 @@ paths:
                 $ref: "#/components/schemas/Error"
           description: Internal Server Error
       summary: Get a user for other services
+      tags:
+        - Internal
+  /internal/v1/users/{id}/roles:
+    get:
+      operationId: internal-list-user-roles
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RolesBody"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Internal Server Error
+      summary: Roles of a user for other services
       tags:
         - Internal

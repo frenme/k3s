@@ -34,6 +34,10 @@ var (
 	ErrMethodNotAllowed = Error{Status: http.StatusMethodNotAllowed, Code: "method_not_allowed", Message: "Method not allowed"}
 	ErrInvalidInput     = Error{Status: http.StatusUnprocessableEntity, Code: "invalid_input", Message: "Invalid input"}
 	ErrInternal         = Error{Status: http.StatusInternalServerError, Code: "internal_error", Message: "Something went wrong"}
+
+	ErrInvalidCursor        = Error{Status: http.StatusUnprocessableEntity, Code: "invalid_cursor", Message: "Invalid cursor"}
+	ErrIdempotencyKeyReused = Error{Status: http.StatusUnprocessableEntity, Code: "idempotency_key_reused", Message: "Idempotency-Key was already used with a different request"}
+	ErrUnavailable          = Error{Status: http.StatusBadGateway, Code: "upstream_unavailable", Message: "Service is temporarily unavailable"}
 )
 
 func standard(status int) Error {

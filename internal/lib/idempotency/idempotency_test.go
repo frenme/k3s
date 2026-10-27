@@ -3,6 +3,8 @@ package idempotency
 import (
 	"errors"
 	"testing"
+
+	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
 type payload struct {
@@ -35,7 +37,7 @@ func TestVerify(t *testing.T) {
 	if a.Key != same.Key || a.Verify(same.Fingerprint) != nil {
 		t.Fatal("identical requests must match")
 	}
-	if err := a.Verify(other.Fingerprint); !errors.Is(err, ErrKeyReused) {
+	if err := a.Verify(other.Fingerprint); !errors.Is(err, httpx.ErrIdempotencyKeyReused) {
 		t.Fatalf("err %v", err)
 	}
 }

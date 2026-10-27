@@ -1,19 +1,13 @@
-package gateway
+package policy
 
 import (
-	"crypto/subtle"
+	"context"
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/egor/k3s-base/internal/lib/httpx"
-)
-
-const (
-	adminUser     = "admin"
-	adminPassword = "admin-dev-password"
-
-	UserIDHeader = "X-User-ID"
 )
 
 type Access int
@@ -25,30 +19,42 @@ const (
 )
 
 type Rule struct {
-	Method string
-	Path   string
-	Access Access
+	Method   string
+	Path     string
+	Access   Access
+	Timeout  time.Duration
+	MaxBody  int64
+	CacheTTL time.Duration
 }
 
-var staticRules = []Rule{
-	{http.MethodGet, "/api/v1/*/docs", AccessPublic},
-	{http.MethodGet, "/api/v1/*/openapi.json", AccessPublic},
-	{http.MethodGet, "/api/v1/*/openapi.yaml", AccessPublic},
-	{"", "/api/v1/admin/**", AccessAdmin},
+type Route struct {
+	Rule     Rule
+	Template string
+	Matched  bool
 }
 
-var DefaultRules = slices.Concat(staticRules, generatedRules)
+type Table []Rule
 
-var (
-	errUnauthorized      = httpx.Error{Status: http.StatusUnauthorized, Code: "unauthorized", Message: "Valid access token required"}
-	errAdminUnauthorized = httpx.Error{Status: http.StatusUnauthorized, Code: "unauthorized", Message: "Admin credentials required"}
-)
+var static = Table{
+	{Method: http.MethodGet, Path: "/api/v1/*/docs", Access: AccessPublic},
+	{Method: http.MethodGet, Path: "/api/v1/*/openapi.json", Access: AccessPublic},
+	{Method: http.MethodGet, Path: "/api/v1/*/openapi.yaml", Access: AccessPublic},
+	{Path: "/api/v1/admin/**", Access: AccessAdmin},
+}
+
+func Default() Table {
+	return slices.Concat(static, generated)
+}
+
+func sec(n int) time.Duration {
+	return time.Duration(n) * time.Second
+}
 
 func (r Rule) matches(method string, segments []string) bool {
 	if r.Method != "" && r.Method != method {
 		return false
 	}
-	want := strings.Split(strings.Trim(r.Path, "/"), "/")
+	want := split(r.Path)
 	for i, w := range want {
 		if w == "**" {
 			return true
@@ -60,64 +66,40 @@ func (r Rule) matches(method string, segments []string) bool {
 	return len(want) == len(segments)
 }
 
-func Authorize(rules []Rule, verifier *Verifier) httpx.Middleware {
+func (t Table) Find(method, path string) Route {
+	segments := split(path)
+	for _, rule := range t {
+		if rule.matches(method, segments) {
+			template := rule.Path
+			if rule.Method != "" {
+				template = rule.Method + " " + rule.Path
+			}
+			return Route{Rule: rule, Template: template, Matched: true}
+		}
+	}
+	return Route{Template: "unmatched"}
+}
+
+func split(path string) []string {
+	return strings.Split(strings.Trim(path, "/"), "/")
+}
+
+type routeKey struct{}
+
+func Resolve(table Table) httpx.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r.Header.Del(UserIDHeader)
-			switch accessFor(rules, r) {
-			case AccessPublic:
-				next.ServeHTTP(w, r)
-			case AccessAdmin:
-				user, password, ok := r.BasicAuth()
-				if !ok || subtle.ConstantTimeCompare([]byte(user+":"+password), []byte(adminUser+":"+adminPassword)) != 1 {
-					w.Header().Set("WWW-Authenticate", `Basic realm="admin"`)
-					httpx.WriteError(w, errAdminUnauthorized)
-					return
-				}
-				r.Header.Del("Authorization")
-				next.ServeHTTP(w, r)
-			default:
-				token, ok := bearerToken(r)
-				if !ok {
-					unauthorized(w)
-					return
-				}
-				subject, err := verifier.Subject(token)
-				if err != nil {
-					unauthorized(w)
-					return
-				}
-				r.Header.Del("Authorization")
-				r.Header.Set(UserIDHeader, subject)
-				next.ServeHTTP(w, r)
-			}
+			route := table.Find(r.Method, r.URL.Path)
+			httpx.SetRoute(r.Context(), route.Template)
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), routeKey{}, route)))
 		})
 	}
 }
 
-func accessFor(rules []Rule, r *http.Request) Access {
-	segments := splitPath(r.URL.Path)
-	for _, rule := range rules {
-		if rule.matches(r.Method, segments) {
-			return rule.Access
-		}
+func From(ctx context.Context) Route {
+	route, ok := ctx.Value(routeKey{}).(Route)
+	if !ok {
+		return Route{Template: "unmatched"}
 	}
-	return AccessUser
-}
-
-func splitPath(path string) []string {
-	return strings.Split(strings.Trim(path, "/"), "/")
-}
-
-func bearerToken(r *http.Request) (string, bool) {
-	scheme, token, ok := strings.Cut(r.Header.Get("Authorization"), " ")
-	if !ok || !strings.EqualFold(scheme, "Bearer") || strings.TrimSpace(token) == "" {
-		return "", false
-	}
-	return strings.TrimSpace(token), true
-}
-
-func unauthorized(w http.ResponseWriter) {
-	w.Header().Set("WWW-Authenticate", `Bearer realm="api"`)
-	httpx.WriteError(w, errUnauthorized)
+	return route
 }

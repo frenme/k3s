@@ -3,14 +3,12 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/egor/k3s-base/internal/admin/scheduler"
 	clients "github.com/egor/k3s-base/internal/clients/scheduler"
 	"github.com/egor/k3s-base/internal/lib/httpx"
 )
@@ -30,7 +28,7 @@ func (f fakeJobs) Run(context.Context, string) (clients.Run, error) {
 func call(t *testing.T, jobs fakeJobs, method, path string) (int, map[string]any) {
 	t.Helper()
 	mux := http.NewServeMux()
-	NewHandler(scheduler.NewService(jobs), slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewAPI(mux, "admin"))
+	NewHandler(jobs, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewAPI(mux, "admin"))
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 	req, _ := http.NewRequest(method, srv.URL+path, nil)
@@ -59,9 +57,9 @@ func TestJobErrors(t *testing.T) {
 		status int
 		code   string
 	}{
-		"missing": {clients.ErrJobNotFound, http.StatusNotFound, "job_not_found"},
-		"running": {clients.ErrJobRunning, http.StatusConflict, "job_running"},
-		"down":    {errors.New("connection refused"), http.StatusBadGateway, "scheduler_unavailable"},
+		"missing": {httpx.Error{Status: http.StatusNotFound, Code: "job_not_found", Message: "Job not found"}, http.StatusNotFound, "job_not_found"},
+		"running": {httpx.Error{Status: http.StatusConflict, Code: "job_running", Message: "Job is already running"}, http.StatusConflict, "job_running"},
+		"down":    {httpx.ErrUnavailable, http.StatusBadGateway, "upstream_unavailable"},
 	}
 	for name, c := range cases {
 		status, body := call(t, fakeJobs{err: c.err}, http.MethodPost, "/v1/admin/scheduler/jobs/heartbeat/run")

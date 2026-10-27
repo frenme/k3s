@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/egor/k3s-base/internal/lib/httpx"
 	"github.com/egor/k3s-base/internal/lib/idempotency"
 	"github.com/egor/k3s-base/internal/lib/pg/pgtest"
 	"github.com/egor/k3s-base/internal/orders/model"
@@ -30,7 +31,7 @@ func TestOrders(t *testing.T) {
 	changed := body
 	changed.AmountCents = 1
 	changedIdem, _ := idempotency.New(user, "key-1", changed)
-	if _, _, err := store.Create(ctx, changed, changedIdem); !errors.Is(err, idempotency.ErrKeyReused) {
+	if _, _, err := store.Create(ctx, changed, changedIdem); !errors.Is(err, httpx.ErrIdempotencyKeyReused) {
 		t.Fatalf("changed body err %v", err)
 	}
 	otherIdem, _ := idempotency.New(other, "key-1", body)
@@ -54,7 +55,7 @@ func TestOrders(t *testing.T) {
 	if err != nil || got.AmountCents != 1500 || got.UserID != user {
 		t.Fatalf("get %+v err %v", got, err)
 	}
-	if _, err := store.Get(ctx, uuid.NewString()); !errors.Is(err, model.ErrNotFound) {
+	if _, err := store.Get(ctx, uuid.NewString()); !errors.Is(err, model.ErrOrderNotFound) {
 		t.Fatalf("missing err %v", err)
 	}
 }

@@ -2,15 +2,12 @@ package pagination
 
 import (
 	"encoding/base64"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/egor/k3s-base/internal/lib/httpx"
 )
-
-var ErrInvalidCursor = httpx.Error{Status: http.StatusUnprocessableEntity, Code: "invalid_cursor", Message: "Invalid cursor"}
 
 type Cursor struct {
 	CreatedAt time.Time
@@ -28,15 +25,15 @@ func Decode(s string) (*Cursor, error) {
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(s)
 	if err != nil {
-		return nil, ErrInvalidCursor
+		return nil, httpx.ErrInvalidCursor
 	}
 	micros, id, ok := strings.Cut(string(raw), "|")
 	if !ok || id == "" {
-		return nil, ErrInvalidCursor
+		return nil, httpx.ErrInvalidCursor
 	}
 	n, err := strconv.ParseInt(micros, 10, 64)
 	if err != nil {
-		return nil, ErrInvalidCursor
+		return nil, httpx.ErrInvalidCursor
 	}
 	return &Cursor{CreatedAt: time.UnixMicro(n).UTC(), ID: id}, nil
 }

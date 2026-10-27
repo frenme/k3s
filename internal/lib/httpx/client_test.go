@@ -13,7 +13,7 @@ func TestClientRecordsMetrics(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 	}))
-	c := NewClient("probe", time.Second, WithoutResilience())
+	c := NewClient("probe", time.Second, WithoutRetries())
 	resp, err := c.Get(srv.URL)
 	if err != nil {
 		t.Fatal(err)

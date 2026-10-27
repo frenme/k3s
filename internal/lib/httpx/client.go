@@ -39,18 +39,30 @@ func (t metricsTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
+type clientConfig struct {
+	retries int
+}
+
+type ClientOption func(*clientConfig)
+
+func WithoutRetries() ClientOption {
+	return func(c *clientConfig) { c.retries = 0 }
+}
+
 func NewClient(name string, timeout time.Duration, opts ...ClientOption) *http.Client {
-	cfg := clientConfig{}
-	r := DefaultResilience()
-	cfg.resilience = &r
+	return &http.Client{Timeout: timeout, Transport: NewTransport(name, opts...)}
+}
+
+func NewTransport(name string, opts ...ClientOption) http.RoundTripper {
+	cfg := clientConfig{retries: defaultRetries}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 	var transport http.RoundTripper = metricsTransport{client: name, next: tunedTransport()}
-	if cfg.resilience != nil {
-		transport = newResilientTransport(name, transport, *cfg.resilience)
+	if cfg.retries > 0 {
+		transport = newRetryTransport(name, transport, cfg.retries)
 	}
-	return &http.Client{Timeout: timeout, Transport: otelhttp.NewTransport(transport)}
+	return otelhttp.NewTransport(transport)
 }
 
 func tunedTransport() *http.Transport {
