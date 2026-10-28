@@ -3,26 +3,65 @@ apps:
     database: true
     redis: true
     route: true
+    calls: [common]
   orders:
     database: true
     redis: true
     route: true
+    calls: [users]
   common:
     database: true
     redis: true
     route: true
     healthCheck: true
+    values:
+      env:
+        DB_MAX_CONNS: "5"
   admin:
     database: true
     readAllSchemas: true
     route: true
-    singleton: true
+    calls: [scheduler]
+    values:
+      singleton: true
+      env:
+        DB_MAX_CONNS: "5"
   scheduler:
     redis: true
-    internalOnly: true
+    values:
+      replicas: 2
   gateway:
     gateway: true
+    calls: [users]
+    values:
+      kind: DaemonSet
+      terminationGracePeriodSeconds: 90
+      nodeSelector:
+        role: edge
+      tolerations:
+        - key: role
+          operator: Equal
+          value: edge
+          effect: NoSchedule
+      networkPolicy:
+        enabled: false
+
+k3sVersion: v1.35.9+k3s1
+
+s3:
+  endpoint: s3.example.com
+  bucket: k3s-backups
+
+postgres:
+  instances: 1
+  pooler:
+    enabled: true
+    instances: 2
 
 telemetry:
   metrics: true
   traces: true
+  retention:
+    metrics: 15d
+    # logs задаёт срок хранения и логов, и трейсов
+    logs: 168h

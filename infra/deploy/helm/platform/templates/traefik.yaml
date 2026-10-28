@@ -6,12 +6,19 @@ metadata:
 spec:
   valuesContent: |-
     service:
+      annotations:
+        svccontroller.k3s.cattle.io/tolerations: '[{"key":"role","operator":"Equal","value":"edge","effect":"NoSchedule"}]'
       spec:
         externalTrafficPolicy: Local
     deployment:
       kind: DaemonSet
     nodeSelector:
       role: edge
+    tolerations:
+      - key: role
+        operator: Equal
+        value: edge
+        effect: NoSchedule
     {{- if .Values.httpsRedirect }}
     ports:
       web:

@@ -1,16 +1,3 @@
-env:
-  CORS_ORIGINS: ""
-
-kind: DaemonSet
-
-terminationGracePeriodSeconds: 90
-
-nodeSelector:
-  role: edge
-
-pdb:
-  enabled: true
-
 ingress:
   enabled: true
   routes:

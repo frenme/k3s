@@ -12,6 +12,3 @@ tempo:
 persistence:
   enabled: true
   size: 10Gi
-
-nodeSelector:
-  role: core

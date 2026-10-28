@@ -1,14 +1,7 @@
 {{- if .Values.ingress.enabled }}
 {{- $root := . }}
 {{- $ingress := .Values.ingress }}
-{{- $first := index (keys $ingress.routes | sortAlpha) 0 }}
 {{- range $route, $r := $ingress.routes }}
-{{- $annotations := dict }}
-{{- range $k, $v := $ingress.annotations }}
-{{- if or (eq $route $first) (not (hasPrefix "cert-manager.io/" $k)) }}
-{{- $_ := set $annotations $k $v }}
-{{- end }}
-{{- end }}
 {{- $name := printf "%s-%s" (include "service.fullname" $root) $route }}
 {{- if $r.rateLimit }}
 apiVersion: traefik.io/v1alpha1
@@ -30,14 +23,9 @@ metadata:
   name: {{ $name }}
   labels:
     {{- include "service.labels" $root | nindent 4 }}
-  {{- if or $annotations $r.rateLimit }}
+  {{- if $r.rateLimit }}
   annotations:
-    {{- with $annotations }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
-    {{- if $r.rateLimit }}
     traefik.ingress.kubernetes.io/router.middlewares: {{ $root.Release.Namespace }}-{{ $name }}@kubernetescrd
-    {{- end }}
   {{- end }}
 spec:
   ingressClassName: traefik

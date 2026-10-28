@@ -1,6 +1,5 @@
 prometheus:
   prometheusSpec:
-    retention: 30d
     storageSpec:
       volumeClaimTemplate:
         spec:

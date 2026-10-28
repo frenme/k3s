@@ -27,8 +27,6 @@ loki:
 
 singleBinary:
   replicas: 1
-  nodeSelector:
-    role: core
   resources:
     requests:
       cpu: 100m

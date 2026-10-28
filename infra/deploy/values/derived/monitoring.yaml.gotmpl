@@ -1,8 +1,85 @@
 {{- $telegram := dig "telegram" "chatId" 0 .Values.secrets }}
+{{- $metrics := .Values.telemetry.metrics }}
+{{- $traces := .Values.telemetry.traces }}
 grafana:
   adminPassword: {{ .Values.secrets.grafana | quote }}
+  {{- if not $metrics }}
+  defaultDashboardsEnabled: false
+  dashboardProviders: null
+  dashboards: null
+  sidecar:
+    datasources:
+      defaultDatasourceEnabled: false
+  {{- end }}
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      url: http://loki:3100
+      jsonData:
+        maxLines: 1000
+        {{- if $traces }}
+        derivedFields:
+          - name: TraceID
+            datasourceUid: tempo
+            matcherType: regex
+            matcherRegex: '"trace_id":"(\w+)"'
+            url: $${__value.raw}
+            urlDisplayLabel: Trace
+        {{- end }}
+    {{- if $traces }}
+    - name: Tempo
+      type: tempo
+      uid: tempo
+      url: http://tempo:3200
+      jsonData:
+        nodeGraph:
+          enabled: true
+        lokiSearch:
+          datasourceUid: loki
+        tracesToLogsV2:
+          datasourceUid: loki
+          filterByTraceID: true
+          spanStartTimeShift: -5m
+          spanEndTimeShift: 5m
+          tags:
+            - key: k8s.namespace.name
+              value: namespace
+            - key: service.name
+              value: app
+    {{- end }}
+
+{{- if $metrics }}
+
+prometheus:
+  prometheusSpec:
+    retention: {{ .Values.telemetry.retention.metrics }}
+{{- else }}
+
+defaultRules:
+  create: false
+prometheus:
+  enabled: false
+prometheusOperator:
+  enabled: false
+kubeStateMetrics:
+  enabled: false
+nodeExporter:
+  enabled: false
+kubeApiServer:
+  enabled: false
+kubelet:
+  enabled: false
+coreDns:
+  enabled: false
+kubeDns:
+  enabled: false
+{{- end }}
 
 alertmanager:
+  {{- if not $metrics }}
+  enabled: false
+  {{- end }}
   config:
     global:
       resolve_timeout: 5m

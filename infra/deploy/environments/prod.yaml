@@ -1,17 +1,35 @@
 namespace: app-prod
 kubeContext: k3s-prod
+domain: api.example.com
 acmeEmail: REPLACE_WITH_ACME_EMAIL
 clusterIssuer: letsencrypt-prod
-k3sVersion: v1.35.9+k3s1
-telemetryRetention: 336h
+backups: true
 
-postgres:
-  backupServerName: postgres
-  instances: 1
-  pooler:
-    enabled: true
-    instances: 2
+appDefaults:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  autoscaling:
+    scaleDownStabilizationSeconds: 300
 
-backup:
-  destinationPath: s3://k3s-backups/prod/
-  endpointURL: https://s3.example.com
+apps:
+  users:
+    values:
+      env:
+        DB_MAX_CONNS: "15"
+      autoscaling:
+        maxReplicas: 8
+  orders:
+    values:
+      env:
+        DB_MAX_CONNS: "15"
+      autoscaling:
+        maxReplicas: 8
+
+telemetry:
+  retention:
+    metrics: 30d
+    logs: 336h

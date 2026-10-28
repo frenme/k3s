@@ -1,9 +1,5 @@
 namespace: app
 kubeContext: k3d-k3s-base
-acmeEmail: ""
-clusterIssuer: ""
-k3sVersion: ""
-telemetryRetention: 48h
 
 appDefaults:
   autoscaling:
@@ -13,11 +9,13 @@ appDefaults:
     enabled: false
 
 postgres:
-  backupServerName: postgres
-  instances: 1
   pooler:
-    enabled: true
     instances: 1
+
+telemetry:
+  retention:
+    metrics: 2d
+    logs: 48h
 
 secrets:
   postgres:

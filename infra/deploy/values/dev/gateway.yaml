@@ -1,8 +1,2 @@
 env:
   CORS_ORIGINS: https://dev.example.com
-
-ingress:
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
-  host: api.dev.example.com
-  tlsSecretName: api-dev-example-com-tls

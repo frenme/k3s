@@ -6,6 +6,9 @@ kind: Deployment
 
 singleton: false
 
+# 0 включает HPA, больше нуля фиксирует число реплик без автоскейлинга
+replicas: 0
+
 imagePullSecrets: []
 
 env: {}
@@ -27,6 +30,8 @@ terminationGracePeriodSeconds: 30
 
 nodeSelector: {}
 
+tolerations: []
+
 autoscaling:
   minReplicas: 2
   maxReplicas: 6
@@ -34,17 +39,18 @@ autoscaling:
   scaleDownStabilizationSeconds: 120
 
 pdb:
-  enabled: false
+  enabled: true
 
 ingress:
   enabled: false
-  annotations: {}
   host: ""
   tlsSecretName: ""
+  clusterIssuer: ""
   routes: {}
 
 networkPolicy:
-  enabled: false
+  enabled: true
   allowFromPods: []
-  allowFromNamespaces: []
+  allowFromNamespaces:
+    - monitoring
   internalFromPods: []

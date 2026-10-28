@@ -1,18 +1,7 @@
-resources:
-  requests:
-    cpu: 100m
-    memory: 64Mi
-  limits:
-    memory: 256Mi
-
 env:
   CORS_ORIGINS: https://example.com
 
 ingress:
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-  host: api.example.com
-  tlsSecretName: api-example-com-tls
   routes:
     users:
       rateLimit:

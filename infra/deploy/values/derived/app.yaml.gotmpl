@@ -1,14 +1,22 @@
 {{- $name := .Release.Name }}
-image:
-  repository: {{ env "REGISTRY" | default "k3s-base" }}/{{ $name }}
-  tag: {{ env "TAG" | default "dev" | quote }}
-{{- $app := index .Values.apps $name }}
-{{- $env := dict }}
+{{- $apps := .Values.apps }}
+{{- $app := index $apps $name }}
+{{- $isGateway := dig "gateway" false $app }}
+{{- /* приоритет: appDefaults окружения, затем apps.<name>.values, затем всё, что выводится ниже */ -}}
+{{- $out := mergeOverwrite (deepCopy (.Values | get "appDefaults" dict)) (deepCopy ($app | get "values" dict)) }}
+{{- $env := deepCopy ($out | get "env" dict) }}
+{{- $_ := unset $out "env" }}
 {{- $secret := dict }}
+{{- $_ := set $out "image" (dict "repository" (printf "%s/%s" (env "REGISTRY" | default "k3s-base") $name) "tag" (env "TAG" | default "dev")) }}
+{{- $tracing := dict "environment" .Environment.Name }}
+{{- if .Values.telemetry.traces }}
+{{- $_ := set $tracing "endpoint" "http://tempo.monitoring:4318" }}
+{{- end }}
+{{- $_ := set $out "tracing" $tracing }}
 {{- if dig "database" false $app }}
 {{- $password := required (printf "secrets.postgres.%s must be set" $name) (dig $name "" .Values.secrets.postgres) }}
 {{- $_ := set $secret "PGPASSWORD" $password }}
-{{- $pooled := dig "pooler" "enabled" false .Values.postgres }}
+{{- $pooled := .Values.postgres.pooler.enabled }}
 {{- $rw := ternary "postgres-pooler-rw" "postgres-rw" $pooled }}
 {{- $ro := ternary "postgres-pooler-ro" "postgres-ro" $pooled }}
 {{- $_ := set $env "DATABASE_URL" (printf "postgres://%s_svc@%s:5432/app?sslmode=require" $name $rw) }}
@@ -23,41 +31,61 @@ image:
 {{- $_ := set $env "REDIS_ADDR" "redis:6379" }}
 {{- $_ := set $secret "REDIS_PASSWORD" .Values.secrets.redis }}
 {{- end }}
-{{- if dig "gateway" false $app }}
+{{- if $isGateway }}
 {{- $routes := list }}
-{{- range $route, $cfg := .Values.apps }}
+{{- range $route, $cfg := $apps }}
 {{- if dig "route" false $cfg }}
 {{- $routes = append $routes (printf "%s=http://%s:8080" $route $route) }}
 {{- end }}
 {{- end }}
 {{- $_ := set $env "ROUTES" (join "," $routes) }}
 {{- $_ := set $secret "JWT_SECRET" (required "secrets.jwt must be set (add it to the environment secrets file with sops)" (dig "jwt" "" .Values.secrets)) }}
+{{- with dig "domain" "" $.Values }}
+{{- $ingress := dict "host" . "tlsSecretName" (printf "%s-tls" (replace "." "-" .)) }}
+{{- with dig "clusterIssuer" "" $.Values }}
+{{- $_ := set $ingress "clusterIssuer" . }}
+{{- end }}
+{{- $_ := set $out "ingress" $ingress }}
+{{- end }}
 {{- end }}
 {{- if dig "healthCheck" false $app }}
 {{- $targets := list }}
-{{- range $target, $cfg := .Values.apps }}
-{{- if and (or (dig "route" false $cfg) (dig "internalOnly" false $cfg)) (ne $target $name) }}
+{{- range $target, $cfg := $apps }}
+{{- if and (not (dig "gateway" false $cfg)) (ne $target $name) }}
 {{- $targets = append $targets (printf "%s=http://%s:8080" $target $target) }}
 {{- end }}
 {{- end }}
 {{- $_ := set $env "HEALTH_TARGETS" (join "," $targets) }}
 {{- end }}
-{{- if dig "singleton" false $app }}
-singleton: true
+{{- $public := list }}
+{{- $internal := list }}
+{{- range $caller, $cfg := $apps }}
+{{- if and (dig "gateway" false $cfg) (dig "route" false $app) }}
+{{- $public = append $public $caller }}
 {{- end }}
-{{- with .Values | get "appDefaults" dict }}
-{{ toYaml . }}
 {{- end }}
-tracing:
-  {{- if .Values.telemetry.traces }}
-  endpoint: http://tempo.monitoring:4318
-  {{- end }}
-  environment: {{ .Environment.Name }}
-{{- with $env }}
-env:
-  {{- toYaml . | nindent 2 }}
+{{- range $caller, $cfg := $apps }}
+{{- if and (dig "healthCheck" false $cfg) (ne $caller $name) (not $isGateway) }}
+{{- $public = append $public $caller }}
 {{- end }}
-{{- with $secret }}
-secretEnv:
-  {{- toYaml . | nindent 2 }}
+{{- if has $name (dig "calls" (list) $cfg) }}
+{{- $internal = append $internal $caller }}
 {{- end }}
+{{- end }}
+{{- $policy := $out | get "networkPolicy" dict }}
+{{- if $public }}
+{{- $_ := set $policy "allowFromPods" $public }}
+{{- end }}
+{{- if $internal }}
+{{- $_ := set $policy "internalFromPods" $internal }}
+{{- end }}
+{{- if $policy }}
+{{- $_ := set $out "networkPolicy" $policy }}
+{{- end }}
+{{- if $env }}
+{{- $_ := set $out "env" $env }}
+{{- end }}
+{{- if $secret }}
+{{- $_ := set $out "secretEnv" $secret }}
+{{- end }}
+{{ toYaml $out }}

@@ -1,6 +1,6 @@
 apiVersion: v2
 name: redis
-description: Ephemeral Redis cache for rate limiting and edge state
+description: Ephemeral Redis for cache and distributed locks
 type: application
 version: 0.1.0
 appVersion: "7"

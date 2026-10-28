@@ -60,7 +60,7 @@ spec:
       isWALArchiver: true
       parameters:
         barmanObjectName: postgres-backup
-        serverName: {{ default "postgres" .Values.backup.serverName }}
+        serverName: {{ .Values.backup.serverName }}
   {{- end }}
   affinity:
     enablePodAntiAffinity: true
@@ -75,10 +75,3 @@ spec:
         operator: Exists
         effect: NoExecute
         tolerationSeconds: 30
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-          - matchExpressions:
-              - key: role
-                operator: In
-                values: ["core"]

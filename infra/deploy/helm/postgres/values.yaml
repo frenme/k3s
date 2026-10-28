@@ -1,11 +1,11 @@
-instances: 2
+instances: 1
 
 image: ghcr.io/cloudnative-pg/postgresql:17
 
 services: {}
 
 pooler:
-  enabled: false
+  enabled: true
   instances: 2
   maxClientConn: 1000
   reservedConnections: 20
@@ -28,7 +28,7 @@ parameters:
 
 backup:
   enabled: false
-  serverName: ""
+  serverName: postgres
   destinationPath: ""
   endpointURL: ""
   retention: 7d

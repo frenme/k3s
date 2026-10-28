@@ -1,0 +1,18 @@
+{{- if and .Values.ingress.enabled .Values.ingress.clusterIssuer }}
+{{- if not (and .Values.ingress.host .Values.ingress.tlsSecretName) }}
+{{- fail "ingress.host and ingress.tlsSecretName must be set with ingress.clusterIssuer" }}
+{{- end }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.ingress.tlsSecretName }}
+  labels:
+    {{- include "service.labels" . | nindent 4 }}
+spec:
+  secretName: {{ .Values.ingress.tlsSecretName }}
+  dnsNames:
+    - {{ .Values.ingress.host | quote }}
+  issuerRef:
+    kind: ClusterIssuer
+    name: {{ .Values.ingress.clusterIssuer }}
+{{- end }}

@@ -10,6 +10,9 @@ spec:
   strategy:
     type: Recreate
   {{- else }}
+  {{- if .Values.replicas }}
+  replicas: {{ .Values.replicas }}
+  {{- end }}
   {{- if eq .Values.kind "DaemonSet" }}
   updateStrategy:
   {{- else }}
@@ -58,12 +61,6 @@ spec:
             - name: internal
               containerPort: 8081
           env:
-            - name: HTTP_ADDR
-              value: ":8080"
-            - name: INTERNAL_ADDR
-              value: ":8081"
-            - name: DRAIN_DELAY
-              value: 5s
             - name: GRACE_TIMEOUT
               value: "{{ max 5 (sub (int .Values.terminationGracePeriodSeconds) 10) }}s"
             {{- with .Values.tracing.endpoint }}
@@ -122,6 +119,9 @@ spec:
           operator: Exists
           effect: NoExecute
           tolerationSeconds: 30
+        {{- with .Values.tolerations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- if eq .Values.kind "Deployment" }}
       topologySpreadConstraints:
         - maxSkew: 1

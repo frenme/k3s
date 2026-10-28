@@ -41,6 +41,7 @@ helmDefaults:
 missingFileHandler: Debug
 
 {{- $local := eq .Environment.Name "local" }}
+{{- $backups := dig "backups" false .Values }}
 {{- $registry := env "REGISTRY" | default "k3s-base" }}
 {{- $tag := env "TAG" | default "dev" }}
 {{- if and (not $local) (or (eq $registry "k3s-base") (eq $tag "dev")) }}
@@ -126,7 +127,7 @@ releases:
     version: 0.29.1
 
   - name: barman-cloud
-    installed: {{ not $local }}
+    installed: {{ $backups }}
     namespace: cnpg-system
     inherit:
       - template: layered
@@ -143,7 +144,7 @@ releases:
     needs:
       - cnpg-system/cnpg
       - monitoring/monitoring
-      {{- if not $local }}
+      {{- if $backups }}
       - cnpg-system/barman-cloud
       {{- end }}
 
@@ -164,6 +165,9 @@ releases:
     {{- end }}
     needs:
       - monitoring/monitoring
+      {{- if dig "gateway" false $app }}
+      - cert-manager/cert-manager
+      {{- end }}
       {{- if dig "database" false $app }}
       - postgres
       {{- end }}

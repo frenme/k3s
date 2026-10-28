@@ -17,24 +17,13 @@ kubeProxy:
 kubeEtcd:
   enabled: false
 
-prometheusOperator:
-  nodeSelector:
-    role: core
-
-kube-state-metrics:
-  nodeSelector:
-    role: core
-
 prometheus:
   prometheusSpec:
-    retention: 15d
     enableFeatures:
       - exemplar-storage
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
-    nodeSelector:
-      role: core
     resources:
       requests:
         cpu: 200m
@@ -51,8 +40,6 @@ prometheus:
 
 alertmanager:
   alertmanagerSpec:
-    nodeSelector:
-      role: core
     storage:
       volumeClaimTemplate:
         spec:
@@ -63,8 +50,6 @@ alertmanager:
 
 grafana:
   defaultDashboardsTimezone: browser
-  nodeSelector:
-    role: core
   persistence:
     enabled: false
   sidecar:
@@ -74,39 +59,6 @@ grafana:
       exemplarTraceIdDestinations:
         datasourceUid: tempo
         traceIdLabelName: trace_id
-  additionalDataSources:
-    - name: Loki
-      type: loki
-      uid: loki
-      url: http://loki:3100
-      jsonData:
-        maxLines: 1000
-        derivedFields:
-          - name: TraceID
-            datasourceUid: tempo
-            matcherType: regex
-            matcherRegex: '"trace_id":"(\w+)"'
-            url: $${__value.raw}
-            urlDisplayLabel: Trace
-    - name: Tempo
-      type: tempo
-      uid: tempo
-      url: http://tempo:3200
-      jsonData:
-        nodeGraph:
-          enabled: true
-        lokiSearch:
-          datasourceUid: loki
-        tracesToLogsV2:
-          datasourceUid: loki
-          filterByTraceID: true
-          spanStartTimeShift: -5m
-          spanEndTimeShift: 5m
-          tags:
-            - key: k8s.namespace.name
-              value: namespace
-            - key: service.name
-              value: app
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1

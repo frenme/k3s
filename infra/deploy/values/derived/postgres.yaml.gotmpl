@@ -1,8 +1,8 @@
 instances: {{ .Values.postgres.instances }}
 
 pooler:
-  enabled: {{ dig "pooler" "enabled" false .Values.postgres }}
-  instances: {{ dig "pooler" "instances" 2 .Values.postgres }}
+  enabled: {{ .Values.postgres.pooler.enabled }}
+  instances: {{ .Values.postgres.pooler.instances }}
 
 services:
   {{- range $name, $app := .Values.apps }}
@@ -13,12 +13,15 @@ services:
   {{- end }}
   {{- end }}
 
-{{- with .Values | get "backup" dict }}
+{{- if dig "backups" false .Values }}
+
 backup:
   enabled: true
-  serverName: {{ dig "backupServerName" "" $.Values.postgres | quote }}
-  destinationPath: {{ .destinationPath }}
-  endpointURL: {{ .endpointURL }}
-  accessKeyId: {{ $.Values.secrets.s3.accessKeyId | quote }}
-  secretAccessKey: {{ $.Values.secrets.s3.secretAccessKey | quote }}
+  {{- with dig "backupServerName" "" .Values.postgres }}
+  serverName: {{ . }}
+  {{- end }}
+  destinationPath: s3://{{ .Values.s3.bucket }}/{{ .Environment.Name }}/
+  endpointURL: https://{{ .Values.s3.endpoint }}
+  accessKeyId: {{ .Values.secrets.s3.accessKeyId | quote }}
+  secretAccessKey: {{ .Values.secrets.s3.secretAccessKey | quote }}
 {{- end }}

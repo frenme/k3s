@@ -1,7 +1,9 @@
 acme:
-  email: {{ .Values.acmeEmail | quote }}
+  email: {{ dig "acmeEmail" "" .Values | quote }}
 appNamespace: {{ .Values.namespace }}
 apps: {{ keys .Values.apps | sortAlpha | toJson }}
-backups: {{ hasKey .Values "backup" }}
+backups: {{ dig "backups" false .Values }}
+{{- if ne .Environment.Name "local" }}
 k3sVersion: {{ .Values.k3sVersion | quote }}
-httpsRedirect: {{ ne .Values.clusterIssuer "" }}
+{{- end }}
+httpsRedirect: {{ ne (dig "clusterIssuer" "" .Values) "" }}
