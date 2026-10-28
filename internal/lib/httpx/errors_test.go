@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,7 +15,6 @@ import (
 var errThingNotFound = Error{Status: http.StatusNotFound, Code: "thing_not_found", Message: "Thing not found"}
 
 func TestFail(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cases := []struct {
 		in   error
 		want Error
@@ -28,7 +25,7 @@ func TestFail(t *testing.T) {
 	}
 	for _, tc := range cases {
 		var got Error
-		if !errors.As(Fail(context.Background(), log, tc.in), &got) || got.Code != tc.want.Code || got.Status != tc.want.Status || len(got.Details) != 0 {
+		if !errors.As(fail(context.Background(), tc.in), &got) || got.Code != tc.want.Code || got.Status != tc.want.Status || len(got.Details) != 0 {
 			t.Fatalf("%v: got %+v", tc.in, got)
 		}
 	}

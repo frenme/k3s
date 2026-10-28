@@ -65,14 +65,9 @@
             "maxLength": 200,
             "pattern": "\\S",
             "type": "string"
-          },
-          "user_id": {
-            "format": "uuid",
-            "type": "string"
           }
         },
         "required": [
-          "user_id",
           "item",
           "amount_cents"
         ],
@@ -208,44 +203,6 @@
         ],
         "type": "object"
       },
-      "ListOrdersResponseBody": {
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/Order"
-            },
-            "nullable": true,
-            "type": "array"
-          },
-          "next_cursor": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "type": "object"
-      },
-      "ListUsersResponseBody": {
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/User"
-            },
-            "nullable": true,
-            "type": "array"
-          },
-          "next_cursor": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "type": "object"
-      },
       "Order": {
         "additionalProperties": false,
         "properties": {
@@ -275,6 +232,44 @@
           "item",
           "amount_cents",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "PageOrder": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Order"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "next_cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "PageUser": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/User"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "next_cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
         ],
         "type": "object"
       },
@@ -411,7 +406,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListOrdersResponseBody"
+                  "$ref": "#/components/schemas/PageOrder"
                 }
               }
             },
@@ -677,7 +672,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListUsersResponseBody"
+                  "$ref": "#/components/schemas/PageUser"
                 }
               }
             },
@@ -873,15 +868,6 @@
           {
             "explode": false,
             "in": "query",
-            "name": "user_id",
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
             "name": "cursor",
             "schema": {
               "maxLength": 200,
@@ -894,7 +880,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListOrdersResponseBody"
+                  "$ref": "#/components/schemas/PageOrder"
                 }
               }
             },
@@ -936,7 +922,7 @@
             "bearer": []
           }
         ],
-        "summary": "List orders",
+        "summary": "List your orders",
         "tags": [
           "Orders"
         ],
@@ -1110,7 +1096,7 @@
             "bearer": []
           }
         ],
-        "summary": "Get an order",
+        "summary": "Get your own order, an order of someone else answers 404",
         "tags": [
           "Orders"
         ],
@@ -1148,7 +1134,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListUsersResponseBody"
+                  "$ref": "#/components/schemas/PageUser"
                 }
               }
             },
@@ -1357,7 +1343,7 @@
             "bearer": []
           }
         ],
-        "summary": "Get a user",
+        "summary": "Get your own user, any other id answers 404",
         "tags": [
           "Users"
         ],

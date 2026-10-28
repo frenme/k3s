@@ -62,7 +62,8 @@ func (c *CachedRoles) Roles(ctx context.Context, userID string) ([]string, error
 	c.calls[userID] = call
 	c.mu.Unlock()
 
-	call.roles, call.err = c.src.Roles(ctx, userID)
+	// ответ делят все ждущие запросы, поэтому отмена первого клиента не должна его обрывать
+	call.roles, call.err = c.src.Roles(context.WithoutCancel(ctx), userID)
 
 	c.mu.Lock()
 	delete(c.calls, userID)

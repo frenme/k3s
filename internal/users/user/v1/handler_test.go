@@ -3,8 +3,6 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -87,7 +85,7 @@ func newServersWith(t *testing.T, cfg *fakeAppConfig) (public, internal string) 
 	t.Helper()
 	pubMux, inMux := http.NewServeMux(), http.NewServeMux()
 	svc := user.NewService(&fakeStore{items: map[string]model.User{}}, cfg)
-	NewHandler(svc, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewAPI(pubMux, "users"), httpx.NewInternalAPI(inMux, "users"))
+	NewHandler(svc).Register(httpx.NewAPI(pubMux, "users"), httpx.NewInternalAPI(inMux, "users"))
 	pub, in := httptest.NewServer(pubMux), httptest.NewServer(inMux)
 	t.Cleanup(pub.Close)
 	t.Cleanup(in.Close)
@@ -108,7 +106,16 @@ func post(t *testing.T, url, body string) (int, map[string]any) {
 
 func status(t *testing.T, url string) int {
 	t.Helper()
-	resp, err := http.Get(url)
+	return statusAs(t, url, "")
+}
+
+func statusAs(t *testing.T, url, user string) int {
+	t.Helper()
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	if user != "" {
+		req.Header.Set(httpx.UserIDHeader, user)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,8 +131,19 @@ func TestCreateAndGet(t *testing.T) {
 		t.Fatalf("create %d %v", code, body)
 	}
 	id, _ := body["id"].(string)
-	if got := status(t, public+"/v1/users/"+id); got != http.StatusOK {
-		t.Fatalf("public get %d", got)
+	cases := []struct {
+		name, user string
+		want       int
+	}{
+		{"the user reads itself", id, http.StatusOK},
+		{"the id is compared without case", strings.ToUpper(id), http.StatusOK},
+		{"another user gets a 404", uuid.NewString(), http.StatusNotFound},
+		{"no user header", "", http.StatusUnauthorized},
+	}
+	for _, c := range cases {
+		if got := statusAs(t, public+"/v1/users/"+id, c.user); got != c.want {
+			t.Fatalf("%s: status %d, want %d", c.name, got, c.want)
+		}
 	}
 	if got := status(t, internal+"/internal/v1/users/"+id); got != http.StatusOK {
 		t.Fatalf("internal get %d", got)
@@ -163,7 +181,7 @@ func TestErrorsAreJSON(t *testing.T) {
 		}
 	}
 	for _, id := range []string{"missing", uuid.NewString()} {
-		if got := status(t, public+"/v1/users/"+id); got != http.StatusNotFound {
+		if got := statusAs(t, public+"/v1/users/"+id, id); got != http.StatusNotFound {
 			t.Fatalf("%s: status %d", id, got)
 		}
 	}

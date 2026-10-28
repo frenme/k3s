@@ -3,6 +3,7 @@ package v1
 import (
 	"time"
 
+	"github.com/egor/k3s-base/internal/lib/pagination"
 	"github.com/egor/k3s-base/internal/users/model"
 )
 
@@ -18,15 +19,11 @@ func toUser(u model.User) User {
 }
 
 type ListUsersRequest struct {
-	Limit  int    `query:"limit" default:"50" minimum:"1" maximum:"500"`
-	Cursor string `query:"cursor" maxLength:"200"`
+	pagination.Params
 }
 
 type ListUsersResponse struct {
-	Body struct {
-		Items      []User `json:"items"`
-		NextCursor string `json:"next_cursor,omitempty"`
-	}
+	Body pagination.Page[User]
 }
 
 type GetUserRequest struct {

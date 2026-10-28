@@ -3,6 +3,7 @@ package v1
 import (
 	"time"
 
+	"github.com/egor/k3s-base/internal/lib/pagination"
 	"github.com/egor/k3s-base/internal/orders/model"
 )
 
@@ -19,16 +20,11 @@ func toOrder(o model.Order) Order {
 }
 
 type ListOrdersRequest struct {
-	Limit  int    `query:"limit" default:"50" minimum:"1" maximum:"500"`
-	UserID string `query:"user_id" format:"uuid"`
-	Cursor string `query:"cursor" maxLength:"200"`
+	pagination.Params
 }
 
 type ListOrdersResponse struct {
-	Body struct {
-		Items      []Order `json:"items"`
-		NextCursor string  `json:"next_cursor,omitempty"`
-	}
+	Body pagination.Page[Order]
 }
 
 type GetOrderRequest struct {
@@ -43,7 +39,6 @@ type OrderResponse struct {
 type CreateOrderRequest struct {
 	IdempotencyKey string `header:"Idempotency-Key" maxLength:"200"`
 	Body           struct {
-		UserID      string `json:"user_id" format:"uuid"`
 		Item        string `json:"item" pattern:"\\S" maxLength:"200"`
 		AmountCents int64  `json:"amount_cents" minimum:"0"`
 	}

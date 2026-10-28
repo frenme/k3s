@@ -2,7 +2,6 @@ package orders
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -22,8 +21,8 @@ type EnvConfig struct {
 }
 
 func Setup(ctx context.Context, s *app.Service) error {
-	var env EnvConfig
-	if err := envconfig.Load(&env); err != nil {
+	env, err := envconfig.Load[EnvConfig]()
+	if err != nil {
 		return err
 	}
 	db, err := s.Postgres(ctx, storage.Migrations, storage.MigrationsDir)
@@ -32,16 +31,16 @@ func Setup(ctx context.Context, s *app.Service) error {
 	}
 	usersClient := users.New(env.UsersURL)
 	svc := order.NewService(storage.NewOrders(db), usersClient)
-	register(httpx.NewAPI(s.Mux, name), svc, s.Log)
+	register(httpx.NewAPI(s.Mux, name), svc)
 	return nil
 }
 
 func OpenAPI() *huma.OpenAPI {
 	api := httpx.NewAPI(http.NewServeMux(), name)
-	register(api, nil, nil)
+	register(api, nil)
 	return api.OpenAPI()
 }
 
-func register(public huma.API, svc *order.Service, log *slog.Logger) {
-	orderv1.NewHandler(svc, log).Register(public)
+func register(public huma.API, svc *order.Service) {
+	orderv1.NewHandler(svc).Register(public)
 }

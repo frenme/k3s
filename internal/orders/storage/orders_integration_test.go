@@ -46,9 +46,9 @@ func TestOrders(t *testing.T) {
 	if err != nil || len(mine) != 1 || mine[0].ID != first.ID {
 		t.Fatalf("list by user %+v err %v", mine, err)
 	}
-	all, err := store.List(ctx, "", 10, nil)
-	if err != nil || len(all) != 3 {
-		t.Fatalf("list all %+v err %v", all, err)
+	theirs, err := store.List(ctx, other, 10, nil)
+	if err != nil || len(theirs) != 2 {
+		t.Fatalf("list of another user %+v err %v", theirs, err)
 	}
 
 	got, err := store.Get(ctx, first.ID)
@@ -57,5 +57,11 @@ func TestOrders(t *testing.T) {
 	}
 	if _, err := store.Get(ctx, uuid.NewString()); !errors.Is(err, model.ErrOrderNotFound) {
 		t.Fatalf("missing err %v", err)
+	}
+	if _, err := store.Get(ctx, "not-a-uuid"); !errors.Is(err, model.ErrOrderNotFound) {
+		t.Fatalf("not a uuid err %v", err)
+	}
+	if none, err := store.List(ctx, "not-a-uuid", 10, nil); err != nil || len(none) != 0 {
+		t.Fatalf("list for a user that is not a uuid %+v err %v", none, err)
 	}
 }

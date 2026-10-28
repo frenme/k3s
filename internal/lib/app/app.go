@@ -26,10 +26,10 @@ type EnvConfig struct {
 
 type Service struct {
 	Name     string
-	Public   bool
+	public   bool
 	Env      EnvConfig
 	Log      *slog.Logger
-	Health   *httpx.Health
+	Probes   *httpx.Probes
 	Mux      *http.ServeMux
 	Internal *http.ServeMux
 	closers  []func()
@@ -37,13 +37,22 @@ type Service struct {
 }
 
 func Run(name string, setup func(ctx context.Context, s *Service) error) {
-	var env EnvConfig
-	envErr := envconfig.Load(&env)
+	run(name, false, setup)
+}
+
+// RunPublic для сервиса, открытого наружу: он начинает новую трассу и только ссылается на клиентскую
+func RunPublic(name string, setup func(ctx context.Context, s *Service) error) {
+	run(name, true, setup)
+}
+
+func run(name string, public bool, setup func(ctx context.Context, s *Service) error) {
+	env, envErr := envconfig.Load[EnvConfig]()
 	s := &Service{
 		Name:     name,
+		public:   public,
 		Env:      env,
 		Log:      newLogger(name, env.LogLevel),
-		Health:   httpx.NewHealth(),
+		Probes:   httpx.NewProbes(),
 		Mux:      http.NewServeMux(),
 		Internal: http.NewServeMux(),
 	}
@@ -51,7 +60,7 @@ func Run(name string, setup func(ctx context.Context, s *Service) error) {
 		s.Log.Error("fatal", "err", envErr)
 		os.Exit(1)
 	}
-	s.Health.Mount(s.Mux)
+	s.Probes.Mount(s.Mux)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	err := s.run(ctx, setup)
@@ -76,7 +85,7 @@ func (s *Service) run(ctx context.Context, setup func(ctx context.Context, s *Se
 	if err := setup(ctx, s); err != nil {
 		return err
 	}
-	return httpx.Serve(ctx, s.Name, s.Public, s.Log, s.Health, s.Mux, s.Internal)
+	return httpx.Serve(ctx, httpx.Server{Name: s.Name, Public: s.public, Log: s.Log, Probes: s.Probes, Mux: s.Mux, Internal: s.Internal})
 }
 
 func (s *Service) OnClose(fn func()) {
@@ -95,8 +104,16 @@ func (s *Service) Postgres(ctx context.Context, fsys fs.FS, dir string) (*pg.DB,
 		return nil, err
 	}
 	s.OnClose(pools.Close)
-	s.Health.Add("postgres", pools.Write.Ping)
-	return pg.NewDB(pools)
+	db, err := pg.NewDB(pools)
+	if err != nil {
+		return nil, err
+	}
+	s.Probes.Add("postgres", db.PingWrite)
+	return db, nil
+}
+
+func (s *Service) PostgresNoMigrations(ctx context.Context) (*pg.DB, error) {
+	return s.Postgres(ctx, nil, "")
 }
 
 func (s *Service) Redis() *redis.Client {

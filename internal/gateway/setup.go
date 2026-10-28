@@ -48,11 +48,10 @@ func (u userRoles) Roles(ctx context.Context, id string) ([]string, error) {
 }
 
 func Setup(ctx context.Context, s *app.Service) error {
-	var env EnvConfig
-	if err := envconfig.Load(&env); err != nil {
+	env, err := envconfig.Load[EnvConfig]()
+	if err != nil {
 		return err
 	}
-	s.Public = true
 
 	routes, err := proxy.ParseRoutes(env.Routes)
 	if err != nil {

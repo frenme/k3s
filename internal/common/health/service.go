@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -23,11 +25,6 @@ const (
 type Target struct {
 	Name string
 	URL  string
-}
-
-type Probe struct {
-	Name string
-	Run  func(ctx context.Context) error
 }
 
 type Result struct {
@@ -71,17 +68,26 @@ func ParseTargets(spec string) ([]Target, error) {
 
 type Service struct {
 	targets []Target
-	probes  []Probe
+	infra   []infraCheck
 	client  *http.Client
 
 	mu     sync.Mutex
 	cached Report
 }
 
-func NewService(targets []Target, probes ...Probe) *Service {
+type infraCheck struct {
+	name string
+	run  httpx.Check
+}
+
+func NewService(targets []Target, infra map[string]httpx.Check) *Service {
+	checks := make([]infraCheck, 0, len(infra))
+	for _, name := range slices.Sorted(maps.Keys(infra)) {
+		checks = append(checks, infraCheck{name: name, run: infra[name]})
+	}
 	return &Service{
 		targets: targets,
-		probes:  probes,
+		infra:   checks,
 		client:  httpx.NewClient("health", 2*time.Second, httpx.WithoutRetries()),
 	}
 }
@@ -92,23 +98,23 @@ func (s *Service) Check(ctx context.Context) Report {
 	if !s.cached.CheckedAt.IsZero() && time.Since(s.cached.CheckedAt) < cacheTTL {
 		return s.cached
 	}
-	results := make([]Result, len(s.targets)+len(s.probes))
+	results := make([]Result, len(s.targets)+len(s.infra))
 	var wg sync.WaitGroup
 	for i, t := range s.targets {
 		wg.Go(func() { results[i] = s.checkService(ctx, t) })
 	}
-	for i, p := range s.probes {
-		wg.Go(func() { results[len(s.targets)+i] = checkProbe(ctx, p) })
+	for i, c := range s.infra {
+		wg.Go(func() { results[len(s.targets)+i] = checkInfra(ctx, c) })
 	}
 	wg.Wait()
 	s.cached = Report{CheckedAt: time.Now().UTC(), Results: results}
 	return s.cached
 }
 
-func checkProbe(ctx context.Context, p Probe) Result {
+func checkInfra(ctx context.Context, c infraCheck) Result {
 	start := time.Now()
-	res := Result{Name: p.Name, Kind: KindInfra, Healthy: true}
-	if err := p.Run(ctx); err != nil {
+	res := Result{Name: c.name, Kind: KindInfra, Healthy: true}
+	if err := c.run(ctx); err != nil {
 		res.Healthy, res.Error = false, err.Error()
 	}
 	res.LatencyMS = time.Since(start).Milliseconds()

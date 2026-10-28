@@ -2,7 +2,6 @@ package v1
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -17,11 +16,10 @@ type jobs interface {
 
 type Handler struct {
 	jobs jobs
-	log  *slog.Logger
 }
 
-func NewHandler(jobs jobs, log *slog.Logger) *Handler {
-	return &Handler{jobs: jobs, log: log}
+func NewHandler(jobs jobs) *Handler {
+	return &Handler{jobs: jobs}
 }
 
 func (h *Handler) Register(public huma.API) {
@@ -46,7 +44,7 @@ func (h *Handler) Register(public huma.API) {
 func (h *Handler) list(ctx context.Context, _ *struct{}) (*ListJobsResponse, error) {
 	items, err := h.jobs.Jobs(ctx)
 	if err != nil {
-		return nil, httpx.Fail(ctx, h.log, err)
+		return nil, err
 	}
 	out := &ListJobsResponse{}
 	out.Body.Items = make([]Job, 0, len(items))
@@ -59,7 +57,7 @@ func (h *Handler) list(ctx context.Context, _ *struct{}) (*ListJobsResponse, err
 func (h *Handler) run(ctx context.Context, in *RunJobRequest) (*RunJobResponse, error) {
 	run, err := h.jobs.Run(ctx, in.Name)
 	if err != nil {
-		return nil, httpx.Fail(ctx, h.log, err)
+		return nil, err
 	}
 	return &RunJobResponse{Body: Run{Job: run.Job, Status: run.Status, DurationMS: run.DurationMS, Error: run.Error}}, nil
 }

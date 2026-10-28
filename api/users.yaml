@@ -31,7 +31,7 @@ components:
         - code
         - message
       type: object
-    ListUsersResponseBody:
+    PageUser:
       additionalProperties: false
       properties:
         items:
@@ -109,7 +109,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ListUsersResponseBody"
+                $ref: "#/components/schemas/PageUser"
           description: OK
         "401":
           content:
@@ -232,7 +232,7 @@ paths:
           description: Internal Server Error
       security:
         - bearer: []
-      summary: Get a user
+      summary: Get your own user, any other id answers 404
       tags:
         - Users
       x-access: user

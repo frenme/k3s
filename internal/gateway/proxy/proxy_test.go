@@ -96,7 +96,7 @@ func TestClientSuppliedForwardingHeadersAreReplaced(t *testing.T) {
 }
 
 func TestRouteTimeoutBecomesGatewayTimeout(t *testing.T) {
-	table := policy.Table{{Method: "GET", Path: "/api/v1/users/slow", Access: policy.AccessPublic, Timeout: 50 * time.Millisecond}}
+	table := policy.Table{{Method: "GET", Path: "/api/v1/users/slow", Access: httpx.AccessPublic, Timeout: 50 * time.Millisecond}}
 	srv := gatewayFor(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-time.After(2 * time.Second):
@@ -132,7 +132,7 @@ func TestCircuitOpensAfterRepeatedFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusServiceUnavailable || resp.Header.Get("Retry-After") == "" || hits.Load() != before {
+	if resp.StatusCode != http.StatusServiceUnavailable || resp.Header.Get("Retry-After") != "3600" || hits.Load() != before {
 		t.Fatalf("status %d, upstream hit again: %v", resp.StatusCode, hits.Load() != before)
 	}
 }

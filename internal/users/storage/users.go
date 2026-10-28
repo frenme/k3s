@@ -51,6 +51,9 @@ func (s *Users) List(ctx context.Context, limit int, after *pagination.Cursor) (
 }
 
 func (s *Users) Get(ctx context.Context, id string) (model.User, error) {
+	if !pg.IsUUID(id) {
+		return model.User{}, model.ErrUserNotFound
+	}
 	return cache.Fetch(ctx, s.cache, id, userCacheTTL, func() (model.User, error) {
 		u, err := pg.Read(ctx, s.db, func(db *gorm.DB) (model.User, error) {
 			var row userRow

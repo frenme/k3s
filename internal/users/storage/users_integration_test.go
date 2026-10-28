@@ -39,6 +39,9 @@ func TestUsers(t *testing.T) {
 	if _, err := store.Get(ctx, uuid.NewString()); !errors.Is(err, model.ErrUserNotFound) {
 		t.Fatalf("missing err %v", err)
 	}
+	if _, err := store.Get(ctx, "not-a-uuid"); !errors.Is(err, model.ErrUserNotFound) {
+		t.Fatalf("not a uuid err %v", err)
+	}
 
 	list, err := store.List(ctx, 1, nil)
 	if err != nil || len(list) != 2 || list[0].Email != "bob@example.com" {
@@ -84,6 +87,12 @@ func TestRoles(t *testing.T) {
 	}
 	if err := roles.Grant(ctx, missing, model.RoleAdmin); !errors.Is(err, model.ErrUserNotFound) {
 		t.Fatalf("grant for a missing user: %v", err)
+	}
+	if _, err := roles.Assigned(ctx, "not-a-uuid"); !errors.Is(err, model.ErrUserNotFound) {
+		t.Fatalf("assigned for an id that is not a uuid: %v", err)
+	}
+	if err := roles.Revoke(ctx, "not-a-uuid", model.RoleAdmin); !errors.Is(err, model.ErrUserNotFound) {
+		t.Fatalf("revoke for an id that is not a uuid: %v", err)
 	}
 }
 

@@ -37,7 +37,9 @@ func NewAPI(mux *http.ServeMux, service string) huma.API {
 	cfg.OpenAPIPath = "/v1/" + service + "/openapi"
 	cfg.DocsPath = "/v1/" + service + "/docs"
 	cfg.Components.SecuritySchemes = securitySchemes()
-	return humago.New(mux, cfg)
+	api := humago.New(mux, cfg)
+	api.UseMiddleware(identify)
+	return api
 }
 
 func NewInternalAPI(mux *http.ServeMux, service string) huma.API {

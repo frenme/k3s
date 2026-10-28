@@ -12,8 +12,10 @@ import (
 
 var durationType = reflect.TypeOf(time.Duration(0))
 
-func Load(dst any) error {
-	return LoadFrom(os.LookupEnv, dst)
+func Load[T any]() (T, error) {
+	var v T
+	err := LoadFrom(os.LookupEnv, &v)
+	return v, err
 }
 
 func LoadFrom(lookup func(string) (string, bool), dst any) error {

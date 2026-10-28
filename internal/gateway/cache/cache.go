@@ -54,7 +54,7 @@ func (c *Cache) Middleware() httpx.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			rule := policy.From(r.Context()).Rule
-			if r.Method != http.MethodGet || rule.CacheTTL <= 0 || rule.Access != policy.AccessPublic {
+			if r.Method != http.MethodGet || rule.CacheTTL <= 0 || rule.Access != httpx.AccessPublic {
 				next.ServeHTTP(w, r)
 				return
 			}

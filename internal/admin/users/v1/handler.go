@@ -2,7 +2,6 @@ package v1
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -17,11 +16,10 @@ type users interface {
 
 type Handler struct {
 	users users
-	log   *slog.Logger
 }
 
-func NewHandler(users users, log *slog.Logger) *Handler {
-	return &Handler{users: users, log: log}
+func NewHandler(users users) *Handler {
+	return &Handler{users: users}
 }
 
 func (h *Handler) Register(public huma.API) {
@@ -35,22 +33,11 @@ func (h *Handler) Register(public huma.API) {
 }
 
 func (h *Handler) list(ctx context.Context, in *ListRequest) (*ListUsersResponse, error) {
-	after, err := pagination.Decode(in.Cursor)
-	if err != nil {
-		return nil, httpx.Fail(ctx, h.log, err)
-	}
-	found, err := h.users.List(ctx, in.Limit, after)
-	if err != nil {
-		return nil, httpx.Fail(ctx, h.log, err)
-	}
-	page := pagination.NewPage(found, in.Limit, func(u storage.User) pagination.Cursor {
+	page, err := pagination.Fetch(ctx, in.Params, h.users.List, func(u storage.User) pagination.Cursor {
 		return pagination.Cursor{CreatedAt: u.CreatedAt, ID: u.ID}
 	})
-	out := &ListUsersResponse{}
-	out.Body.Items = make([]User, 0, len(page.Items))
-	for _, u := range page.Items {
-		out.Body.Items = append(out.Body.Items, toUser(u))
+	if err != nil {
+		return nil, err
 	}
-	out.Body.NextCursor = page.Next
-	return out, nil
+	return &ListUsersResponse{Body: pagination.Map(page, toUser)}, nil
 }

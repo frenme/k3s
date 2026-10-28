@@ -3,8 +3,6 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,7 +26,7 @@ func (f fakeJobs) Run(context.Context, string) (clients.Run, error) {
 func call(t *testing.T, jobs fakeJobs, method, path string) (int, map[string]any) {
 	t.Helper()
 	mux := http.NewServeMux()
-	NewHandler(jobs, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewAPI(mux, "admin"))
+	NewHandler(jobs).Register(httpx.NewAPI(mux, "admin"))
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 	req, _ := http.NewRequest(method, srv.URL+path, nil)

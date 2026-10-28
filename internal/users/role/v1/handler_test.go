@@ -3,8 +3,6 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -49,7 +47,7 @@ func servers(t *testing.T, id string) (public, internal string) {
 	t.Helper()
 	svc := role.NewService(&fakeStore{roles: map[string][]model.Role{id: nil}})
 	pubMux, inMux := http.NewServeMux(), http.NewServeMux()
-	NewHandler(svc, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewAPI(pubMux, "users"), httpx.NewInternalAPI(inMux, "users"))
+	NewHandler(svc).Register(httpx.NewAPI(pubMux, "users"), httpx.NewInternalAPI(inMux, "users"))
 	pub, in := httptest.NewServer(pubMux), httptest.NewServer(inMux)
 	t.Cleanup(pub.Close)
 	t.Cleanup(in.Close)

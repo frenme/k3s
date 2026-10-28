@@ -14,19 +14,22 @@ func TestClientRecordsMetrics(t *testing.T) {
 		w.WriteHeader(http.StatusTeapot)
 	}))
 	c := NewClient("probe", time.Second, WithoutRetries())
+	teapots := clientRequests.WithLabelValues("probe", http.MethodGet, "4xx")
+	failures := clientRequests.WithLabelValues("probe", http.MethodGet, "error")
+	teapotsBefore, failuresBefore := testutil.ToFloat64(teapots), testutil.ToFloat64(failures)
 	resp, err := c.Get(srv.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
 	_ = resp.Body.Close()
-	if got := testutil.ToFloat64(clientRequests.WithLabelValues("probe", http.MethodGet, "4xx")); got != 1 {
+	if got := testutil.ToFloat64(teapots) - teapotsBefore; got != 1 {
 		t.Fatalf("4xx counter %v", got)
 	}
 	srv.Close()
 	if _, err := c.Get(srv.URL); err == nil {
 		t.Fatal("expected error")
 	}
-	if got := testutil.ToFloat64(clientRequests.WithLabelValues("probe", http.MethodGet, "error")); got != 1 {
+	if got := testutil.ToFloat64(failures) - failuresBefore; got != 1 {
 		t.Fatalf("error counter %v", got)
 	}
 }

@@ -11,25 +11,22 @@ import (
 	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
-const (
-	UserIDHeader    = "X-User-ID"
-	UserRolesHeader = "X-User-Roles"
-	AdminRole       = "admin"
-)
+const AdminRole = "admin"
 
 func Authorize(verifier *Verifier, roles RoleSource, log *slog.Logger) httpx.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r.Header.Del(UserIDHeader)
-			r.Header.Del(UserRolesHeader)
+			r.Header.Del(httpx.UserIDHeader)
+			r.Header.Del(httpx.UserRolesHeader)
+			token, hasToken := bearerToken(r)
+			r.Header.Del("Authorization")
 			access := policy.From(r.Context()).Rule.Access
-			if access == policy.AccessPublic {
+			if access == httpx.AccessPublic {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			token, ok := bearerToken(r)
-			if !ok {
+			if !hasToken {
 				unauthorized(w)
 				return
 			}
@@ -38,11 +35,10 @@ func Authorize(verifier *Verifier, roles RoleSource, log *slog.Logger) httpx.Mid
 				unauthorized(w)
 				return
 			}
-			r.Header.Del("Authorization")
-			r.Header.Set(UserIDHeader, subject)
+			r.Header.Set(httpx.UserIDHeader, subject)
 			httpx.LogAttrs(r.Context(), slog.String("user_id", subject))
 
-			if access == policy.AccessAdmin {
+			if access == httpx.AccessAdmin {
 				httpx.MarkAudit(r.Context())
 				granted, err := roles.Roles(r.Context(), subject)
 				if err != nil {
@@ -54,7 +50,7 @@ func Authorize(verifier *Verifier, roles RoleSource, log *slog.Logger) httpx.Mid
 					httpx.WriteError(w, model.ErrForbidden)
 					return
 				}
-				r.Header.Set(UserRolesHeader, strings.Join(granted, ","))
+				r.Header.Set(httpx.UserRolesHeader, strings.Join(granted, ","))
 			}
 			next.ServeHTTP(w, r)
 		})
@@ -71,5 +67,5 @@ func bearerToken(r *http.Request) (string, bool) {
 
 func unauthorized(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate", `Bearer realm="api"`)
-	httpx.WriteError(w, model.ErrUnauthorized)
+	httpx.WriteError(w, httpx.ErrUnauthorized)
 }

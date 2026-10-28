@@ -3,8 +3,6 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -52,7 +50,7 @@ func TestAppConfig(t *testing.T) {
 		"internal_limit":       {Key: "internal_limit", Value: json.RawMessage(`{"max":5}`)},
 	}
 	pubMux, inMux := http.NewServeMux(), http.NewServeMux()
-	NewHandler(appconfig.NewService(store), slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewAPI(pubMux, "common"), httpx.NewInternalAPI(inMux, "common"))
+	NewHandler(appconfig.NewService(store)).Register(httpx.NewAPI(pubMux, "common"), httpx.NewInternalAPI(inMux, "common"))
 	pub, in := httptest.NewServer(pubMux), httptest.NewServer(inMux)
 	defer pub.Close()
 	defer in.Close()

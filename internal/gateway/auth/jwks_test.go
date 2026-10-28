@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -99,6 +100,42 @@ func TestJWKSRejectsUnknownKeysWithoutHammeringTheIDP(t *testing.T) {
 	}
 	if _, err := v.Subject(signRS(t, attacker, "key-1")); err == nil {
 		t.Fatal("a token signed with another key but a known kid was accepted")
+	}
+}
+
+func TestJWKSUnknownKidFloodCausesOneFetch(t *testing.T) {
+	k1, _ := rsa.GenerateKey(rand.Reader, 2048)
+	attacker, _ := rsa.GenerateKey(rand.Reader, 2048)
+	for _, down := range []bool{false, true} {
+		var calls atomic.Int32
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls.Add(1)
+			time.Sleep(20 * time.Millisecond)
+			if down {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]string{jwkFor("key-1", &k1.PublicKey)}})
+		}))
+		v, _ := NewVerifier(JWTConfig{JWKSURL: srv.URL, JWKSRefresh: time.Hour}, discard())
+		v.jwks.keys = map[string]any{"key-1": &k1.PublicKey}
+		token := signRS(t, attacker, "forged")
+
+		var wg sync.WaitGroup
+		for range 30 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if _, err := v.Subject(token); err == nil {
+					t.Error("a token with an unknown kid was accepted")
+				}
+			}()
+		}
+		wg.Wait()
+		srv.Close()
+		if got := calls.Load(); got != 1 {
+			t.Fatalf("identity provider down=%v: a burst of unknown kids caused %d fetches, want 1", down, got)
+		}
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/egor/k3s-base/internal/gateway/model"
 	"github.com/egor/k3s-base/internal/lib/httpx"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
@@ -60,6 +61,10 @@ func (v *Validator) Middleware() httpx.Middleware {
 }
 
 func toError(err error) httpx.Error {
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		return model.ErrPayloadTooLarge
+	}
 	var reqErr *openapi3filter.RequestError
 	if !errors.As(err, &reqErr) {
 		return httpx.ErrInvalidInput.With(firstLine(err.Error()))

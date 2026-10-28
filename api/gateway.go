@@ -65,6 +65,9 @@ func collectRules(specs map[string]*huma.OpenAPI) ([]rule, error) {
 				if !ok {
 					return nil, fmt.Errorf("%s %s (%s): register public operations with httpx.Register", method, path, service)
 				}
+				if !httpx.Access(access).Valid() {
+					return nil, fmt.Errorf("%s %s (%s): unknown access %q", method, path, service, access)
+				}
 				r := rule{method: method, path: "/api" + pathParam.ReplaceAllString(path, "*"), access: access}
 				var err error
 				if r.timeout, err = duration(op, httpx.TimeoutExtension); err != nil {
@@ -106,9 +109,9 @@ func duration(op *huma.Operation, key string) (time.Duration, error) {
 
 func renderRules(rules []rule) ([]byte, error) {
 	var b bytes.Buffer
-	b.WriteString("package policy\n\nvar generated = Table{\n")
+	b.WriteString("package policy\n\nimport \"github.com/egor/k3s-base/internal/lib/httpx\"\n\nvar generated = Table{\n")
 	for _, r := range rules {
-		fmt.Fprintf(&b, "\t{Method: %q, Path: %q, Access: %s", r.method, r.path, accessConst(r.access))
+		fmt.Fprintf(&b, "\t{Method: %q, Path: %q, Access: httpx.Access%s", r.method, r.path, strings.ToUpper(r.access[:1])+r.access[1:])
 		if r.timeout > 0 {
 			fmt.Fprintf(&b, ", Timeout: %s", durationExpr(r.timeout))
 		}
@@ -126,17 +129,6 @@ func renderRules(rules []rule) ([]byte, error) {
 
 func durationExpr(d time.Duration) string {
 	return fmt.Sprintf("sec(%d)", d/time.Second)
-}
-
-func accessConst(access string) string {
-	switch httpx.Access(access) {
-	case httpx.AccessPublic:
-		return "AccessPublic"
-	case httpx.AccessAdmin:
-		return "AccessAdmin"
-	default:
-		return "AccessUser"
-	}
 }
 
 func mergeSpecs(specs map[string]*huma.OpenAPI) ([]byte, error) {

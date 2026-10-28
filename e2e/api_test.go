@@ -97,7 +97,11 @@ func userToken(t *testing.T) string {
 }
 
 func adminAuth(t *testing.T) map[string]string {
-	return map[string]string{"Authorization": "Bearer " + tokenFor(t, seededAdminID)}
+	return as(t, seededAdminID)
+}
+
+func as(t *testing.T, subject string) map[string]string {
+	return map[string]string{"Authorization": "Bearer " + tokenFor(t, subject)}
 }
 
 func tokenFor(t *testing.T, subject string) string {
@@ -282,7 +286,7 @@ func TestRequestsAreValidatedAtTheGateway(t *testing.T) {
 }
 
 func TestBodyLimitAndRouteTimeoutSettings(t *testing.T) {
-	huge := map[string]any{"user_id": seededAdminID, "item": strings.Repeat("x", 70000), "amount_cents": 1}
+	huge := map[string]any{"item": strings.Repeat("x", 70000), "amount_cents": 1}
 	expect(t, call(t, http.MethodPost, "/api/v1/orders", huge, map[string]string{noValidate: ""}), http.StatusRequestEntityTooLarge)
 }
 
@@ -348,19 +352,27 @@ func TestUsersAndOrders(t *testing.T) {
 	if userID == "" {
 		t.Fatal("user id missing")
 	}
+	me := as(t, userID)
+	stranger := as(t, "00000000-0000-4000-8000-0000000000ff")
 
 	expect(t, call(t, http.MethodPost, "/api/v1/users", map[string]string{"email": email, "name": "E2E"}, nil), http.StatusConflict)
-	expect(t, call(t, http.MethodGet, "/api/v1/users/"+userID, nil, nil), http.StatusOK)
+	expect(t, call(t, http.MethodGet, "/api/v1/users/"+userID, nil, me), http.StatusOK)
+	expect(t, call(t, http.MethodGet, "/api/v1/users/"+userID, nil, stranger), http.StatusNotFound)
+	expect(t, call(t, http.MethodGet, "/api/v1/users/"+userID, nil, nil), http.StatusUnauthorized)
 
-	order := map[string]any{"user_id": userID, "item": "widget", "amount_cents": 1999}
-	key := map[string]string{"Idempotency-Key": "e2e-" + userID}
+	order := map[string]any{"item": "widget", "amount_cents": 1999}
+	key := map[string]string{"Idempotency-Key": "e2e-" + userID, "Authorization": me["Authorization"]}
 
 	first := call(t, http.MethodPost, "/api/v1/orders", order, key)
 	expect(t, first, http.StatusCreated)
 	orderID, _ := first.body["id"].(string)
+	if first.body["user_id"] != userID {
+		t.Fatalf("the order must belong to the token subject: %v", first.body)
+	}
 
-	expect(t, call(t, http.MethodGet, "/api/v1/orders/"+orderID, nil, nil), http.StatusOK)
-	expect(t, call(t, http.MethodGet, "/api/v1/orders/00000000-0000-0000-0000-000000000000", nil, nil), http.StatusNotFound)
+	expect(t, call(t, http.MethodGet, "/api/v1/orders/"+orderID, nil, me), http.StatusOK)
+	expect(t, call(t, http.MethodGet, "/api/v1/orders/"+orderID, nil, stranger), http.StatusNotFound)
+	expect(t, call(t, http.MethodGet, "/api/v1/orders/00000000-0000-0000-0000-000000000000", nil, me), http.StatusNotFound)
 
 	replay := call(t, http.MethodPost, "/api/v1/orders", order, key)
 	expect(t, replay, http.StatusOK)
@@ -368,19 +380,23 @@ func TestUsersAndOrders(t *testing.T) {
 		t.Fatalf("replay returned another order: %v", replay.body["id"])
 	}
 
-	changed := map[string]any{"user_id": userID, "item": "widget", "amount_cents": 1}
+	changed := map[string]any{"item": "widget", "amount_cents": 1}
 	reused := call(t, http.MethodPost, "/api/v1/orders", changed, key)
 	expect(t, reused, http.StatusUnprocessableEntity)
 	if reused.body["code"] != "idempotency_key_reused" {
 		t.Fatalf("reused key: %v", reused.body)
 	}
 
-	unknown := map[string]any{"user_id": "00000000-0000-0000-0000-000000000000", "item": "x", "amount_cents": 1}
-	expect(t, call(t, http.MethodPost, "/api/v1/orders", unknown, nil), http.StatusUnprocessableEntity)
+	expect(t, call(t, http.MethodPost, "/api/v1/orders", map[string]any{"item": "x", "amount_cents": 1}, stranger), http.StatusUnprocessableEntity)
 
-	list := call(t, http.MethodGet, "/api/v1/orders?user_id="+userID, nil, nil)
+	list := call(t, http.MethodGet, "/api/v1/orders", nil, me)
 	expect(t, list, http.StatusOK)
 	if items, _ := list.body["items"].([]any); len(items) != 1 {
 		t.Fatalf("expected 1 order, got %d", len(items))
+	}
+	others := call(t, http.MethodGet, "/api/v1/orders", nil, stranger)
+	expect(t, others, http.StatusOK)
+	if items, _ := others.body["items"].([]any); len(items) != 0 {
+		t.Fatalf("another user sees %d orders", len(items))
 	}
 }

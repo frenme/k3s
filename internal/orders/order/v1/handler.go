@@ -2,24 +2,23 @@ package v1
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/egor/k3s-base/internal/lib/httpx"
 	"github.com/egor/k3s-base/internal/lib/idempotency"
+	"github.com/egor/k3s-base/internal/lib/pagination"
 	"github.com/egor/k3s-base/internal/orders/model"
 	"github.com/egor/k3s-base/internal/orders/order"
 )
 
 type Handler struct {
 	svc *order.Service
-	log *slog.Logger
 }
 
-func NewHandler(svc *order.Service, log *slog.Logger) *Handler {
-	return &Handler{svc: svc, log: log}
+func NewHandler(svc *order.Service) *Handler {
+	return &Handler{svc: svc}
 }
 
 func (h *Handler) Register(public huma.API) {
@@ -27,7 +26,7 @@ func (h *Handler) Register(public huma.API) {
 		OperationID: "list-orders",
 		Method:      http.MethodGet,
 		Path:        "/v1/orders",
-		Summary:     "List orders",
+		Summary:     "List your orders",
 		Tags:        []string{"Orders"},
 	}, httpx.AccessUser, h.list)
 	httpx.Register(public, huma.Operation{
@@ -48,54 +47,56 @@ func (h *Handler) Register(public huma.API) {
 		OperationID: "get-order",
 		Method:      http.MethodGet,
 		Path:        "/v1/orders/{id}",
-		Summary:     "Get an order",
+		Summary:     "Get your own order, an order of someone else answers 404",
 		Tags:        []string{"Orders"},
 		Errors:      []int{http.StatusNotFound},
 	}, httpx.AccessUser, h.get)
 }
 
 func (h *Handler) list(ctx context.Context, in *ListOrdersRequest) (*ListOrdersResponse, error) {
-	page, err := h.svc.List(ctx, in.UserID, in.Limit, in.Cursor)
+	viewer, err := httpx.CurrentUser(ctx)
 	if err != nil {
-		return nil, h.fail(ctx, err)
+		return nil, err
 	}
-	out := &ListOrdersResponse{}
-	out.Body.Items = make([]Order, 0, len(page.Items))
-	for _, o := range page.Items {
-		out.Body.Items = append(out.Body.Items, toOrder(o))
+	page, err := h.svc.List(ctx, viewer, in.Params)
+	if err != nil {
+		return nil, err
 	}
-	out.Body.NextCursor = page.Next
-	return out, nil
+	return &ListOrdersResponse{Body: pagination.Map(page, toOrder)}, nil
 }
 
 func (h *Handler) get(ctx context.Context, in *GetOrderRequest) (*OrderResponse, error) {
-	o, err := h.svc.Get(ctx, in.ID)
+	viewer, err := httpx.CurrentUser(ctx)
 	if err != nil {
-		return nil, h.fail(ctx, err)
+		return nil, err
+	}
+	o, err := h.svc.Get(ctx, viewer, in.ID)
+	if err != nil {
+		return nil, err
 	}
 	return &OrderResponse{Status: http.StatusOK, Body: toOrder(o)}, nil
 }
 
 func (h *Handler) create(ctx context.Context, in *CreateOrderRequest) (*OrderResponse, error) {
-	idem, err := idempotency.New(in.Body.UserID, in.IdempotencyKey, in.Body)
+	viewer, err := httpx.CurrentUser(ctx)
 	if err != nil {
-		return nil, h.fail(ctx, err)
+		return nil, err
+	}
+	idem, err := idempotency.New(viewer, in.IdempotencyKey, in.Body)
+	if err != nil {
+		return nil, err
 	}
 	o, created, err := h.svc.Create(ctx, model.Order{
-		UserID:      in.Body.UserID,
+		UserID:      viewer,
 		Item:        in.Body.Item,
 		AmountCents: in.Body.AmountCents,
 	}, idem)
 	if err != nil {
-		return nil, h.fail(ctx, err)
+		return nil, err
 	}
 	status := http.StatusCreated
 	if !created {
 		status = http.StatusOK
 	}
 	return &OrderResponse{Status: status, Body: toOrder(o)}, nil
-}
-
-func (h *Handler) fail(ctx context.Context, err error) error {
-	return httpx.Fail(ctx, h.log, err)
 }

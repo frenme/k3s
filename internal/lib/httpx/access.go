@@ -22,6 +22,10 @@ const (
 	CacheTTLExtension = "x-cache-ttl"
 )
 
+func (a Access) Valid() bool {
+	return a == AccessPublic || a == AccessUser || a == AccessAdmin
+}
+
 type RouteOption func(extensions map[string]any)
 
 func WithTimeout(d time.Duration) RouteOption {
@@ -54,7 +58,21 @@ func Register[I, O any](api huma.API, op huma.Operation, access Access, handler 
 		op.Security = []map[string][]string{{"bearer": {}}}
 		op.Errors = withStatus(withStatus(op.Errors, http.StatusUnauthorized), http.StatusForbidden)
 	}
-	huma.Register(api, op, handler)
+	huma.Register(api, op, handleErrors(handler))
+}
+
+func RegisterInternal[I, O any](api huma.API, op huma.Operation, handler func(context.Context, *I) (*O, error)) {
+	huma.Register(api, op, handleErrors(handler))
+}
+
+func handleErrors[I, O any](handler func(context.Context, *I) (*O, error)) func(context.Context, *I) (*O, error) {
+	return func(ctx context.Context, in *I) (*O, error) {
+		out, err := handler(ctx, in)
+		if err != nil {
+			return nil, fail(ctx, err)
+		}
+		return out, nil
+	}
 }
 
 func withStatus(statuses []int, status int) []int {

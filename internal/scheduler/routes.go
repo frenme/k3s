@@ -3,7 +3,6 @@ package scheduler
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -25,7 +24,7 @@ func Setup(ctx context.Context, s *app.Service) error {
 		return errors.New("REDIS_ADDR is required: job locks live in redis")
 	}
 	client := s.Redis()
-	s.Health.Add("redis", func(ctx context.Context) error { return client.Ping(ctx).Err() })
+	s.Probes.Add("redis", func(ctx context.Context) error { return client.Ping(ctx).Err() })
 
 	svc, err := jobs.NewService(s.Log, locker, jobs.Catalog(s.Log))
 	if err != nil {
@@ -38,16 +37,16 @@ func Setup(ctx context.Context, s *app.Service) error {
 		case <-time.After(stopTimeout):
 		}
 	})
-	register(httpx.NewInternalAPI(s.Internal, name), svc, s.Log)
+	register(httpx.NewInternalAPI(s.Internal, name), svc)
 	return nil
 }
 
 func OpenAPI() *huma.OpenAPI {
 	api := httpx.NewInternalAPI(http.NewServeMux(), name)
-	register(api, nil, nil)
+	register(api, nil)
 	return api.OpenAPI()
 }
 
-func register(internal huma.API, svc *jobs.Service, log *slog.Logger) {
-	jobsv1.NewHandler(svc, log).Register(internal)
+func register(internal huma.API, svc *jobs.Service) {
+	jobsv1.NewHandler(svc).Register(internal)
 }

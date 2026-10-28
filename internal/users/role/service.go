@@ -5,7 +5,6 @@ import (
 	"slices"
 
 	"github.com/egor/k3s-base/internal/users/model"
-	"github.com/google/uuid"
 )
 
 type store interface {
@@ -23,9 +22,6 @@ func NewService(store store) *Service {
 }
 
 func (s *Service) Roles(ctx context.Context, userID string) ([]model.Role, error) {
-	if uuid.Validate(userID) != nil {
-		return nil, model.ErrUserNotFound
-	}
 	assigned, err := s.store.Assigned(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -47,9 +43,6 @@ func (s *Service) change(ctx context.Context, userID, role string, apply func(co
 	parsed, ok := model.ParseRole(role)
 	if !ok {
 		return nil, model.ErrInvalidRole
-	}
-	if uuid.Validate(userID) != nil {
-		return nil, model.ErrUserNotFound
 	}
 	if err := apply(ctx, userID, parsed); err != nil {
 		return nil, err

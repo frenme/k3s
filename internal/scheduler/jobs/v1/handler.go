@@ -2,7 +2,6 @@ package v1
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -12,22 +11,21 @@ import (
 
 type Handler struct {
 	svc *jobs.Service
-	log *slog.Logger
 }
 
-func NewHandler(svc *jobs.Service, log *slog.Logger) *Handler {
-	return &Handler{svc: svc, log: log}
+func NewHandler(svc *jobs.Service) *Handler {
+	return &Handler{svc: svc}
 }
 
 func (h *Handler) Register(internal huma.API) {
-	huma.Register(internal, huma.Operation{
+	httpx.RegisterInternal(internal, huma.Operation{
 		OperationID: "internal-list-jobs",
 		Method:      http.MethodGet,
 		Path:        "/internal/v1/scheduler/jobs",
 		Summary:     "List scheduled jobs",
 		Tags:        []string{"Internal"},
 	}, h.list)
-	huma.Register(internal, huma.Operation{
+	httpx.RegisterInternal(internal, huma.Operation{
 		OperationID: "internal-run-job",
 		Method:      http.MethodPost,
 		Path:        "/internal/v1/scheduler/jobs/{name}/run",
@@ -50,7 +48,7 @@ func (h *Handler) list(_ context.Context, _ *struct{}) (*ListJobsResponse, error
 func (h *Handler) run(ctx context.Context, in *RunJobRequest) (*RunJobResponse, error) {
 	run, err := h.svc.Run(ctx, in.Name)
 	if err != nil {
-		return nil, httpx.Fail(ctx, h.log, err)
+		return nil, err
 	}
 	return &RunJobResponse{Body: toRun(run)}, nil
 }

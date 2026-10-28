@@ -30,7 +30,7 @@ func server(t *testing.T) string {
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	NewHandler(svc, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewInternalAPI(mux, "scheduler"))
+	NewHandler(svc).Register(httpx.NewInternalAPI(mux, "scheduler"))
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 	return srv.URL

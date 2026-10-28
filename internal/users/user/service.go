@@ -6,7 +6,6 @@ import (
 
 	"github.com/egor/k3s-base/internal/lib/pagination"
 	"github.com/egor/k3s-base/internal/users/model"
-	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -35,25 +34,21 @@ func NewService(store store, cfg appConfigSource) *Service {
 	return &Service{store: store, cfg: cfg}
 }
 
-func (s *Service) List(ctx context.Context, limit int, cursor string) (pagination.Page[model.User], error) {
-	after, err := pagination.Decode(cursor)
-	if err != nil {
-		return pagination.Page[model.User]{}, err
-	}
-	users, err := s.store.List(ctx, limit, after)
-	if err != nil {
-		return pagination.Page[model.User]{}, err
-	}
-	return pagination.NewPage(users, limit, func(u model.User) pagination.Cursor {
+func (s *Service) List(ctx context.Context, p pagination.Params) (pagination.Page[model.User], error) {
+	return pagination.Fetch(ctx, p, s.store.List, func(u model.User) pagination.Cursor {
 		return pagination.Cursor{CreatedAt: u.CreatedAt, ID: u.ID}
-	}), nil
+	})
 }
 
 func (s *Service) Get(ctx context.Context, id string) (model.User, error) {
-	if uuid.Validate(id) != nil {
+	return s.store.Get(ctx, id)
+}
+
+func (s *Service) GetSelf(ctx context.Context, viewerID, id string) (model.User, error) {
+	if !strings.EqualFold(viewerID, id) {
 		return model.User{}, model.ErrUserNotFound
 	}
-	return s.store.Get(ctx, id)
+	return s.Get(ctx, id)
 }
 
 func (s *Service) Create(ctx context.Context, email, name string) (model.User, error) {

@@ -20,48 +20,41 @@ type ServerConfig struct {
 	IdleTimeout  time.Duration `env:"IDLE_TIMEOUT" default:"60s"`
 }
 
-type Listener struct {
-	Addr    string
-	Handler http.Handler
+type Server struct {
+	Name     string
+	Public   bool
+	Log      *slog.Logger
+	Probes   *Probes
+	Mux      *http.ServeMux
+	Internal *http.ServeMux
 }
 
-func Serve(ctx context.Context, name string, public bool, log *slog.Logger, health *Health, mux, internal *http.ServeMux) error {
-	var cfg ServerConfig
-	if err := envconfig.Load(&cfg); err != nil {
+func Serve(ctx context.Context, s Server) error {
+	cfg, err := envconfig.Load[ServerConfig]()
+	if err != nil {
 		return err
 	}
-	return Run(ctx, cfg, health, log,
-		Listener{Addr: cfg.Addr, Handler: Chain(JSONErrors(mux), Trace(name, public), Observe(log), Recover(log))},
-		Listener{Addr: cfg.InternalAddr, Handler: Chain(JSONErrors(internal), Trace(name, false), Observe(log), Recover(log))},
-	)
-}
-
-func Run(ctx context.Context, cfg ServerConfig, health *Health, log *slog.Logger, listeners ...Listener) error {
-	servers := make([]*http.Server, 0, len(listeners))
-	errCh := make(chan error, len(listeners))
-	for _, l := range listeners {
-		srv := &http.Server{
-			Addr:              l.Addr,
-			Handler:           l.Handler,
-			ReadHeaderTimeout: 5 * time.Second,
-			ReadTimeout:       cfg.ReadTimeout,
-			WriteTimeout:      cfg.WriteTimeout,
-			IdleTimeout:       cfg.IdleTimeout,
-		}
-		servers = append(servers, srv)
+	servers := []*http.Server{
+		newServer(cfg, cfg.Addr, Chain(JSONErrors(s.Mux), Trace(s.Name, s.Public), Observe(s.Log), Recover(s.Log))),
+		newServer(cfg, cfg.InternalAddr, Chain(JSONErrors(s.Internal), Trace(s.Name, false), Observe(s.Log), Recover(s.Log))),
+	}
+	errCh := make(chan error, len(servers))
+	for _, srv := range servers {
 		go func() {
-			log.Info("listening", "addr", srv.Addr)
+			s.Log.Info("listening", "addr", srv.Addr)
 			errCh <- srv.ListenAndServe()
 		}()
 	}
 	select {
 	case err := <-errCh:
-		shutdown(servers)
+		for _, srv := range servers {
+			_ = srv.Close()
+		}
 		return err
 	case <-ctx.Done():
 	}
-	log.Info("shutdown requested", "drain", cfg.DrainDelay.String())
-	health.SetReady(false)
+	s.Log.Info("shutdown requested", "drain", cfg.DrainDelay.String())
+	s.Probes.SetReady(false)
 	time.Sleep(cfg.DrainDelay)
 	sctx, cancel := context.WithTimeout(context.Background(), cfg.GraceTimeout)
 	defer cancel()
@@ -70,12 +63,17 @@ func Run(ctx context.Context, cfg ServerConfig, health *Health, log *slog.Logger
 			return err
 		}
 	}
-	log.Info("shutdown complete")
+	s.Log.Info("shutdown complete")
 	return nil
 }
 
-func shutdown(servers []*http.Server) {
-	for _, srv := range servers {
-		_ = srv.Close()
+func newServer(cfg ServerConfig, addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
 	}
 }

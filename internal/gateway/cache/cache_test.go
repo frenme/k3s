@@ -12,7 +12,7 @@ import (
 	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
-func setup(t *testing.T, status *atomic.Int32, access policy.Access) (http.Handler, *atomic.Int32, *Cache) {
+func setup(t *testing.T, status *atomic.Int32, access httpx.Access) (http.Handler, *atomic.Int32, *Cache) {
 	t.Helper()
 	var hits atomic.Int32
 	c := New(10)
@@ -40,7 +40,7 @@ func get(h http.Handler, path string, headers ...string) *httptest.ResponseRecor
 func TestServesRepeatedGetsFromCache(t *testing.T) {
 	status := &atomic.Int32{}
 	status.Store(200)
-	h, hits, _ := setup(t, status, policy.AccessPublic)
+	h, hits, _ := setup(t, status, httpx.AccessPublic)
 
 	first, second := get(h, "/api/v1/common/app-config"), get(h, "/api/v1/common/app-config")
 	if hits.Load() != 1 || first.Header().Get("X-Cache") != "MISS" || second.Header().Get("X-Cache") != "HIT" {
@@ -63,7 +63,7 @@ func TestServesRepeatedGetsFromCache(t *testing.T) {
 func TestConditionalRequestGets304(t *testing.T) {
 	status := &atomic.Int32{}
 	status.Store(200)
-	h, _, _ := setup(t, status, policy.AccessPublic)
+	h, _, _ := setup(t, status, httpx.AccessPublic)
 	etag := get(h, "/api/v1/common/app-config").Header().Get("ETag")
 	rec := get(h, "/api/v1/common/app-config", "If-None-Match", etag)
 	if etag == "" || rec.Code != http.StatusNotModified || rec.Body.Len() != 0 {
@@ -74,7 +74,7 @@ func TestConditionalRequestGets304(t *testing.T) {
 func TestExpiredEntryIsReloaded(t *testing.T) {
 	status := &atomic.Int32{}
 	status.Store(200)
-	h, hits, c := setup(t, status, policy.AccessPublic)
+	h, hits, c := setup(t, status, httpx.AccessPublic)
 	now := time.Now()
 	c.now = func() time.Time { return now }
 	get(h, "/api/v1/common/app-config")
@@ -88,7 +88,7 @@ func TestExpiredEntryIsReloaded(t *testing.T) {
 func TestServesStaleWhenTheServiceFails(t *testing.T) {
 	status := &atomic.Int32{}
 	status.Store(200)
-	h, _, c := setup(t, status, policy.AccessPublic)
+	h, _, c := setup(t, status, httpx.AccessPublic)
 	now := time.Now()
 	c.now = func() time.Time { return now }
 	get(h, "/api/v1/common/app-config")
@@ -109,7 +109,7 @@ func TestServesStaleWhenTheServiceFails(t *testing.T) {
 func TestErrorsAreNotCached(t *testing.T) {
 	status := &atomic.Int32{}
 	status.Store(500)
-	h, hits, _ := setup(t, status, policy.AccessPublic)
+	h, hits, _ := setup(t, status, httpx.AccessPublic)
 	get(h, "/api/v1/common/app-config")
 	get(h, "/api/v1/common/app-config")
 	if hits.Load() != 2 {
@@ -120,7 +120,7 @@ func TestErrorsAreNotCached(t *testing.T) {
 func TestOnlyPublicGetsAreCached(t *testing.T) {
 	status := &atomic.Int32{}
 	status.Store(200)
-	h, hits, _ := setup(t, status, policy.AccessUser)
+	h, hits, _ := setup(t, status, httpx.AccessUser)
 	get(h, "/api/v1/common/app-config")
 	get(h, "/api/v1/common/app-config")
 	if hits.Load() != 2 {
@@ -132,7 +132,7 @@ func TestConcurrentMissesAreCoalesced(t *testing.T) {
 	var hits atomic.Int32
 	release := make(chan struct{})
 	c := New(10)
-	table := policy.Table{{Method: "GET", Path: "/api/v1/common/app-config", Access: policy.AccessPublic, CacheTTL: time.Minute}}
+	table := policy.Table{{Method: "GET", Path: "/api/v1/common/app-config", Access: httpx.AccessPublic, CacheTTL: time.Minute}}
 	h := httpx.Chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hits.Add(1)
 		<-release
@@ -154,7 +154,7 @@ func TestConcurrentMissesAreCoalesced(t *testing.T) {
 func TestCacheIsBounded(t *testing.T) {
 	status := &atomic.Int32{}
 	status.Store(200)
-	h, _, c := setup(t, status, policy.AccessPublic)
+	h, _, c := setup(t, status, httpx.AccessPublic)
 	for i := range 30 {
 		get(h, "/api/v1/common/app-config?i="+strconvItoa(i))
 	}

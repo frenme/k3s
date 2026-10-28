@@ -10,6 +10,7 @@ import (
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type EnvConfig struct {
@@ -27,35 +28,56 @@ type Config struct {
 	Pooled   bool
 }
 
-func Open(ctx context.Context, name string, fsys fs.FS, dir string) (*Pools, error) {
-	var env EnvConfig
-	if err := envconfig.Load(&env); err != nil {
+type Pools struct {
+	Write      *pgxpool.Pool
+	Read       *pgxpool.Pool
+	name       string
+	collectors []prometheus.Collector
+}
+
+func (p *Pools) register(role string, pool *pgxpool.Pool) {
+	c := newPoolCollector(p.name, role, pool)
+	if err := prometheus.Register(c); err == nil {
+		p.collectors = append(p.collectors, c)
+	}
+}
+
+func (p *Pools) Close() {
+	for _, c := range p.collectors {
+		prometheus.Unregister(c)
+	}
+	if p.Read != nil {
+		p.Read.Close()
+	}
+	p.Write.Close()
+}
+
+func Open(ctx context.Context, name string, migrations fs.FS, dir string) (*Pools, error) {
+	env, err := envconfig.Load[EnvConfig]()
+	if err != nil {
 		return nil, err
 	}
 	if env.Schema == "" {
 		env.Schema = name
 	}
 	pooled := env.DirectURL != ""
+	migrate := migrations != nil
 
-	var write *pgxpool.Pool
-	var err error
-	switch {
-	case fsys == nil:
-		write, err = Connect(ctx, Config{URL: env.URL, Schema: env.Schema, MaxConns: env.MaxConns, Pooled: pooled})
-	case pooled:
-		if err = migrateDirect(ctx, Config{URL: env.DirectURL, Schema: env.Schema, MaxConns: 2}, fsys, dir); err == nil {
-			write, err = Connect(ctx, Config{URL: env.URL, Schema: env.Schema, MaxConns: env.MaxConns, Pooled: true})
-		}
-	default:
-		write, err = Connect(ctx, Config{URL: env.URL, Schema: env.Schema, MaxConns: env.MaxConns})
-		if err == nil {
-			if err = migrateWhenReady(ctx, write, env.Schema, fsys, dir); err != nil {
-				write.Close()
-			}
+	if migrate && pooled {
+		direct := Config{URL: env.DirectURL, Schema: env.Schema, MaxConns: 2}
+		if err := migrateDirect(ctx, direct, migrations, dir); err != nil {
+			return nil, err
 		}
 	}
+	write, err := Connect(ctx, Config{URL: env.URL, Schema: env.Schema, MaxConns: env.MaxConns, Pooled: pooled})
 	if err != nil {
 		return nil, err
+	}
+	if migrate && !pooled {
+		if err := migrateWhenReady(ctx, write, env.Schema, migrations, dir); err != nil {
+			write.Close()
+			return nil, err
+		}
 	}
 
 	pools := &Pools{Write: write, name: name}

@@ -18,6 +18,8 @@ func TestRuleMatching(t *testing.T) {
 	}{
 		{Rule{Method: "GET", Path: "/api/v1/users"}, "GET", "/api/v1/users", true},
 		{Rule{Method: "GET", Path: "/api/v1/users"}, "POST", "/api/v1/users", false},
+		{Rule{Method: "GET", Path: "/api/v1/users"}, "HEAD", "/api/v1/users", true},
+		{Rule{Method: "POST", Path: "/api/v1/users"}, "HEAD", "/api/v1/users", false},
 		{Rule{Method: "GET", Path: "/api/v1/users"}, "GET", "/api/v1/users/1", false},
 		{Rule{Path: "/api/v1/admin/**"}, "DELETE", "/api/v1/admin/a/b/c", true},
 		{Rule{Path: "/api/v1/admin/**"}, "GET", "/api/v1/administrators", false},
@@ -35,19 +37,22 @@ func TestFind(t *testing.T) {
 	table := Default()
 	cases := []struct {
 		method, path string
-		access       Access
+		access       httpx.Access
 		template     string
 		matched      bool
 	}{
-		{"GET", "/api/v1/common/health", AccessPublic, "GET /api/v1/common/health", true},
-		{"GET", "/api/v1/common/health/details", AccessAdmin, "GET /api/v1/common/health/details", true},
-		{"POST", "/api/v1/users", AccessPublic, "POST /api/v1/users", true},
-		{"GET", "/api/v1/users", AccessAdmin, "GET /api/v1/users", true},
-		{"GET", "/api/v1/users/abc", AccessUser, "GET /api/v1/users/*", true},
-		{"GET", "/api/v1/users/abc/roles", AccessAdmin, "GET /api/v1/users/*/roles", true},
-		{"GET", "/api/v1/orders/docs", AccessPublic, "GET /api/v1/*/docs", true},
-		{"GET", "/api/v1/admin/anything/new", AccessAdmin, "/api/v1/admin/**", true},
-		{"GET", "/api/v1/nothing", AccessUser, "unmatched", false},
+		{"GET", "/api/v1/common/health", httpx.AccessPublic, "GET /api/v1/common/health", true},
+		{"GET", "/api/v1/common/health/details", httpx.AccessAdmin, "GET /api/v1/common/health/details", true},
+		{"POST", "/api/v1/users", httpx.AccessPublic, "POST /api/v1/users", true},
+		{"GET", "/api/v1/users", httpx.AccessAdmin, "GET /api/v1/users", true},
+		{"GET", "/api/v1/users/abc", httpx.AccessUser, "GET /api/v1/users/*", true},
+		{"GET", "/api/v1/users/abc/roles", httpx.AccessAdmin, "GET /api/v1/users/*/roles", true},
+		{"GET", "/api/v1/orders/docs", httpx.AccessPublic, "GET /api/v1/*/docs", true},
+		{"GET", "/api/v1/admin/anything/new", httpx.AccessAdmin, "/api/v1/admin/**", true},
+		{"HEAD", "/api/v1/users", httpx.AccessAdmin, "GET /api/v1/users", true},
+		{"HEAD", "/api/v1/users/abc/roles", httpx.AccessAdmin, "GET /api/v1/users/*/roles", true},
+		{"HEAD", "/api/v1/common/health/details", httpx.AccessAdmin, "GET /api/v1/common/health/details", true},
+		{"GET", "/api/v1/nothing", httpx.AccessUser, "unmatched", false},
 	}
 	for _, c := range cases {
 		got := table.Find(c.method, c.path)
@@ -79,7 +84,7 @@ func TestResolveSetsRouteForHandlersAndMetrics(t *testing.T) {
 	var got Route
 	h := httpx.Chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { got = From(r.Context()) }), Resolve(Default()))
 	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/orders/42", nil))
-	if got.Template != "GET /api/v1/orders/*" || got.Rule.Access != AccessUser {
+	if got.Template != "GET /api/v1/orders/*" || got.Rule.Access != httpx.AccessUser {
 		t.Fatalf("%+v", got)
 	}
 	if From(httptest.NewRequest(http.MethodGet, "/", nil).Context()).Template != "unmatched" {

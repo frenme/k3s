@@ -44,13 +44,12 @@ func NewOrders(db *pg.DB) *Orders {
 }
 
 func (s *Orders) List(ctx context.Context, userID string, limit int, after *pagination.Cursor) ([]model.Order, error) {
+	if !pg.IsUUID(userID) {
+		return []model.Order{}, nil
+	}
 	return pg.Read(ctx, s.db, func(db *gorm.DB) ([]model.Order, error) {
-		q := db.WithContext(ctx)
-		if userID != "" {
-			q = q.Where("user_id = ?", userID)
-		}
 		var rows []orderRow
-		if err := pg.Keyset(q, after, limit).Find(&rows).Error; err != nil {
+		if err := pg.Keyset(db.WithContext(ctx).Where("user_id = ?", userID), after, limit).Find(&rows).Error; err != nil {
 			return nil, err
 		}
 		orders := make([]model.Order, 0, len(rows))
@@ -62,6 +61,9 @@ func (s *Orders) List(ctx context.Context, userID string, limit int, after *pagi
 }
 
 func (s *Orders) Get(ctx context.Context, id string) (model.Order, error) {
+	if !pg.IsUUID(id) {
+		return model.Order{}, model.ErrOrderNotFound
+	}
 	o, err := pg.Read(ctx, s.db, func(db *gorm.DB) (model.Order, error) {
 		var row orderRow
 		err := db.WithContext(ctx).First(&row, "id = ?", id).Error

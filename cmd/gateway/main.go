@@ -6,5 +6,5 @@ import (
 )
 
 func main() {
-	app.Run("gateway", gateway.Setup)
+	app.RunPublic("gateway", gateway.Setup)
 }

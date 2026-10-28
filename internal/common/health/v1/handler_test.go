@@ -23,14 +23,14 @@ func service(status int, body string) *httptest.Server {
 	}))
 }
 
-func get(t *testing.T, spec string, probes []health.Probe, path string, into any) int {
+func get(t *testing.T, spec string, infra map[string]httpx.Check, path string, into any) int {
 	t.Helper()
 	targets, err := health.ParseTargets(spec)
 	if err != nil {
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	NewHandler(health.NewService(targets, probes...)).Register(httpx.NewAPI(mux, "common"))
+	NewHandler(health.NewService(targets, infra)).Register(httpx.NewAPI(mux, "common"))
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + path)
@@ -49,13 +49,13 @@ func TestPublicHealthHidesDetails(t *testing.T) {
 	down := service(http.StatusServiceUnavailable, `{"postgres":"connection refused"}`)
 	defer up.Close()
 	defer down.Close()
-	healthy := []health.Probe{{Name: "redis", Run: func(context.Context) error { return nil }}}
-	broken := []health.Probe{{Name: "redis", Run: func(context.Context) error { return errors.New("down") }}}
+	healthy := map[string]httpx.Check{"redis": func(context.Context) error { return nil }}
+	broken := map[string]httpx.Check{"redis": func(context.Context) error { return errors.New("down") }}
 
 	for _, tc := range []struct {
 		name   string
 		spec   string
-		probes []health.Probe
+		infra  map[string]httpx.Check
 		status int
 		want   string
 	}{
@@ -65,7 +65,7 @@ func TestPublicHealthHidesDetails(t *testing.T) {
 		{"infra down", "users=" + up.URL, broken, http.StatusServiceUnavailable, "unhealthy"},
 	} {
 		var body map[string]any
-		status := get(t, tc.spec, tc.probes, "/v1/common/health", &body)
+		status := get(t, tc.spec, tc.infra, "/v1/common/health", &body)
 		if status != tc.status || body["status"] != tc.want || len(body) != 1 {
 			t.Fatalf("%s: %d %v", tc.name, status, body)
 		}
@@ -77,15 +77,15 @@ func TestDetailsNameEveryFailure(t *testing.T) {
 	down := service(http.StatusServiceUnavailable, `{"postgres":"connection refused"}`)
 	defer up.Close()
 	defer down.Close()
-	probes := []health.Probe{
-		{Name: "redis", Run: func(context.Context) error { return errors.New("dial tcp: i/o timeout") }},
-		{Name: "postgres-rw", Run: func(context.Context) error { return nil }},
+	infra := map[string]httpx.Check{
+		"redis":       func(context.Context) error { return errors.New("dial tcp: i/o timeout") },
+		"postgres-rw": func(context.Context) error { return nil },
 	}
 	var body struct {
 		Status string  `json:"status"`
 		Checks []Check `json:"checks"`
 	}
-	status := get(t, "users="+up.URL+",orders="+down.URL, probes, "/v1/common/health/details", &body)
+	status := get(t, "users="+up.URL+",orders="+down.URL, infra, "/v1/common/health/details", &body)
 	if status != http.StatusServiceUnavailable || body.Status != "unhealthy" || len(body.Checks) != 4 {
 		t.Fatalf("%d %+v", status, body)
 	}

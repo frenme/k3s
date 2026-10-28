@@ -30,6 +30,7 @@ func (e Error) With(details ...string) Error {
 
 var (
 	ErrBadRequest       = Error{Status: http.StatusBadRequest, Code: "bad_request", Message: "Malformed request"}
+	ErrUnauthorized     = Error{Status: http.StatusUnauthorized, Code: "unauthorized", Message: "Valid access token required"}
 	ErrNotFound         = Error{Status: http.StatusNotFound, Code: "not_found", Message: "Not found"}
 	ErrMethodNotAllowed = Error{Status: http.StatusMethodNotAllowed, Code: "method_not_allowed", Message: "Method not allowed"}
 	ErrInvalidInput     = Error{Status: http.StatusUnprocessableEntity, Code: "invalid_input", Message: "Invalid input"}
@@ -63,13 +64,14 @@ func WriteError(w http.ResponseWriter, e Error) {
 	WriteJSON(w, e.Status, e)
 }
 
-func Fail(ctx context.Context, log *slog.Logger, err error) error {
+func fail(ctx context.Context, err error) error {
 	var e Error
 	if !errors.As(err, &e) {
 		e = ErrInternal
 	}
 	if e.Status >= http.StatusInternalServerError {
-		log.ErrorContext(ctx, "request failed", "code", e.Code, "err", err)
+		LogAttrs(ctx, slog.String("code", e.Code), slog.Any("err", err))
+		markFailed(ctx)
 	}
 	return e
 }

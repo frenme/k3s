@@ -32,10 +32,10 @@ type JWKS struct {
 	log     *slog.Logger
 	now     func() time.Time
 
-	mu        sync.RWMutex
-	keys      map[string]any
-	fetchedAt time.Time
-	fetching  sync.Mutex
+	mu          sync.RWMutex
+	keys        map[string]any
+	attemptedAt time.Time
+	fetching    sync.Mutex
 }
 
 func NewJWKS(url string, refresh time.Duration, log *slog.Logger) *JWKS {
@@ -70,6 +70,13 @@ func (j *JWKS) Run(ctx context.Context) {
 func (j *JWKS) Refresh(ctx context.Context) error {
 	j.fetching.Lock()
 	defer j.fetching.Unlock()
+	return j.fetch(ctx)
+}
+
+func (j *JWKS) fetch(ctx context.Context) error {
+	j.mu.Lock()
+	j.attemptedAt = j.now()
+	j.mu.Unlock()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, j.url, nil)
 	if err != nil {
 		return err
@@ -91,7 +98,7 @@ func (j *JWKS) Refresh(ctx context.Context) error {
 		return err
 	}
 	j.mu.Lock()
-	j.keys, j.fetchedAt = keys, j.now()
+	j.keys = keys
 	j.mu.Unlock()
 	return nil
 }
@@ -101,18 +108,24 @@ func (j *JWKS) KeyFunc(t *jwt.Token) (any, error) {
 	if key, ok := j.lookup(kid); ok {
 		return key, nil
 	}
+	j.fetching.Lock()
+	defer j.fetching.Unlock()
+	if key, ok := j.lookup(kid); ok {
+		return key, nil
+	}
 	j.mu.RLock()
-	recent := j.now().Sub(j.fetchedAt) < minRefreshGap
+	recent := j.now().Sub(j.attemptedAt) < minRefreshGap
 	j.mu.RUnlock()
-	if !recent {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := j.Refresh(ctx); err != nil {
-			j.log.Error("jwks refresh for unknown kid failed", "kid", kid, "err", err)
-		}
-		if key, ok := j.lookup(kid); ok {
-			return key, nil
-		}
+	if recent {
+		return nil, errUnknownKey
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := j.fetch(ctx); err != nil {
+		j.log.Error("jwks refresh for unknown kid failed", "kid", kid, "err", err)
+	}
+	if key, ok := j.lookup(kid); ok {
+		return key, nil
 	}
 	return nil, errUnknownKey
 }

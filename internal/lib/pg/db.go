@@ -4,39 +4,13 @@ import (
 	"context"
 	"errors"
 
-	"github.com/egor/k3s-base/internal/lib/pagination"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/prometheus/client_golang/prometheus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
-
-type Pools struct {
-	Write      *pgxpool.Pool
-	Read       *pgxpool.Pool
-	name       string
-	collectors []prometheus.Collector
-}
-
-func (p *Pools) register(role string, pool *pgxpool.Pool) {
-	c := newPoolCollector(p.name, role, pool)
-	if err := prometheus.Register(c); err == nil {
-		p.collectors = append(p.collectors, c)
-	}
-}
-
-func (p *Pools) Close() {
-	for _, c := range p.collectors {
-		prometheus.Unregister(c)
-	}
-	if p.Read != nil {
-		p.Read.Close()
-	}
-	p.Write.Close()
-}
 
 type DB struct {
 	Write *gorm.DB
@@ -89,7 +63,7 @@ func Read[T any](ctx context.Context, db *DB, fn func(*gorm.DB) (T, error)) (T, 
 		return fn(tx)
 	}
 	v, err := fn(db.Read)
-	if err == nil || db.Read == db.Write || !fallbackToPrimary(err) {
+	if err == nil || !db.HasReplica() || !fallbackToPrimary(err) {
 		return v, err
 	}
 	return fn(db.Write)
@@ -112,11 +86,8 @@ func fallbackToPrimary(err error) bool {
 	return true
 }
 
-func Keyset(q *gorm.DB, after *pagination.Cursor, limit int) *gorm.DB {
-	if after != nil {
-		q = q.Where("(created_at, id) < (?, ?)", after.CreatedAt, after.ID)
-	}
-	return q.Order("created_at DESC, id DESC").Limit(limit + 1)
+func (db *DB) HasReplica() bool {
+	return db.Read != db.Write
 }
 
 func (db *DB) PingWrite(ctx context.Context) error {
@@ -125,8 +96,4 @@ func (db *DB) PingWrite(ctx context.Context) error {
 
 func (db *DB) PingRead(ctx context.Context) error {
 	return db.Read.WithContext(ctx).Exec("SELECT 1").Error
-}
-
-func (db *DB) HasReplica() bool {
-	return db.Read != db.Write
 }

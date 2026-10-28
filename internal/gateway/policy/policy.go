@@ -10,18 +10,10 @@ import (
 	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
-type Access int
-
-const (
-	AccessUser Access = iota
-	AccessPublic
-	AccessAdmin
-)
-
 type Rule struct {
 	Method   string
 	Path     string
-	Access   Access
+	Access   httpx.Access
 	Timeout  time.Duration
 	MaxBody  int64
 	CacheTTL time.Duration
@@ -35,11 +27,13 @@ type Route struct {
 
 type Table []Rule
 
+var unmatched = Route{Rule: Rule{Access: httpx.AccessUser}, Template: "unmatched"}
+
 var static = Table{
-	{Method: http.MethodGet, Path: "/api/v1/*/docs", Access: AccessPublic},
-	{Method: http.MethodGet, Path: "/api/v1/*/openapi.json", Access: AccessPublic},
-	{Method: http.MethodGet, Path: "/api/v1/*/openapi.yaml", Access: AccessPublic},
-	{Path: "/api/v1/admin/**", Access: AccessAdmin},
+	{Method: http.MethodGet, Path: "/api/v1/*/docs", Access: httpx.AccessPublic},
+	{Method: http.MethodGet, Path: "/api/v1/*/openapi.json", Access: httpx.AccessPublic},
+	{Method: http.MethodGet, Path: "/api/v1/*/openapi.yaml", Access: httpx.AccessPublic},
+	{Path: "/api/v1/admin/**", Access: httpx.AccessAdmin},
 }
 
 func Default() Table {
@@ -50,8 +44,12 @@ func sec(n int) time.Duration {
 	return time.Duration(n) * time.Second
 }
 
+func (r Rule) methodMatches(method string) bool {
+	return r.Method == "" || r.Method == method || (r.Method == http.MethodGet && method == http.MethodHead)
+}
+
 func (r Rule) matches(method string, segments []string) bool {
-	if r.Method != "" && r.Method != method {
+	if !r.methodMatches(method) {
 		return false
 	}
 	want := split(r.Path)
@@ -77,7 +75,7 @@ func (t Table) Find(method, path string) Route {
 			return Route{Rule: rule, Template: template, Matched: true}
 		}
 	}
-	return Route{Template: "unmatched"}
+	return unmatched
 }
 
 func split(path string) []string {
@@ -99,7 +97,7 @@ func Resolve(table Table) httpx.Middleware {
 func From(ctx context.Context) Route {
 	route, ok := ctx.Value(routeKey{}).(Route)
 	if !ok {
-		return Route{Template: "unmatched"}
+		return unmatched
 	}
 	return route
 }

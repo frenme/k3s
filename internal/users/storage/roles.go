@@ -56,6 +56,9 @@ func (s *Roles) Revoke(ctx context.Context, userID string, role model.Role) erro
 }
 
 func (s *Roles) requireUser(ctx context.Context, userID string) error {
+	if !pg.IsUUID(userID) {
+		return model.ErrUserNotFound
+	}
 	var row userRow
 	err := s.db.Conn(ctx).Select("id").First(&row, "id = ?", userID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {

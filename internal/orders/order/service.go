@@ -9,7 +9,6 @@ import (
 	"github.com/egor/k3s-base/internal/lib/idempotency"
 	"github.com/egor/k3s-base/internal/lib/pagination"
 	"github.com/egor/k3s-base/internal/orders/model"
-	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -38,25 +37,24 @@ func NewService(store store, users userDirectory) *Service {
 	return &Service{store: store, users: users}
 }
 
-func (s *Service) List(ctx context.Context, userID string, limit int, cursor string) (pagination.Page[model.Order], error) {
-	after, err := pagination.Decode(cursor)
-	if err != nil {
-		return pagination.Page[model.Order]{}, err
+func (s *Service) List(ctx context.Context, userID string, p pagination.Params) (pagination.Page[model.Order], error) {
+	find := func(ctx context.Context, limit int, after *pagination.Cursor) ([]model.Order, error) {
+		return s.store.List(ctx, userID, limit, after)
 	}
-	orders, err := s.store.List(ctx, userID, limit, after)
-	if err != nil {
-		return pagination.Page[model.Order]{}, err
-	}
-	return pagination.NewPage(orders, limit, func(o model.Order) pagination.Cursor {
+	return pagination.Fetch(ctx, p, find, func(o model.Order) pagination.Cursor {
 		return pagination.Cursor{CreatedAt: o.CreatedAt, ID: o.ID}
-	}), nil
+	})
 }
 
-func (s *Service) Get(ctx context.Context, id string) (model.Order, error) {
-	if uuid.Validate(id) != nil {
+func (s *Service) Get(ctx context.Context, userID, id string) (model.Order, error) {
+	o, err := s.store.Get(ctx, id)
+	if err != nil {
+		return model.Order{}, err
+	}
+	if !strings.EqualFold(o.UserID, userID) {
 		return model.Order{}, model.ErrOrderNotFound
 	}
-	return s.store.Get(ctx, id)
+	return o, nil
 }
 
 func (s *Service) Create(ctx context.Context, o model.Order, idem idempotency.Request) (model.Order, bool, error) {

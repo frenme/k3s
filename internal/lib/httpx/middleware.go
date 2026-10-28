@@ -109,7 +109,7 @@ func Observe(log *slog.Logger) Middleware {
 			if sw.status == 0 {
 				sw.status = http.StatusOK
 			}
-			attrs, audit := meta.snapshot()
+			attrs, audit, failed := meta.snapshot()
 			route := meta.route()
 			if route == "" {
 				route = r.Pattern
@@ -134,7 +134,11 @@ func Observe(log *slog.Logger) Middleware {
 				"duration_ms", elapsed.Milliseconds(),
 				"bytes", sw.bytes,
 			}, attrsToArgs(attrs)...)
-			log.InfoContext(r.Context(), "request", fields...)
+			level := slog.LevelInfo
+			if failed {
+				level = slog.LevelError
+			}
+			log.Log(r.Context(), level, "request", fields...)
 			if audit {
 				log.InfoContext(r.Context(), "audit", fields...)
 			}

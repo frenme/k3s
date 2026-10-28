@@ -2,7 +2,6 @@ package users
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -24,8 +23,8 @@ type EnvConfig struct {
 }
 
 func Setup(ctx context.Context, s *app.Service) error {
-	var env EnvConfig
-	if err := envconfig.Load(&env); err != nil {
+	env, err := envconfig.Load[EnvConfig]()
+	if err != nil {
 		return err
 	}
 	db, err := s.Postgres(ctx, storage.Migrations, storage.MigrationsDir)
@@ -34,17 +33,17 @@ func Setup(ctx context.Context, s *app.Service) error {
 	}
 	cfg := common.New(env.CommonURL)
 	svc := user.NewService(storage.NewUsers(db, s.Cache()), cfg)
-	register(httpx.NewAPI(s.Mux, name), httpx.NewInternalAPI(s.Internal, name), svc, role.NewService(storage.NewRoles(db)), s.Log)
+	register(httpx.NewAPI(s.Mux, name), httpx.NewInternalAPI(s.Internal, name), svc, role.NewService(storage.NewRoles(db)))
 	return nil
 }
 
 func OpenAPI() (public, internal *huma.OpenAPI) {
 	pub, in := httpx.NewAPI(http.NewServeMux(), name), httpx.NewInternalAPI(http.NewServeMux(), name)
-	register(pub, in, nil, nil, nil)
+	register(pub, in, nil, nil)
 	return pub.OpenAPI(), in.OpenAPI()
 }
 
-func register(public, internal huma.API, svc *user.Service, roles *role.Service, log *slog.Logger) {
-	userv1.NewHandler(svc, log).Register(public, internal)
-	rolev1.NewHandler(roles, log).Register(public, internal)
+func register(public, internal huma.API, svc *user.Service, roles *role.Service) {
+	userv1.NewHandler(svc).Register(public, internal)
+	rolev1.NewHandler(roles).Register(public, internal)
 }

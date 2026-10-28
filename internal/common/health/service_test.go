@@ -4,11 +4,13 @@ import (
 	"context"
 	"sync/atomic"
 	"testing"
+
+	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
 func TestCheckCachesBriefly(t *testing.T) {
 	var runs atomic.Int32
-	s := NewService(nil, Probe{Name: "redis", Run: func(context.Context) error {
+	s := NewService(nil, map[string]httpx.Check{"redis": func(context.Context) error {
 		runs.Add(1)
 		return nil
 	}})

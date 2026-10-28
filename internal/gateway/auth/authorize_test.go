@@ -55,6 +55,7 @@ func TestAuthorize(t *testing.T) {
 	}{
 		{name: "public health", method: "GET", path: "/api/v1/common/health", want: 200},
 		{name: "public registration", method: "POST", path: "/api/v1/users", want: 200},
+		{name: "public route with a token", method: "POST", path: "/api/v1/users", auth: bearer(t, "user-1"), want: 200},
 		{name: "docs", method: "GET", path: "/api/v1/orders/docs", want: 200},
 		{name: "orders need a token", method: "GET", path: "/api/v1/orders", want: 401, scheme: "Bearer"},
 		{name: "unknown path needs a token", method: "GET", path: "/api/v1/nothing", want: 401, scheme: "Bearer"},
@@ -64,6 +65,8 @@ func TestAuthorize(t *testing.T) {
 		{name: "lowercase scheme", method: "GET", path: "/api/v1/orders", auth: "bearer " + bearer(t, "user-1")[7:], want: 200},
 		{name: "user cannot list users", method: "GET", path: "/api/v1/users", auth: bearer(t, "user-1"), want: 403},
 		{name: "admin lists users", method: "GET", path: "/api/v1/users", auth: bearer(t, "admin-1"), want: 200},
+		{name: "user cannot list users with HEAD either", method: "HEAD", path: "/api/v1/users", auth: bearer(t, "user-1"), want: 403},
+		{name: "admin lists users with HEAD", method: "HEAD", path: "/api/v1/users", auth: bearer(t, "admin-1"), want: 200},
 		{name: "admin catch-all", method: "GET", path: "/api/v1/admin/anything", auth: bearer(t, "user-1"), want: 403},
 		{name: "admin without a token", method: "GET", path: "/api/v1/admin/users", want: 401, scheme: "Bearer"},
 		{name: "unknown subject is not an admin", method: "GET", path: "/api/v1/admin/users", auth: bearer(t, "ghost"), want: 403},
@@ -96,18 +99,18 @@ func TestAuthorizeSetsIdentityHeaders(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users", nil)
 	req.Header.Set("Authorization", bearer(t, "admin-1"))
-	req.Header.Set(UserIDHeader, "attacker")
-	req.Header.Set(UserRolesHeader, "root")
+	req.Header.Set(httpx.UserIDHeader, "attacker")
+	req.Header.Set(httpx.UserRolesHeader, "root")
 	h.ServeHTTP(httptest.NewRecorder(), req)
-	if seen.Get(UserIDHeader) != "admin-1" || seen.Get(UserRolesHeader) != "admin,user" {
+	if seen.Get(httpx.UserIDHeader) != "admin-1" || seen.Get(httpx.UserRolesHeader) != "admin,user" {
 		t.Fatalf("headers %v", seen)
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/common/health", nil)
-	req.Header.Set(UserIDHeader, "attacker")
-	req.Header.Set(UserRolesHeader, "root")
+	req.Header.Set(httpx.UserIDHeader, "attacker")
+	req.Header.Set(httpx.UserRolesHeader, "root")
 	h.ServeHTTP(httptest.NewRecorder(), req)
-	if seen.Get(UserIDHeader) != "" || seen.Get(UserRolesHeader) != "" {
+	if seen.Get(httpx.UserIDHeader) != "" || seen.Get(httpx.UserRolesHeader) != "" {
 		t.Fatalf("spoofed headers reached a public route: %v", seen)
 	}
 }
@@ -173,5 +176,46 @@ func TestCachedRolesIsBounded(t *testing.T) {
 	}
 	if len(c.entries) > 3 {
 		t.Fatalf("%d entries", len(c.entries))
+	}
+}
+
+type gatedRoles struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (g gatedRoles) Roles(ctx context.Context, _ string) ([]string, error) {
+	close(g.started)
+	select {
+	case <-g.release:
+		return []string{"admin"}, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func TestCachedRolesSurviveTheFirstClientLeaving(t *testing.T) {
+	src := gatedRoles{started: make(chan struct{}), release: make(chan struct{})}
+	c := NewCachedRoles(src, time.Minute, 10)
+
+	first, leave := context.WithCancel(t.Context())
+	go func() { _, _ = c.Roles(first, "u") }()
+	<-src.started
+
+	type answer struct {
+		roles []string
+		err   error
+	}
+	got := make(chan answer)
+	go func() {
+		roles, err := c.Roles(t.Context(), "u")
+		got <- answer{roles, err}
+	}()
+	time.Sleep(50 * time.Millisecond)
+	leave()
+	close(src.release)
+
+	if a := <-got; a.err != nil || len(a.roles) != 1 {
+		t.Fatalf("a waiting request must not fail because another client left: %v %v", a.roles, a.err)
 	}
 }

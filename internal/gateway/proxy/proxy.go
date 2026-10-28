@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -60,7 +61,7 @@ func New(opts Options) http.Handler {
 				resp.Header.Del(httpx.RequestIDHeader)
 				return nil
 			},
-			ErrorHandler: errorHandler(name, opts.Log),
+			ErrorHandler: errorHandler(name, opts.Log, opts.Guard.Cooldown),
 		}
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -104,14 +105,14 @@ func forwardedProto(r *http.Request) string {
 	return "http"
 }
 
-func errorHandler(upstream string, log *slog.Logger) func(http.ResponseWriter, *http.Request, error) {
+func errorHandler(upstream string, log *slog.Logger, cooldown time.Duration) func(http.ResponseWriter, *http.Request, error) {
 	return func(w http.ResponseWriter, r *http.Request, err error) {
 		var tooLarge *http.MaxBytesError
 		switch {
 		case errors.As(err, &tooLarge):
 			httpx.WriteError(w, model.ErrPayloadTooLarge)
 		case errors.Is(err, ErrCircuitOpen):
-			w.Header().Set("Retry-After", strconv.Itoa(10))
+			w.Header().Set("Retry-After", strconv.Itoa(max(int(math.Ceil(cooldown.Seconds())), 1)))
 			httpx.WriteError(w, model.ErrUpstreamOpen)
 		case errors.Is(err, ErrOverloaded):
 			w.Header().Set("Retry-After", "1")

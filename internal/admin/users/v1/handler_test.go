@@ -3,8 +3,6 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -29,7 +27,7 @@ func get(t *testing.T, path string) (int, map[string]any) {
 		{ID: "22222222-2222-4222-8222-222222222222", Email: "b@b.co", Name: "Bob", CreatedAt: time.Now()},
 		{ID: "33333333-3333-4333-8333-333333333333", Email: "c@b.co", Name: "Cat", CreatedAt: time.Now()},
 	}
-	NewHandler(users, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(httpx.NewAPI(mux, "admin"))
+	NewHandler(users).Register(httpx.NewAPI(mux, "admin"))
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + path)

@@ -8,7 +8,6 @@ import (
 
 var (
 	ErrUnknownRoute     = httpx.Error{Status: http.StatusNotFound, Code: "unknown_route", Message: "Unknown route"}
-	ErrUnauthorized     = httpx.Error{Status: http.StatusUnauthorized, Code: "unauthorized", Message: "Valid access token required"}
 	ErrForbidden        = httpx.Error{Status: http.StatusForbidden, Code: "forbidden", Message: "Not enough permissions"}
 	ErrAuthUnavailable  = httpx.Error{Status: http.StatusServiceUnavailable, Code: "auth_unavailable", Message: "Authorization is temporarily unavailable"}
 	ErrPayloadTooLarge  = httpx.Error{Status: http.StatusRequestEntityTooLarge, Code: "payload_too_large", Message: "Request body is too large"}

@@ -2,7 +2,6 @@ package v1
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -12,11 +11,10 @@ import (
 
 type Handler struct {
 	svc *role.Service
-	log *slog.Logger
 }
 
-func NewHandler(svc *role.Service, log *slog.Logger) *Handler {
-	return &Handler{svc: svc, log: log}
+func NewHandler(svc *role.Service) *Handler {
+	return &Handler{svc: svc}
 }
 
 func (h *Handler) Register(public, internal huma.API) {
@@ -44,7 +42,7 @@ func (h *Handler) Register(public, internal huma.API) {
 		Tags:        []string{"Roles"},
 		Errors:      []int{http.StatusNotFound},
 	}, httpx.AccessAdmin, h.revoke)
-	huma.Register(internal, huma.Operation{
+	httpx.RegisterInternal(internal, huma.Operation{
 		OperationID: "internal-list-user-roles",
 		Method:      http.MethodGet,
 		Path:        "/internal/v1/users/{id}/roles",
@@ -57,7 +55,7 @@ func (h *Handler) Register(public, internal huma.API) {
 func (h *Handler) list(ctx context.Context, in *GetRolesRequest) (*RolesResponse, error) {
 	roles, err := h.svc.Roles(ctx, in.ID)
 	if err != nil {
-		return nil, httpx.Fail(ctx, h.log, err)
+		return nil, err
 	}
 	return toRoles(roles), nil
 }
@@ -65,7 +63,7 @@ func (h *Handler) list(ctx context.Context, in *GetRolesRequest) (*RolesResponse
 func (h *Handler) grant(ctx context.Context, in *RoleRequest) (*RolesResponse, error) {
 	roles, err := h.svc.Grant(ctx, in.ID, in.Role)
 	if err != nil {
-		return nil, httpx.Fail(ctx, h.log, err)
+		return nil, err
 	}
 	return toRoles(roles), nil
 }
@@ -73,7 +71,7 @@ func (h *Handler) grant(ctx context.Context, in *RoleRequest) (*RolesResponse, e
 func (h *Handler) revoke(ctx context.Context, in *RoleRequest) (*RolesResponse, error) {
 	roles, err := h.svc.Revoke(ctx, in.ID, in.Role)
 	if err != nil {
-		return nil, httpx.Fail(ctx, h.log, err)
+		return nil, err
 	}
 	return toRoles(roles), nil
 }

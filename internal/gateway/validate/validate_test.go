@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/egor/k3s-base/internal/gateway/docs"
+	"github.com/egor/k3s-base/internal/gateway/edge"
 	"github.com/egor/k3s-base/internal/lib/httpx"
 )
 
@@ -58,8 +59,8 @@ func TestInvalidRequestsAreRejectedBeforeTheService(t *testing.T) {
 		{"malformed json", "POST", "/api/v1/users", `{bad`, 400, "bad_request"},
 		{"limit below minimum", "GET", "/api/v1/orders?limit=0", "", 422, "invalid_input"},
 		{"limit above maximum", "GET", "/api/v1/orders?limit=100000", "", 422, "invalid_input"},
-		{"bad uuid filter", "GET", "/api/v1/orders?user_id=nope", "", 422, "invalid_input"},
-		{"negative amount", "POST", "/api/v1/orders", `{"user_id":"11111111-1111-4111-8111-111111111111","item":"x","amount_cents":-1}`, 422, "invalid_input"},
+		{"owner in the body", "POST", "/api/v1/orders", `{"user_id":"11111111-1111-4111-8111-111111111111","item":"x","amount_cents":1}`, 422, "invalid_input"},
+		{"negative amount", "POST", "/api/v1/orders", `{"item":"x","amount_cents":-1}`, 422, "invalid_input"},
 	}
 	for _, c := range cases {
 		code, body, downstream := serve(t, c.method, c.target, c.body)
@@ -71,6 +72,25 @@ func TestInvalidRequestsAreRejectedBeforeTheService(t *testing.T) {
 				t.Errorf("%s: no details in %v", c.name, body)
 			}
 		}
+	}
+}
+
+func TestBodyOverTheLimitIsTooLargeEvenWithoutContentLength(t *testing.T) {
+	v, err := New(docs.Spec())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := httpx.Chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), edge.BodyLimit(100), v.Middleware())
+	body := `{"email":"ann@example.com","name":"` + strings.Repeat("a", 500) + `"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(body))
+	req.ContentLength = -1
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusRequestEntityTooLarge || !strings.Contains(rec.Body.String(), "payload_too_large") {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
 	}
 }
 
