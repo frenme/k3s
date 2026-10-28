@@ -8,8 +8,9 @@ COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 export REGISTRY TAG
 
 GO_SERVICES := $(notdir $(wildcard cmd/*))
-NAMESPACE := $(if $(filter local,$(ENV)),app,app-$(ENV))
-CONTEXT := $(if $(filter local,$(ENV)),k3d-$(CLUSTER),k3s-$(ENV))
+ENV_FILE := infra/deploy/environments/$(ENV).yaml
+NAMESPACE := $(shell sed -n 's/^namespace: *//p' $(ENV_FILE))
+CONTEXT := $(shell sed -n 's/^kubeContext: *//p' $(ENV_FILE))
 KUBECTL := kubectl --context $(CONTEXT) -n $(NAMESPACE)
 CNPG := kubectl cnpg --context $(CONTEXT) -n $(NAMESPACE)
 HELMFILE := helmfile -f infra/deploy/helmfile.yaml.gotmpl -e $(ENV)

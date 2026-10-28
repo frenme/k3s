@@ -3,7 +3,12 @@ data "sops_file" "secrets" {
 }
 
 locals {
-  name     = "k3s-${var.environment}"
+  name = "k3s-${var.environment}"
+  deploy = merge(
+    yamldecode(file("${path.module}/../deploy/environments/common.yaml")),
+    yamldecode(file("${path.module}/../deploy/environments/${var.environment}.yaml")),
+  )
+  etcd_s3  = try(local.deploy.backups, false)
   secrets  = yamldecode(data.sops_file.secrets.raw).secrets
   registry = try(local.secrets.registry, null)
   labels   = { cluster = local.name }
@@ -38,14 +43,14 @@ resource "hcloud_firewall" "base" {
     direction  = "in"
     protocol   = "tcp"
     port       = "22"
-    source_ips = var.admin_cidrs
+    source_ips = ["0.0.0.0/0", "::/0"]
   }
 
   rule {
     direction  = "in"
     protocol   = "tcp"
     port       = "6443"
-    source_ips = var.admin_cidrs
+    source_ips = ["0.0.0.0/0", "::/0"]
   }
 
   rule {
@@ -98,13 +103,13 @@ resource "hcloud_server" "server" {
   user_data = templatefile("${path.module}/templates/server.yaml.tftpl", {
     token         = random_password.token.result
     agent_token   = random_password.agent_token.result
-    k3s_version   = var.k3s_version
-    region        = var.server.region
-    etcd_endpoint = var.etcd_s3.endpoint
-    etcd_bucket   = var.etcd_s3.bucket
+    k3s_version   = local.deploy.k3sVersion
+    etcd_s3       = local.etcd_s3
+    etcd_endpoint = try(local.deploy.s3.endpoint, "")
+    etcd_bucket   = try(local.deploy.s3.bucket, "")
     etcd_folder   = "${local.name}/etcd"
-    s3_access_key = local.secrets.s3.accessKeyId
-    s3_secret_key = local.secrets.s3.secretAccessKey
+    s3_access_key = try(local.secrets.s3.accessKeyId, "")
+    s3_secret_key = try(local.secrets.s3.secretAccessKey, "")
     registry      = local.registry
     coredns       = file("${path.module}/../k3s/coredns.yaml")
   })
@@ -137,10 +142,9 @@ resource "hcloud_server" "node" {
 
   user_data = templatefile("${path.module}/templates/agent.yaml.tftpl", {
     token       = random_password.agent_token.result
-    k3s_version = var.k3s_version
+    k3s_version = local.deploy.k3sVersion
     server_ip   = hcloud_server.server.ipv4_address
     role        = each.value.role
-    region      = each.value.region
     registry    = local.registry
   })
 
@@ -164,13 +168,6 @@ locals {
 resource "hcloud_firewall" "nodes" {
   name   = "${local.name}-nodes"
   labels = local.labels
-
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "6443"
-    source_ips = local.node_cidrs
-  }
 
   rule {
     direction  = "in"

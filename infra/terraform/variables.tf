@@ -6,25 +6,15 @@ variable "ssh_public_keys" {
   type = list(string)
 }
 
-variable "admin_cidrs" {
-  type = list(string)
-}
-
 variable "image" {
   type    = string
   default = "ubuntu-24.04"
-}
-
-variable "k3s_version" {
-  type    = string
-  default = "v1.35.9+k3s1"
 }
 
 variable "server" {
   type = object({
     location    = string
     server_type = string
-    region      = string
     protected   = optional(bool, true)
     backups     = optional(bool, false)
   })
@@ -34,7 +24,6 @@ variable "nodes" {
   type = map(object({
     location    = string
     server_type = string
-    region      = string
     role        = optional(string, "edge")
     protected   = optional(bool)
     backups     = optional(bool, false)
@@ -49,11 +38,4 @@ variable "nodes" {
     condition     = anytrue([for node in var.nodes : node.role == "edge"])
     error_message = "at least one edge node is required to serve ingress"
   }
-}
-
-variable "etcd_s3" {
-  type = object({
-    endpoint = string
-    bucket   = string
-  })
 }

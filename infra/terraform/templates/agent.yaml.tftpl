@@ -14,8 +14,9 @@ write_files:
         - role=${role}
 %{ if role == "edge" ~}
         - svccontroller.k3s.cattle.io/enablelb=true
+      node-taint:
+        - role=edge:NoSchedule
 %{ endif ~}
-        - topology.kubernetes.io/region=${region}
 %{ if registry != null ~}
   - path: /etc/rancher/k3s/registries.yaml
     permissions: "0600"

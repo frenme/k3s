@@ -111,7 +111,6 @@ spec:
           effect: "NoSchedule"
       nodeSelector:
         kubernetes.io/os: linux
-        role: core
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname

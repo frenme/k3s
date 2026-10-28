@@ -17,6 +17,9 @@ options:
       - arg: --disable=coredns
         nodeFilters:
           - server:*
+      - arg: --node-taint=role=edge:NoSchedule
+        nodeFilters:
+          - agent:*
     nodeLabels:
       - label: role=core
         nodeFilters:
@@ -27,9 +30,3 @@ options:
       - label: svccontroller.k3s.cattle.io/enablelb=true
         nodeFilters:
           - agent:*
-      - label: topology.kubernetes.io/region=local-a
-        nodeFilters:
-          - agent:0
-      - label: topology.kubernetes.io/region=local-b
-        nodeFilters:
-          - agent:1

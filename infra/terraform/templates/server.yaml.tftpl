@@ -17,15 +17,16 @@ write_files:
       write-kubeconfig-mode: "0600"
       node-label:
         - role=core
-        - topology.kubernetes.io/region=${region}
       etcd-snapshot-schedule-cron: "0 */6 * * *"
       etcd-snapshot-retention: 28
+%{ if etcd_s3 ~}
       etcd-s3: true
       etcd-s3-endpoint: ${etcd_endpoint}
       etcd-s3-bucket: ${etcd_bucket}
       etcd-s3-folder: ${etcd_folder}
       etcd-s3-access-key: ${s3_access_key}
       etcd-s3-secret-key: ${s3_secret_key}
+%{ endif ~}
   - path: /var/lib/rancher/k3s/server/manifests/coredns-core.yaml
     permissions: "0600"
     content: |
