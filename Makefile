@@ -52,8 +52,8 @@ lint: ## formatting, golangci-lint and lint every release of ENV
 	golangci-lint run ./...
 	$(if $(filter local,$(ENV)),,REGISTRY=lint.invalid TAG=lint) $(HELMFILE) lint
 
-openapi: ## regenerate api/*.yaml from the code
-	go run ./api
+openapi: ## regenerate openapi/*.yaml from the code
+	go run ./openapi
 
 test: ## unit tests
 	go test -race -count=1 ./...

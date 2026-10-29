@@ -18,7 +18,7 @@ type userRow struct {
 	ID        string `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Email     string
 	Name      string
-	CreatedAt time.Time
+	CreatedAt time.Time `gorm:"autoCreateTime:false;default:now()"`
 }
 
 func (userRow) TableName() string { return "users" }

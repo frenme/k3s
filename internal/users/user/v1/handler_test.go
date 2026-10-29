@@ -127,7 +127,7 @@ func TestCreateAndGet(t *testing.T) {
 	public, internal := newServers(t)
 
 	code, body := post(t, public+"/v1/users", `{"email":"A@Example.com","name":"Ann"}`)
-	if code != http.StatusCreated || body["email"] != "a@example.com" {
+	if code != http.StatusOK || body["email"] != "a@example.com" {
 		t.Fatalf("create %d %v", code, body)
 	}
 	id, _ := body["id"].(string)
@@ -168,9 +168,9 @@ func TestErrorsAreJSON(t *testing.T) {
 		status int
 		code   string
 	}{
-		`{"email":"nope","name":"x"}`:    {http.StatusUnprocessableEntity, "invalid_input"},
-		`{"email":"c@b.co","name":""}`:   {http.StatusUnprocessableEntity, "invalid_input"},
-		`{"email":"d@b.co","name":"  "}`: {http.StatusUnprocessableEntity, "invalid_input"},
+		`{"email":"nope","name":"x"}`:    {http.StatusBadRequest, "invalid_input"},
+		`{"email":"c@b.co","name":""}`:   {http.StatusBadRequest, "invalid_input"},
+		`{"email":"d@b.co","name":"  "}`: {http.StatusBadRequest, "invalid_input"},
 		`{"email":"a@b.co","name":"y"}`:  {http.StatusConflict, "email_taken"},
 		`{bad`:                           {http.StatusBadRequest, "bad_request"},
 	}
@@ -185,7 +185,7 @@ func TestErrorsAreJSON(t *testing.T) {
 			t.Fatalf("%s: status %d", id, got)
 		}
 	}
-	if got := status(t, public+"/v1/users?limit=0"); got != http.StatusUnprocessableEntity {
+	if got := status(t, public+"/v1/users?limit=0"); got != http.StatusBadRequest {
 		t.Fatalf("limit=0: status %d", got)
 	}
 }
@@ -220,7 +220,7 @@ func TestDocs(t *testing.T) {
 func TestListPagination(t *testing.T) {
 	public, _ := newServers(t)
 	for _, email := range []string{"a@b.co", "b@b.co", "c@b.co"} {
-		if code, body := post(t, public+"/v1/users", `{"email":"`+email+`","name":"x"}`); code != http.StatusCreated {
+		if code, body := post(t, public+"/v1/users", `{"email":"`+email+`","name":"x"}`); code != http.StatusOK {
 			t.Fatalf("create %d %v", code, body)
 		}
 	}
@@ -246,7 +246,7 @@ func TestListPagination(t *testing.T) {
 	if code != http.StatusOK || len(items) != 1 || next != "" {
 		t.Fatalf("second page %d %v %q", code, items, next)
 	}
-	if code, _, body := fetch("?cursor=garbage"); code != http.StatusUnprocessableEntity || body != "invalid_cursor" {
+	if code, _, body := fetch("?cursor=garbage"); code != http.StatusBadRequest || body != "invalid_cursor" {
 		t.Fatalf("bad cursor %d %q", code, body)
 	}
 }

@@ -121,7 +121,7 @@ func errorHandler(upstream string, log *slog.Logger, cooldown time.Duration) fun
 			log.WarnContext(r.Context(), "upstream timeout", "upstream", upstream, "err", err)
 			httpx.WriteError(w, model.ErrUpstreamTimeout)
 		case errors.Is(err, context.Canceled):
-			w.WriteHeader(499)
+			w.WriteHeader(http.StatusRequestTimeout)
 		default:
 			log.ErrorContext(r.Context(), "upstream error", "upstream", upstream, "err", err)
 			httpx.WriteError(w, httpx.ErrUnavailable)

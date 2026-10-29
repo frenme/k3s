@@ -50,22 +50,6 @@ func (r Report) Healthy() bool {
 	return true
 }
 
-func ParseTargets(spec string) ([]Target, error) {
-	var targets []Target
-	for _, part := range strings.Split(spec, ",") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		name, url, ok := strings.Cut(part, "=")
-		if !ok || name == "" || !strings.HasPrefix(url, "http") {
-			return nil, fmt.Errorf("invalid health target %q", part)
-		}
-		targets = append(targets, Target{Name: name, URL: strings.TrimSuffix(url, "/")})
-	}
-	return targets, nil
-}
-
 type Service struct {
 	targets []Target
 	infra   []infraCheck
@@ -73,11 +57,6 @@ type Service struct {
 
 	mu     sync.Mutex
 	cached Report
-}
-
-type infraCheck struct {
-	name string
-	run  httpx.Check
 }
 
 func NewService(targets []Target, infra map[string]httpx.Check) *Service {
@@ -111,16 +90,6 @@ func (s *Service) Check(ctx context.Context) Report {
 	return s.cached
 }
 
-func checkInfra(ctx context.Context, c infraCheck) Result {
-	start := time.Now()
-	res := Result{Name: c.name, Kind: KindInfra, Healthy: true}
-	if err := c.run(ctx); err != nil {
-		res.Healthy, res.Error = false, err.Error()
-	}
-	res.LatencyMS = time.Since(start).Milliseconds()
-	return res
-}
-
 func (s *Service) checkService(ctx context.Context, t Target) Result {
 	start := time.Now()
 	res := Result{Name: t.Name, Kind: KindService}
@@ -147,5 +116,36 @@ func (s *Service) checkService(ctx context.Context, t Target) Result {
 	if json.Unmarshal(body, &details) == nil {
 		res.Details = details
 	}
+	return res
+}
+
+type infraCheck struct {
+	name string
+	run  httpx.Check
+}
+
+func ParseTargets(spec string) ([]Target, error) {
+	var targets []Target
+	for _, part := range strings.Split(spec, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		name, url, ok := strings.Cut(part, "=")
+		if !ok || name == "" || !strings.HasPrefix(url, "http") {
+			return nil, fmt.Errorf("invalid health target %q", part)
+		}
+		targets = append(targets, Target{Name: name, URL: strings.TrimSuffix(url, "/")})
+	}
+	return targets, nil
+}
+
+func checkInfra(ctx context.Context, c infraCheck) Result {
+	start := time.Now()
+	res := Result{Name: c.name, Kind: KindInfra, Healthy: true}
+	if err := c.run(ctx); err != nil {
+		res.Healthy, res.Error = false, err.Error()
+	}
+	res.LatencyMS = time.Since(start).Milliseconds()
 	return res
 }

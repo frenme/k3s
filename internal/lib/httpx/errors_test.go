@@ -51,7 +51,7 @@ func TestWriteError(t *testing.T) {
 func TestHumaErrorsUseTheErrorFormat(t *testing.T) {
 	e := huma.NewError(http.StatusUnprocessableEntity, "validation failed", &huma.ErrorDetail{Location: "body.email", Message: "expected string"})
 	var got Error
-	if !errors.As(e, &got) || got.Code != "invalid_input" || len(got.Details) != 1 || got.Details[0] != "body.email: expected string" {
+	if !errors.As(e, &got) || got.Code != "invalid_input" || got.Status != http.StatusBadRequest || len(got.Details) != 1 || got.Details[0] != "body.email: expected string" {
 		t.Fatalf("got %+v", e)
 	}
 	leak := huma.NewError(http.StatusInternalServerError, "unexpected error occurred", errors.New("pq: password authentication failed"))

@@ -46,17 +46,6 @@ type guard struct {
 	probing     bool
 }
 
-func newGuard(name string, next http.RoundTripper, cfg GuardConfig) *guard {
-	return &guard{
-		name:      name,
-		next:      next,
-		slots:     make(chan struct{}, max(cfg.MaxConcurrent, 1)),
-		now:       time.Now,
-		threshold: max(cfg.FailureThreshold, 1),
-		cooldown:  cfg.Cooldown,
-	}
-}
-
 func (g *guard) RoundTrip(r *http.Request) (*http.Response, error) {
 	if !g.allow() {
 		rejected.WithLabelValues(g.name, "circuit_open").Inc()
@@ -114,4 +103,15 @@ func (g *guard) abort() {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.probing = false
+}
+
+func newGuard(name string, next http.RoundTripper, cfg GuardConfig) *guard {
+	return &guard{
+		name:      name,
+		next:      next,
+		slots:     make(chan struct{}, max(cfg.MaxConcurrent, 1)),
+		now:       time.Now,
+		threshold: max(cfg.FailureThreshold, 1),
+		cooldown:  cfg.Cooldown,
+	}
 }

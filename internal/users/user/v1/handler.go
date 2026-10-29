@@ -27,13 +27,12 @@ func (h *Handler) Register(public, internal huma.API) {
 		Tags:        []string{"Users"},
 	}, httpx.AccessAdmin, h.list)
 	httpx.Register(public, huma.Operation{
-		OperationID:   "create-user",
-		Method:        http.MethodPost,
-		Path:          "/v1/users",
-		Summary:       "Create a user",
-		Tags:          []string{"Users"},
-		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusForbidden, http.StatusConflict, http.StatusBadGateway},
+		OperationID: "create-user",
+		Method:      http.MethodPost,
+		Path:        "/v1/users",
+		Summary:     "Create a user",
+		Tags:        []string{"Users"},
+		Errors:      []int{http.StatusForbidden, http.StatusConflict, http.StatusBadGateway},
 	}, httpx.AccessPublic, h.create)
 	httpx.Register(public, huma.Operation{
 		OperationID: "get-user",

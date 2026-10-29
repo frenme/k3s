@@ -139,6 +139,33 @@ func (c *Cache) store(key string, e *entry) {
 	c.entries[key] = e
 }
 
+type recorder struct {
+	header   http.Header
+	status   int
+	body     bytes.Buffer
+	overflow bool
+}
+
+func (r *recorder) Header() http.Header { return r.header }
+
+func (r *recorder) WriteHeader(status int) { r.status = status }
+
+func (r *recorder) Write(b []byte) (int, error) {
+	if r.body.Len()+len(b) > maxBody {
+		r.overflow = true
+		return len(b), nil
+	}
+	return r.body.Write(b)
+}
+
+func (r *recorder) flush(w http.ResponseWriter) {
+	for k, v := range r.header {
+		w.Header()[k] = v
+	}
+	w.WriteHeader(r.status)
+	_, _ = w.Write(r.body.Bytes())
+}
+
 func write(w http.ResponseWriter, r *http.Request, e *entry, result string, ttl time.Duration) {
 	h := w.Header()
 	for k, v := range e.header {
@@ -166,31 +193,4 @@ func pick(h http.Header) http.Header {
 		}
 	}
 	return out
-}
-
-type recorder struct {
-	header   http.Header
-	status   int
-	body     bytes.Buffer
-	overflow bool
-}
-
-func (r *recorder) Header() http.Header { return r.header }
-
-func (r *recorder) WriteHeader(status int) { r.status = status }
-
-func (r *recorder) Write(b []byte) (int, error) {
-	if r.body.Len()+len(b) > maxBody {
-		r.overflow = true
-		return len(b), nil
-	}
-	return r.body.Write(b)
-}
-
-func (r *recorder) flush(w http.ResponseWriter) {
-	for k, v := range r.header {
-		w.Header()[k] = v
-	}
-	w.WriteHeader(r.status)
-	_, _ = w.Write(r.body.Bytes())
 }

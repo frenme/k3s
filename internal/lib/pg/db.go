@@ -31,17 +31,6 @@ func NewDB(p *Pools) (*DB, error) {
 	return db, nil
 }
 
-func openGorm(pool *pgxpool.Pool) (*gorm.DB, error) {
-	return gorm.Open(postgres.New(postgres.Config{Conn: stdlib.OpenDBFromPool(pool)}), &gorm.Config{
-		TranslateError:         true,
-		DisableAutomaticPing:   true,
-		SkipDefaultTransaction: true,
-		Logger:                 logger.Discard,
-	})
-}
-
-type txKey struct{}
-
 func (db *DB) Do(ctx context.Context, fn func(ctx context.Context) error) error {
 	if _, ok := ctx.Value(txKey{}).(*gorm.DB); ok {
 		return fn(ctx)
@@ -56,6 +45,29 @@ func (db *DB) Conn(ctx context.Context) *gorm.DB {
 		return tx
 	}
 	return db.Write.WithContext(ctx)
+}
+
+func (db *DB) HasReplica() bool {
+	return db.Read != db.Write
+}
+
+func (db *DB) PingWrite(ctx context.Context) error {
+	return db.Write.WithContext(ctx).Exec("SELECT 1").Error
+}
+
+func (db *DB) PingRead(ctx context.Context) error {
+	return db.Read.WithContext(ctx).Exec("SELECT 1").Error
+}
+
+type txKey struct{}
+
+func openGorm(pool *pgxpool.Pool) (*gorm.DB, error) {
+	return gorm.Open(postgres.New(postgres.Config{Conn: stdlib.OpenDBFromPool(pool)}), &gorm.Config{
+		TranslateError:         true,
+		DisableAutomaticPing:   true,
+		SkipDefaultTransaction: true,
+		Logger:                 logger.Discard,
+	})
 }
 
 func Read[T any](ctx context.Context, db *DB, fn func(*gorm.DB) (T, error)) (T, error) {
@@ -84,16 +96,4 @@ func fallbackToPrimary(err error) bool {
 		return false
 	}
 	return true
-}
-
-func (db *DB) HasReplica() bool {
-	return db.Read != db.Write
-}
-
-func (db *DB) PingWrite(ctx context.Context) error {
-	return db.Write.WithContext(ctx).Exec("SELECT 1").Error
-}
-
-func (db *DB) PingRead(ctx context.Context) error {
-	return db.Read.WithContext(ctx).Exec("SELECT 1").Error
 }

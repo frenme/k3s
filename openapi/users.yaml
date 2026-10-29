@@ -111,6 +111,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/PageUser"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Bad Request
         "401":
           content:
             application/json:
@@ -123,12 +129,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Forbidden
-        "422":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-          description: Unprocessable Entity
         "500":
           content:
             application/json:
@@ -150,12 +150,18 @@ paths:
               $ref: "#/components/schemas/CreateUserRequestBody"
         required: true
       responses:
-        "201":
+        "200":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
-          description: Created
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Bad Request
         "403":
           content:
             application/json:
@@ -168,12 +174,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Conflict
-        "422":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-          description: Unprocessable Entity
         "500":
           content:
             application/json:
@@ -206,6 +206,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/User"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Bad Request
         "401":
           content:
             application/json:
@@ -218,12 +224,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Not Found
-        "422":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-          description: Unprocessable Entity
         "500":
           content:
             application/json:
@@ -252,6 +252,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/RolesBody"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Bad Request
         "401":
           content:
             application/json:
@@ -270,12 +276,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Not Found
-        "422":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-          description: Unprocessable Entity
         "500":
           content:
             application/json:
@@ -312,6 +312,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/RolesBody"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Bad Request
         "401":
           content:
             application/json:
@@ -330,12 +336,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Not Found
-        "422":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-          description: Unprocessable Entity
         "500":
           content:
             application/json:
@@ -371,6 +371,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/RolesBody"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Bad Request
         "401":
           content:
             application/json:
@@ -389,12 +395,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Not Found
-        "422":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-          description: Unprocessable Entity
         "500":
           content:
             application/json:

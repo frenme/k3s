@@ -11,10 +11,6 @@ type AppConfig struct {
 	Value json.RawMessage `json:"value"`
 }
 
-func toAppConfig(s model.AppConfig) AppConfig {
-	return AppConfig{Key: s.Key, Value: s.Value}
-}
-
 type ListAppConfigResponse struct {
 	Body struct {
 		Items []AppConfig `json:"items"`
@@ -27,4 +23,8 @@ type GetAppConfigRequest struct {
 
 type AppConfigResponse struct {
 	Body AppConfig
+}
+
+func toAppConfig(s model.AppConfig) AppConfig {
+	return AppConfig{Key: s.Key, Value: s.Value}
 }

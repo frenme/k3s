@@ -14,14 +14,14 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func toUser(u storage.User) User {
-	return User{ID: u.ID, Email: u.Email, Name: u.Name, CreatedAt: u.CreatedAt}
-}
-
 type ListRequest struct {
 	pagination.Params
 }
 
 type ListUsersResponse struct {
 	Body pagination.Page[User]
+}
+
+func toUser(u storage.User) User {
+	return User{ID: u.ID, Email: u.Email, Name: u.Name, CreatedAt: u.CreatedAt}
 }

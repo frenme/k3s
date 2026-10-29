@@ -13,6 +13,12 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+var onIdempotencyConflict = clause.OnConflict{
+	Columns:     []clause.Column{{Name: "idempotency_key"}},
+	TargetWhere: clause.Where{Exprs: []clause.Expression{clause.Expr{SQL: "idempotency_key IS NOT NULL"}}},
+	DoNothing:   true,
+}
+
 type orderRow struct {
 	ID             string `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	UserID         string `gorm:"type:uuid"`
@@ -20,19 +26,13 @@ type orderRow struct {
 	AmountCents    int64
 	IdempotencyKey *string
 	RequestHash    *string
-	CreatedAt      time.Time
+	CreatedAt      time.Time `gorm:"autoCreateTime:false;default:now()"`
 }
 
 func (orderRow) TableName() string { return "orders" }
 
 func (r orderRow) model() model.Order {
 	return model.Order{ID: r.ID, UserID: r.UserID, Item: r.Item, AmountCents: r.AmountCents, CreatedAt: r.CreatedAt}
-}
-
-var onIdempotencyConflict = clause.OnConflict{
-	Columns:     []clause.Column{{Name: "idempotency_key"}},
-	TargetWhere: clause.Where{Exprs: []clause.Expression{clause.Expr{SQL: "idempotency_key IS NOT NULL"}}},
-	DoNothing:   true,
 }
 
 type Orders struct {

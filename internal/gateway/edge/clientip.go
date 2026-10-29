@@ -16,8 +16,6 @@ type ClientIP struct {
 	trusted []netip.Prefix
 }
 
-type clientIPKey struct{}
-
 func NewClientIP(cidrs []string) (*ClientIP, error) {
 	c := &ClientIP{}
 	for _, raw := range cidrs {
@@ -67,6 +65,8 @@ func (c *ClientIP) isTrusted(addr netip.Addr) bool {
 	}
 	return false
 }
+
+type clientIPKey struct{}
 
 func peerAddr(remote string) netip.Addr {
 	host, _, err := net.SplitHostPort(remote)

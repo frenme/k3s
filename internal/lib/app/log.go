@@ -9,22 +9,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func newLogger(service, level string) *slog.Logger {
-	var lvl slog.Level
-	switch strings.ToLower(level) {
-	case "debug":
-		lvl = slog.LevelDebug
-	case "warn":
-		lvl = slog.LevelWarn
-	case "error":
-		lvl = slog.LevelError
-	default:
-		lvl = slog.LevelInfo
-	}
-	h := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl})
-	return slog.New(traceHandler{h}).With("service", service)
-}
-
 type traceHandler struct {
 	slog.Handler
 }
@@ -42,4 +26,20 @@ func (h traceHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 
 func (h traceHandler) WithGroup(name string) slog.Handler {
 	return traceHandler{h.Handler.WithGroup(name)}
+}
+
+func newLogger(service, level string) *slog.Logger {
+	var lvl slog.Level
+	switch strings.ToLower(level) {
+	case "debug":
+		lvl = slog.LevelDebug
+	case "warn":
+		lvl = slog.LevelWarn
+	case "error":
+		lvl = slog.LevelError
+	default:
+		lvl = slog.LevelInfo
+	}
+	h := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl})
+	return slog.New(traceHandler{h}).With("service", service)
 }

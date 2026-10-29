@@ -15,11 +15,11 @@ import (
 	"github.com/getkin/kin-openapi/routers/gorillamux"
 )
 
+var formats sync.Once
+
 type Validator struct {
 	router routers.Router
 }
-
-var formats sync.Once
 
 func New(spec []byte) (*Validator, error) {
 	formats.Do(func() {

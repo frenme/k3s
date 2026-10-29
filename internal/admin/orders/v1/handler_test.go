@@ -51,7 +51,7 @@ func TestList(t *testing.T) {
 }
 
 func TestListErrors(t *testing.T) {
-	if status, body := get(t, "/v1/admin/orders?cursor=garbage"); status != http.StatusUnprocessableEntity || body["code"] != "invalid_cursor" {
+	if status, body := get(t, "/v1/admin/orders?cursor=garbage"); status != http.StatusBadRequest || body["code"] != "invalid_cursor" {
 		t.Fatalf("cursor: %d %v", status, body)
 	}
 }

@@ -15,10 +15,6 @@ type Order struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-func toOrder(o model.Order) Order {
-	return Order{ID: o.ID, UserID: o.UserID, Item: o.Item, AmountCents: o.AmountCents, CreatedAt: o.CreatedAt}
-}
-
 type ListOrdersRequest struct {
 	pagination.Params
 }
@@ -32,8 +28,7 @@ type GetOrderRequest struct {
 }
 
 type OrderResponse struct {
-	Status int
-	Body   Order
+	Body Order
 }
 
 type CreateOrderRequest struct {
@@ -42,4 +37,8 @@ type CreateOrderRequest struct {
 		Item        string `json:"item" pattern:"\\S" maxLength:"200"`
 		AmountCents int64  `json:"amount_cents" minimum:"0"`
 	}
+}
+
+func toOrder(o model.Order) Order {
+	return Order{ID: o.ID, UserID: o.UserID, Item: o.Item, AmountCents: o.AmountCents, CreatedAt: o.CreatedAt}
 }

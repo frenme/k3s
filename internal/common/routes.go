@@ -43,17 +43,6 @@ func Setup(ctx context.Context, s *app.Service) error {
 	return nil
 }
 
-func infraChecks(s *app.Service, db *pg.DB) map[string]httpx.Check {
-	checks := map[string]httpx.Check{"postgres-rw": db.PingWrite}
-	if db.HasReplica() {
-		checks["postgres-ro"] = db.PingRead
-	}
-	if client := s.Redis(); client != nil {
-		checks["redis"] = func(ctx context.Context) error { return client.Ping(ctx).Err() }
-	}
-	return checks
-}
-
 func OpenAPI() (public, internal *huma.OpenAPI) {
 	pub, in := httpx.NewAPI(http.NewServeMux(), name), httpx.NewInternalAPI(http.NewServeMux(), name)
 	register(pub, in, nil, nil)
@@ -63,4 +52,15 @@ func OpenAPI() (public, internal *huma.OpenAPI) {
 func register(public, internal huma.API, appConfigSvc *appconfig.Service, healthSvc *health.Service) {
 	appconfigv1.NewHandler(appConfigSvc).Register(public, internal)
 	healthv1.NewHandler(healthSvc).Register(public)
+}
+
+func infraChecks(s *app.Service, db *pg.DB) map[string]httpx.Check {
+	checks := map[string]httpx.Check{"postgres-rw": db.PingWrite}
+	if db.HasReplica() {
+		checks["postgres-ro"] = db.PingRead
+	}
+	if client := s.Redis(); client != nil {
+		checks["redis"] = func(ctx context.Context) error { return client.Ping(ctx).Err() }
+	}
+	return checks
 }

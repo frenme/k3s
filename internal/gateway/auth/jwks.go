@@ -153,30 +153,6 @@ type jwk struct {
 	Y   string `json:"y"`
 }
 
-func parseJWKS(body []byte) (map[string]any, error) {
-	var set struct {
-		Keys []jwk `json:"keys"`
-	}
-	if err := json.Unmarshal(body, &set); err != nil {
-		return nil, fmt.Errorf("jwks is not valid JSON: %w", err)
-	}
-	keys := make(map[string]any, len(set.Keys))
-	for _, k := range set.Keys {
-		if k.Use != "" && k.Use != "sig" {
-			continue
-		}
-		key, err := k.publicKey()
-		if err != nil {
-			return nil, fmt.Errorf("jwks key %q: %w", k.Kid, err)
-		}
-		keys[k.Kid] = key
-	}
-	if len(keys) == 0 {
-		return nil, errors.New("jwks has no usable keys")
-	}
-	return keys, nil
-}
-
 func (k jwk) publicKey() (any, error) {
 	switch k.Kty {
 	case "RSA":
@@ -214,6 +190,30 @@ func (k jwk) publicKey() (any, error) {
 		return ed25519.PublicKey(raw), nil
 	}
 	return nil, fmt.Errorf("unsupported key type %q", k.Kty)
+}
+
+func parseJWKS(body []byte) (map[string]any, error) {
+	var set struct {
+		Keys []jwk `json:"keys"`
+	}
+	if err := json.Unmarshal(body, &set); err != nil {
+		return nil, fmt.Errorf("jwks is not valid JSON: %w", err)
+	}
+	keys := make(map[string]any, len(set.Keys))
+	for _, k := range set.Keys {
+		if k.Use != "" && k.Use != "sig" {
+			continue
+		}
+		key, err := k.publicKey()
+		if err != nil {
+			return nil, fmt.Errorf("jwks key %q: %w", k.Kid, err)
+		}
+		keys[k.Kid] = key
+	}
+	if len(keys) == 0 {
+		return nil, errors.New("jwks has no usable keys")
+	}
+	return keys, nil
 }
 
 func b64Bytes(s string, size int) ([]byte, error) {

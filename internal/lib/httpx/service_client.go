@@ -20,6 +20,10 @@ func NewServiceClient(name, baseURL string, timeout time.Duration) *ServiceClien
 	return &ServiceClient{name: name, baseURL: baseURL, http: NewClient(name, timeout)}
 }
 
+func (c *ServiceClient) unavailable(cause error) error {
+	return fmt.Errorf("%w: %w", ErrUnavailable.With(c.name), cause)
+}
+
 func Get[T any](ctx context.Context, c *ServiceClient, path string) (T, error) {
 	return call[T](ctx, c, http.MethodGet, path, nil)
 }
@@ -65,8 +69,4 @@ func call[T any](ctx context.Context, c *ServiceClient, method, path string, bod
 	}
 	apiErr.Status = resp.StatusCode
 	return out, apiErr
-}
-
-func (c *ServiceClient) unavailable(cause error) error {
-	return fmt.Errorf("%w: %w", ErrUnavailable.With(c.name), cause)
 }

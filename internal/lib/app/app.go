@@ -36,41 +36,6 @@ type Service struct {
 	redis    *redis.Client
 }
 
-func Run(name string, setup func(ctx context.Context, s *Service) error) {
-	run(name, false, setup)
-}
-
-// RunPublic для сервиса, открытого наружу: он начинает новую трассу и только ссылается на клиентскую
-func RunPublic(name string, setup func(ctx context.Context, s *Service) error) {
-	run(name, true, setup)
-}
-
-func run(name string, public bool, setup func(ctx context.Context, s *Service) error) {
-	env, envErr := envconfig.Load[EnvConfig]()
-	s := &Service{
-		Name:     name,
-		public:   public,
-		Env:      env,
-		Log:      newLogger(name, env.LogLevel),
-		Probes:   httpx.NewProbes(),
-		Mux:      http.NewServeMux(),
-		Internal: http.NewServeMux(),
-	}
-	if envErr != nil {
-		s.Log.Error("fatal", "err", envErr)
-		os.Exit(1)
-	}
-	s.Probes.Mount(s.Mux)
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	err := s.run(ctx, setup)
-	stop()
-	if err != nil {
-		s.Log.Error("fatal", "err", err)
-		os.Exit(1)
-	}
-}
-
 func (s *Service) run(ctx context.Context, setup func(ctx context.Context, s *Service) error) error {
 	defer s.close()
 	shutdown, err := setupTracing(ctx, s.Name)
@@ -132,4 +97,38 @@ func (s *Service) Cache() *cache.Cache {
 func (s *Service) Locker() *lock.Locker {
 	owner, _ := os.Hostname()
 	return lock.New(s.Redis(), s.Name, owner)
+}
+
+func Run(name string, setup func(ctx context.Context, s *Service) error) {
+	run(name, false, setup)
+}
+
+func RunPublic(name string, setup func(ctx context.Context, s *Service) error) {
+	run(name, true, setup)
+}
+
+func run(name string, public bool, setup func(ctx context.Context, s *Service) error) {
+	env, envErr := envconfig.Load[EnvConfig]()
+	s := &Service{
+		Name:     name,
+		public:   public,
+		Env:      env,
+		Log:      newLogger(name, env.LogLevel),
+		Probes:   httpx.NewProbes(),
+		Mux:      http.NewServeMux(),
+		Internal: http.NewServeMux(),
+	}
+	if envErr != nil {
+		s.Log.Error("fatal", "err", envErr)
+		os.Exit(1)
+	}
+	s.Probes.Mount(s.Mux)
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	err := s.run(ctx, setup)
+	stop()
+	if err != nil {
+		s.Log.Error("fatal", "err", err)
+		os.Exit(1)
+	}
 }

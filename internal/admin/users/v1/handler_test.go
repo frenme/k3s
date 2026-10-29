@@ -52,10 +52,10 @@ func TestList(t *testing.T) {
 }
 
 func TestListErrors(t *testing.T) {
-	if status, body := get(t, "/v1/admin/users?limit=0"); status != http.StatusUnprocessableEntity || body["code"] != "invalid_input" {
+	if status, body := get(t, "/v1/admin/users?limit=0"); status != http.StatusBadRequest || body["code"] != "invalid_input" {
 		t.Fatalf("limit=0: %d %v", status, body)
 	}
-	if status, body := get(t, "/v1/admin/users?cursor=garbage"); status != http.StatusUnprocessableEntity || body["code"] != "invalid_cursor" {
+	if status, body := get(t, "/v1/admin/users?cursor=garbage"); status != http.StatusBadRequest || body["code"] != "invalid_cursor" {
 		t.Fatalf("cursor: %d %v", status, body)
 	}
 }

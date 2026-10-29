@@ -10,14 +10,6 @@ type RolesResponse struct {
 	Body RolesBody
 }
 
-func toRoles(roles []model.Role) *RolesResponse {
-	out := &RolesResponse{Body: RolesBody{Roles: make([]string, 0, len(roles))}}
-	for _, r := range roles {
-		out.Body.Roles = append(out.Body.Roles, string(r))
-	}
-	return out
-}
-
 type GetRolesRequest struct {
 	ID string `path:"id"`
 }
@@ -25,4 +17,12 @@ type GetRolesRequest struct {
 type RoleRequest struct {
 	ID   string `path:"id"`
 	Role string `path:"role" enum:"user,admin"`
+}
+
+func toRoles(roles []model.Role) *RolesResponse {
+	out := &RolesResponse{Body: RolesBody{Roles: make([]string, 0, len(roles))}}
+	for _, r := range roles {
+		out.Body.Roles = append(out.Body.Roles, string(r))
+	}
+	return out
 }

@@ -53,21 +53,21 @@ func TestInvalidRequestsAreRejectedBeforeTheService(t *testing.T) {
 		status                     int
 		code                       string
 	}{
-		{"bad email", "POST", "/api/v1/users", `{"email":"nope","name":"Ann"}`, 422, "invalid_input"},
-		{"missing field", "POST", "/api/v1/users", `{"email":"a@b.co"}`, 422, "invalid_input"},
-		{"unknown field", "POST", "/api/v1/users", `{"email":"a@b.co","name":"Ann","admin":true}`, 422, "invalid_input"},
+		{"bad email", "POST", "/api/v1/users", `{"email":"nope","name":"Ann"}`, 400, "invalid_input"},
+		{"missing field", "POST", "/api/v1/users", `{"email":"a@b.co"}`, 400, "invalid_input"},
+		{"unknown field", "POST", "/api/v1/users", `{"email":"a@b.co","name":"Ann","admin":true}`, 400, "invalid_input"},
 		{"malformed json", "POST", "/api/v1/users", `{bad`, 400, "bad_request"},
-		{"limit below minimum", "GET", "/api/v1/orders?limit=0", "", 422, "invalid_input"},
-		{"limit above maximum", "GET", "/api/v1/orders?limit=100000", "", 422, "invalid_input"},
-		{"owner in the body", "POST", "/api/v1/orders", `{"user_id":"11111111-1111-4111-8111-111111111111","item":"x","amount_cents":1}`, 422, "invalid_input"},
-		{"negative amount", "POST", "/api/v1/orders", `{"item":"x","amount_cents":-1}`, 422, "invalid_input"},
+		{"limit below minimum", "GET", "/api/v1/orders?limit=0", "", 400, "invalid_input"},
+		{"limit above maximum", "GET", "/api/v1/orders?limit=100000", "", 400, "invalid_input"},
+		{"owner in the body", "POST", "/api/v1/orders", `{"user_id":"11111111-1111-4111-8111-111111111111","item":"x","amount_cents":1}`, 400, "invalid_input"},
+		{"negative amount", "POST", "/api/v1/orders", `{"item":"x","amount_cents":-1}`, 400, "invalid_input"},
 	}
 	for _, c := range cases {
 		code, body, downstream := serve(t, c.method, c.target, c.body)
 		if code != c.status || body["code"] != c.code || downstream != "" {
 			t.Errorf("%s: status %d body %v reached the service: %v", c.name, code, body, downstream != "")
 		}
-		if c.status == 422 {
+		if c.code == "invalid_input" {
 			if details, _ := body["details"].([]any); len(details) == 0 {
 				t.Errorf("%s: no details in %v", c.name, body)
 			}

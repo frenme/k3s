@@ -12,6 +12,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var asymmetricMethods = []string{"RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"}
+
 type JWTConfig struct {
 	Secret      string        `env:"JWT_SECRET"`
 	PublicKey   string        `env:"JWT_PUBLIC_KEY"`
@@ -78,12 +80,21 @@ func NewVerifier(cfg JWTConfig, log *slog.Logger) (*Verifier, error) {
 	return v, nil
 }
 
-var asymmetricMethods = []string{"RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"}
-
 func (v *Verifier) Start(ctx context.Context) {
 	if v.jwks != nil {
 		go v.jwks.Run(ctx)
 	}
+}
+
+func (v *Verifier) Subject(token string) (string, error) {
+	claims := jwt.RegisteredClaims{}
+	if _, err := v.parser.ParseWithClaims(token, &claims, v.keyFunc); err != nil {
+		return "", err
+	}
+	if claims.Subject == "" {
+		return "", errors.New("token has no subject")
+	}
+	return claims.Subject, nil
 }
 
 func parsePublicKey(raw string) (any, error) {
@@ -96,15 +107,4 @@ func parsePublicKey(raw string) (any, error) {
 		return nil, fmt.Errorf("JWT_PUBLIC_KEY: %w", err)
 	}
 	return pub, nil
-}
-
-func (v *Verifier) Subject(token string) (string, error) {
-	claims := jwt.RegisteredClaims{}
-	if _, err := v.parser.ParseWithClaims(token, &claims, v.keyFunc); err != nil {
-		return "", err
-	}
-	if claims.Subject == "" {
-		return "", errors.New("token has no subject")
-	}
-	return claims.Subject, nil
 }

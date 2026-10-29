@@ -34,7 +34,7 @@ var (
 
 func loadSpecs() []routers.Router {
 	var out []routers.Router
-	for _, file := range []string{"../api/users.yaml", "../api/orders.yaml", "../api/admin.yaml", "../api/common.yaml"} {
+	for _, file := range []string{"../openapi/users.yaml", "../openapi/orders.yaml", "../openapi/admin.yaml", "../openapi/common.yaml"} {
 		doc, err := openapi3.NewLoader().LoadFromFile(file)
 		if err != nil {
 			panic(err)
@@ -74,7 +74,7 @@ func validate(t *testing.T, req *http.Request, status int, header http.Header, b
 	}
 	input.SetBodyBytes(body)
 	if err := openapi3filter.ValidateResponse(req.Context(), input); err != nil {
-		t.Fatalf("%s %s %d does not match the spec in api/: %v", req.Method, req.URL.Path, status, err)
+		t.Fatalf("%s %s %d does not match the spec in openapi/: %v", req.Method, req.URL.Path, status, err)
 	}
 }
 
@@ -178,7 +178,7 @@ func TestUnknownRoute(t *testing.T) {
 		{http.MethodGet, "/api/unknown", http.StatusNotFound},
 		{http.MethodGet, "/api/v1/users/1/nope", http.StatusNotFound},
 		{http.MethodGet, "/api/v1/users/internal/v1/users/11111111-1111-4111-8111-111111111111", http.StatusNotFound},
-		{http.MethodDelete, "/api/v1/orders", http.StatusMethodNotAllowed},
+		{http.MethodDelete, "/api/v1/orders", http.StatusNotFound},
 	}
 	for _, c := range cases {
 		r := call(t, c.method, c.path, nil, nil)
@@ -261,7 +261,7 @@ func TestAdminNeedsTheAdminRole(t *testing.T) {
 
 func TestGrantingTheAdminRole(t *testing.T) {
 	created := call(t, http.MethodPost, "/api/v1/users", map[string]string{"email": fmt.Sprintf("role-%d@example.com", time.Now().UnixNano()), "name": "Role"}, nil)
-	expect(t, created, http.StatusCreated)
+	expect(t, created, http.StatusOK)
 	id, _ := created.body["id"].(string)
 
 	roles := call(t, http.MethodGet, "/api/v1/users/"+id+"/roles", nil, adminAuth(t))
@@ -273,16 +273,16 @@ func TestGrantingTheAdminRole(t *testing.T) {
 
 	promoted := map[string]string{"Authorization": "Bearer " + tokenFor(t, id)}
 	expect(t, call(t, http.MethodGet, "/api/v1/admin/users", nil, promoted), http.StatusOK)
-	expect(t, call(t, http.MethodPut, "/api/v1/users/"+id+"/roles/root", nil, adminAuth(t)), http.StatusUnprocessableEntity)
+	expect(t, call(t, http.MethodPut, "/api/v1/users/"+id+"/roles/root", nil, adminAuth(t)), http.StatusBadRequest)
 }
 
 func TestRequestsAreValidatedAtTheGateway(t *testing.T) {
 	r := call(t, http.MethodPost, "/api/v1/users", map[string]string{"email": "nope", "name": "x"}, nil)
-	expect(t, r, http.StatusUnprocessableEntity)
+	expect(t, r, http.StatusBadRequest)
 	if details, _ := r.body["details"].([]any); r.body["code"] != "invalid_input" || len(details) == 0 {
 		t.Fatalf("body %v", r.body)
 	}
-	expect(t, call(t, http.MethodGet, "/api/v1/orders?limit=0", nil, nil), http.StatusUnprocessableEntity)
+	expect(t, call(t, http.MethodGet, "/api/v1/orders?limit=0", nil, nil), http.StatusBadRequest)
 }
 
 func TestBodyLimitAndRouteTimeoutSettings(t *testing.T) {
@@ -347,7 +347,7 @@ func TestUsersAndOrders(t *testing.T) {
 	email := fmt.Sprintf("e2e-%d@example.com", time.Now().UnixNano())
 
 	created := call(t, http.MethodPost, "/api/v1/users", map[string]string{"email": email, "name": "E2E"}, nil)
-	expect(t, created, http.StatusCreated)
+	expect(t, created, http.StatusOK)
 	userID, _ := created.body["id"].(string)
 	if userID == "" {
 		t.Fatal("user id missing")
@@ -358,13 +358,13 @@ func TestUsersAndOrders(t *testing.T) {
 	expect(t, call(t, http.MethodPost, "/api/v1/users", map[string]string{"email": email, "name": "E2E"}, nil), http.StatusConflict)
 	expect(t, call(t, http.MethodGet, "/api/v1/users/"+userID, nil, me), http.StatusOK)
 	expect(t, call(t, http.MethodGet, "/api/v1/users/"+userID, nil, stranger), http.StatusNotFound)
-	expect(t, call(t, http.MethodGet, "/api/v1/users/"+userID, nil, nil), http.StatusUnauthorized)
+	expect(t, call(t, http.MethodGet, "/api/v1/users/"+userID, nil, map[string]string{noAuth: ""}), http.StatusUnauthorized)
 
 	order := map[string]any{"item": "widget", "amount_cents": 1999}
 	key := map[string]string{"Idempotency-Key": "e2e-" + userID, "Authorization": me["Authorization"]}
 
 	first := call(t, http.MethodPost, "/api/v1/orders", order, key)
-	expect(t, first, http.StatusCreated)
+	expect(t, first, http.StatusOK)
 	orderID, _ := first.body["id"].(string)
 	if first.body["user_id"] != userID {
 		t.Fatalf("the order must belong to the token subject: %v", first.body)
@@ -382,12 +382,12 @@ func TestUsersAndOrders(t *testing.T) {
 
 	changed := map[string]any{"item": "widget", "amount_cents": 1}
 	reused := call(t, http.MethodPost, "/api/v1/orders", changed, key)
-	expect(t, reused, http.StatusUnprocessableEntity)
+	expect(t, reused, http.StatusBadRequest)
 	if reused.body["code"] != "idempotency_key_reused" {
 		t.Fatalf("reused key: %v", reused.body)
 	}
 
-	expect(t, call(t, http.MethodPost, "/api/v1/orders", map[string]any{"item": "x", "amount_cents": 1}, stranger), http.StatusUnprocessableEntity)
+	expect(t, call(t, http.MethodPost, "/api/v1/orders", map[string]any{"item": "x", "amount_cents": 1}, stranger), http.StatusBadRequest)
 
 	list := call(t, http.MethodGet, "/api/v1/orders", nil, me)
 	expect(t, list, http.StatusOK)

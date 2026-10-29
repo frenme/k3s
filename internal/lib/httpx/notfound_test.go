@@ -22,7 +22,7 @@ func TestJSONErrors(t *testing.T) {
 	}{
 		{http.MethodGet, "/items/1", http.StatusOK, "", ""},
 		{http.MethodGet, "/nope", http.StatusNotFound, "not_found", ""},
-		{http.MethodDelete, "/items/1", http.StatusMethodNotAllowed, "method_not_allowed", "GET, HEAD"},
+		{http.MethodDelete, "/items/1", http.StatusNotFound, "not_found", ""},
 	}
 	for _, c := range cases {
 		rec := httptest.NewRecorder()

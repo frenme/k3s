@@ -14,10 +14,6 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func toUser(u model.User) User {
-	return User{ID: u.ID, Email: u.Email, Name: u.Name, CreatedAt: u.CreatedAt}
-}
-
 type ListUsersRequest struct {
 	pagination.Params
 }
@@ -39,4 +35,8 @@ type CreateUserRequest struct {
 		Email string `json:"email" format:"email" maxLength:"254"`
 		Name  string `json:"name" pattern:"\\S" maxLength:"200"`
 	}
+}
+
+func toUser(u model.User) User {
+	return User{ID: u.ID, Email: u.Email, Name: u.Name, CreatedAt: u.CreatedAt}
 }

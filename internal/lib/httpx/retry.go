@@ -28,21 +28,6 @@ type retryTransport struct {
 	wait    func(ctx context.Context, d time.Duration) error
 }
 
-func newRetryTransport(client string, next http.RoundTripper, retries int) *retryTransport {
-	return &retryTransport{client: client, next: next, retries: retries, wait: waitFor}
-}
-
-func waitFor(ctx context.Context, d time.Duration) error {
-	timer := time.NewTimer(d)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
-}
-
 func (t *retryTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	attempts := 1
 	if safeToRepeat(r) {
@@ -71,6 +56,21 @@ func (t *retryTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 		}
 	}
 	return resp, err
+}
+
+func newRetryTransport(client string, next http.RoundTripper, retries int) *retryTransport {
+	return &retryTransport{client: client, next: next, retries: retries, wait: waitFor}
+}
+
+func waitFor(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func safeToRepeat(r *http.Request) bool {

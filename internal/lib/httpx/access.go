@@ -11,6 +11,10 @@ import (
 
 type Access string
 
+func (a Access) Valid() bool {
+	return a == AccessPublic || a == AccessUser || a == AccessAdmin
+}
+
 const (
 	AccessPublic Access = "public"
 	AccessUser   Access = "user"
@@ -21,10 +25,6 @@ const (
 	MaxBodyExtension  = "x-max-body"
 	CacheTTLExtension = "x-cache-ttl"
 )
-
-func (a Access) Valid() bool {
-	return a == AccessPublic || a == AccessUser || a == AccessAdmin
-}
 
 type RouteOption func(extensions map[string]any)
 
@@ -59,10 +59,28 @@ func Register[I, O any](api huma.API, op huma.Operation, access Access, handler 
 		op.Errors = withStatus(withStatus(op.Errors, http.StatusUnauthorized), http.StatusForbidden)
 	}
 	huma.Register(api, op, handleErrors(handler))
+	validationIsBadRequest(api, op)
 }
 
 func RegisterInternal[I, O any](api huma.API, op huma.Operation, handler func(context.Context, *I) (*O, error)) {
 	huma.Register(api, op, handleErrors(handler))
+	validationIsBadRequest(api, op)
+}
+
+func validationIsBadRequest(api huma.API, op huma.Operation) {
+	item := api.OpenAPI().Paths[op.Path]
+	for _, registered := range []*huma.Operation{item.Get, item.Put, item.Post, item.Delete, item.Patch} {
+		if registered == nil || registered.OperationID != op.OperationID {
+			continue
+		}
+		resp, ok := registered.Responses["422"]
+		if !ok {
+			continue
+		}
+		delete(registered.Responses, "422")
+		resp.Description = http.StatusText(http.StatusBadRequest)
+		registered.Responses["400"] = resp
+	}
 }
 
 func handleErrors[I, O any](handler func(context.Context, *I) (*O, error)) func(context.Context, *I) (*O, error) {

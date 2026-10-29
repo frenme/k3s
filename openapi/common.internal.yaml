@@ -49,18 +49,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/AppConfig"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          description: Bad Request
         "404":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
           description: Not Found
-        "422":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-          description: Unprocessable Entity
         "500":
           content:
             application/json:

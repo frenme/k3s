@@ -38,7 +38,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("%s: %v", file, err)
 		}
-		if err := os.WriteFile(filepath.Join("api", file), out, 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join("openapi", file), out, 0o600); err != nil {
 			log.Fatal(err)
 		}
 	}

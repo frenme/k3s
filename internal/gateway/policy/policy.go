@@ -19,31 +19,6 @@ type Rule struct {
 	CacheTTL time.Duration
 }
 
-type Route struct {
-	Rule     Rule
-	Template string
-	Matched  bool
-}
-
-type Table []Rule
-
-var unmatched = Route{Rule: Rule{Access: httpx.AccessUser}, Template: "unmatched"}
-
-var static = Table{
-	{Method: http.MethodGet, Path: "/api/v1/*/docs", Access: httpx.AccessPublic},
-	{Method: http.MethodGet, Path: "/api/v1/*/openapi.json", Access: httpx.AccessPublic},
-	{Method: http.MethodGet, Path: "/api/v1/*/openapi.yaml", Access: httpx.AccessPublic},
-	{Path: "/api/v1/admin/**", Access: httpx.AccessAdmin},
-}
-
-func Default() Table {
-	return slices.Concat(static, generated)
-}
-
-func sec(n int) time.Duration {
-	return time.Duration(n) * time.Second
-}
-
 func (r Rule) methodMatches(method string) bool {
 	return r.Method == "" || r.Method == method || (r.Method == http.MethodGet && method == http.MethodHead)
 }
@@ -64,6 +39,16 @@ func (r Rule) matches(method string, segments []string) bool {
 	return len(want) == len(segments)
 }
 
+type Route struct {
+	Rule     Rule
+	Template string
+	Matched  bool
+}
+
+var unmatched = Route{Rule: Rule{Access: httpx.AccessUser}, Template: "unmatched"}
+
+type Table []Rule
+
 func (t Table) Find(method, path string) Route {
 	segments := split(path)
 	for _, rule := range t {
@@ -78,11 +63,26 @@ func (t Table) Find(method, path string) Route {
 	return unmatched
 }
 
-func split(path string) []string {
-	return strings.Split(strings.Trim(path, "/"), "/")
+var static = Table{
+	{Method: http.MethodGet, Path: "/api/v1/*/docs", Access: httpx.AccessPublic},
+	{Method: http.MethodGet, Path: "/api/v1/*/openapi.json", Access: httpx.AccessPublic},
+	{Method: http.MethodGet, Path: "/api/v1/*/openapi.yaml", Access: httpx.AccessPublic},
+	{Path: "/api/v1/admin/**", Access: httpx.AccessAdmin},
 }
 
 type routeKey struct{}
+
+func Default() Table {
+	return slices.Concat(static, generated)
+}
+
+func sec(n int) time.Duration {
+	return time.Duration(n) * time.Second
+}
+
+func split(path string) []string {
+	return strings.Split(strings.Trim(path, "/"), "/")
+}
 
 func Resolve(table Table) httpx.Middleware {
 	return func(next http.Handler) http.Handler {

@@ -13,10 +13,6 @@ type Job struct {
 	NextRun        time.Time `json:"next_run"`
 }
 
-func toJob(j model.Job) Job {
-	return Job{Name: j.Name, Schedule: j.Schedule, TimeoutSeconds: int64(j.Timeout.Seconds()), NextRun: j.NextRun}
-}
-
 type ListJobsResponse struct {
 	Body struct {
 		Items []Job `json:"items"`
@@ -36,6 +32,10 @@ type Run struct {
 
 type RunJobResponse struct {
 	Body Run
+}
+
+func toJob(j model.Job) Job {
+	return Job{Name: j.Name, Schedule: j.Schedule, TimeoutSeconds: int64(j.Timeout.Seconds()), NextRun: j.NextRun}
 }
 
 func toRun(r model.Run) Run {

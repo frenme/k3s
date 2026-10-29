@@ -64,7 +64,7 @@ func TestListAndRun(t *testing.T) {
 	if status, body := do(t, http.MethodPost, base+"/internal/v1/scheduler/jobs/nope/run"); status != http.StatusNotFound || body["code"] != "job_not_found" {
 		t.Fatalf("run missing %d %v", status, body)
 	}
-	if status, body := do(t, http.MethodPost, base+"/internal/v1/scheduler/jobs/BAD_NAME/run"); status != http.StatusUnprocessableEntity || body["code"] != "invalid_input" {
+	if status, body := do(t, http.MethodPost, base+"/internal/v1/scheduler/jobs/BAD_NAME/run"); status != http.StatusBadRequest || body["code"] != "invalid_input" {
 		t.Fatalf("bad name %d %v", status, body)
 	}
 }

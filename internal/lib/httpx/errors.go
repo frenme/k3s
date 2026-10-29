@@ -29,15 +29,14 @@ func (e Error) With(details ...string) Error {
 }
 
 var (
-	ErrBadRequest       = Error{Status: http.StatusBadRequest, Code: "bad_request", Message: "Malformed request"}
-	ErrUnauthorized     = Error{Status: http.StatusUnauthorized, Code: "unauthorized", Message: "Valid access token required"}
-	ErrNotFound         = Error{Status: http.StatusNotFound, Code: "not_found", Message: "Not found"}
-	ErrMethodNotAllowed = Error{Status: http.StatusMethodNotAllowed, Code: "method_not_allowed", Message: "Method not allowed"}
-	ErrInvalidInput     = Error{Status: http.StatusUnprocessableEntity, Code: "invalid_input", Message: "Invalid input"}
-	ErrInternal         = Error{Status: http.StatusInternalServerError, Code: "internal_error", Message: "Something went wrong"}
+	ErrBadRequest   = Error{Status: http.StatusBadRequest, Code: "bad_request", Message: "Malformed request"}
+	ErrUnauthorized = Error{Status: http.StatusUnauthorized, Code: "unauthorized", Message: "Valid access token required"}
+	ErrNotFound     = Error{Status: http.StatusNotFound, Code: "not_found", Message: "Not found"}
+	ErrInvalidInput = Error{Status: http.StatusBadRequest, Code: "invalid_input", Message: "Invalid input"}
+	ErrInternal     = Error{Status: http.StatusInternalServerError, Code: "internal_error", Message: "Something went wrong"}
 
-	ErrInvalidCursor        = Error{Status: http.StatusUnprocessableEntity, Code: "invalid_cursor", Message: "Invalid cursor"}
-	ErrIdempotencyKeyReused = Error{Status: http.StatusUnprocessableEntity, Code: "idempotency_key_reused", Message: "Idempotency-Key was already used with a different request"}
+	ErrInvalidCursor        = Error{Status: http.StatusBadRequest, Code: "invalid_cursor", Message: "Invalid cursor"}
+	ErrIdempotencyKeyReused = Error{Status: http.StatusBadRequest, Code: "idempotency_key_reused", Message: "Idempotency-Key was already used with a different request"}
 	ErrUnavailable          = Error{Status: http.StatusBadGateway, Code: "upstream_unavailable", Message: "Service is temporarily unavailable"}
 )
 
@@ -47,8 +46,6 @@ func standard(status int) Error {
 		return ErrBadRequest
 	case http.StatusNotFound:
 		return ErrNotFound
-	case http.StatusMethodNotAllowed:
-		return ErrMethodNotAllowed
 	case http.StatusUnprocessableEntity:
 		return ErrInvalidInput
 	case http.StatusInternalServerError:

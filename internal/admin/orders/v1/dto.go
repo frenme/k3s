@@ -15,14 +15,14 @@ type Order struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-func toOrder(o storage.Order) Order {
-	return Order{ID: o.ID, UserID: o.UserID, Item: o.Item, AmountCents: o.AmountCents, CreatedAt: o.CreatedAt}
-}
-
 type ListRequest struct {
 	pagination.Params
 }
 
 type ListOrdersResponse struct {
 	Body pagination.Page[Order]
+}
+
+func toOrder(o storage.Order) Order {
+	return Order{ID: o.ID, UserID: o.UserID, Item: o.Item, AmountCents: o.AmountCents, CreatedAt: o.CreatedAt}
 }

@@ -16,8 +16,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type Middleware func(http.Handler) http.Handler
-
 const RequestIDHeader = "X-Request-ID"
 
 var (
@@ -31,6 +29,8 @@ var (
 		Buckets: prometheus.DefBuckets,
 	}, []string{"method", "route"})
 )
+
+type Middleware func(http.Handler) http.Handler
 
 type statusWriter struct {
 	http.ResponseWriter

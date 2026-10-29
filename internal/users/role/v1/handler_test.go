@@ -85,7 +85,7 @@ func TestRolesLifecycle(t *testing.T) {
 func TestRoleErrors(t *testing.T) {
 	id := uuid.NewString()
 	public, internal := servers(t, id)
-	if status, body := do(t, http.MethodPut, public+"/v1/users/"+id+"/roles/root"); status != http.StatusUnprocessableEntity || body["code"] != "invalid_input" {
+	if status, body := do(t, http.MethodPut, public+"/v1/users/"+id+"/roles/root"); status != http.StatusBadRequest || body["code"] != "invalid_input" {
 		t.Fatalf("unknown role: %d %v", status, body)
 	}
 	if status, body := do(t, http.MethodGet, internal+"/internal/v1/users/"+uuid.NewString()+"/roles"); status != http.StatusNotFound || body["code"] != "user_not_found" {

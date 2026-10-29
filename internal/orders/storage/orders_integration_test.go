@@ -21,7 +21,7 @@ func TestOrders(t *testing.T) {
 	body := model.Order{UserID: user, Item: "book", AmountCents: 1500}
 	idem, _ := idempotency.New(user, "key-1", body)
 	first, created, err := store.Create(ctx, body, idem)
-	if err != nil || !created || first.ID == "" {
+	if err != nil || !created || first.ID == "" || first.CreatedAt.IsZero() {
 		t.Fatalf("create %+v created %v err %v", first, created, err)
 	}
 	replay, created, err := store.Create(ctx, body, idem)

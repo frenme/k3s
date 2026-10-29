@@ -120,14 +120,14 @@ func TestCreateOrder(t *testing.T) {
 		status           int
 		code             string
 	}{
-		{"ok", knownUser, `{"item":"book","amount_cents":1500}`, http.StatusCreated, ""},
-		{"unknown user", unknownUser, `{"item":"book","amount_cents":1}`, http.StatusUnprocessableEntity, "unknown_user"},
-		{"subject is not a uuid", "not-a-uuid", `{"item":"book","amount_cents":1}`, http.StatusUnprocessableEntity, "unknown_user"},
+		{"ok", knownUser, `{"item":"book","amount_cents":1500}`, http.StatusOK, ""},
+		{"unknown user", unknownUser, `{"item":"book","amount_cents":1}`, http.StatusBadRequest, "unknown_user"},
+		{"subject is not a uuid", "not-a-uuid", `{"item":"book","amount_cents":1}`, http.StatusBadRequest, "unknown_user"},
 		{"no user header", "", `{"item":"book","amount_cents":1}`, http.StatusUnauthorized, "unauthorized"},
-		{"owner is not taken from the body", knownUser, `{"user_id":"` + unknownUser + `","item":"book","amount_cents":1}`, http.StatusUnprocessableEntity, "invalid_input"},
-		{"empty item", knownUser, `{"item":"","amount_cents":1}`, http.StatusUnprocessableEntity, "invalid_input"},
-		{"blank item", knownUser, `{"item":"   ","amount_cents":1}`, http.StatusUnprocessableEntity, "invalid_input"},
-		{"negative amount", knownUser, `{"item":"x","amount_cents":-1}`, http.StatusUnprocessableEntity, "invalid_input"},
+		{"owner is not taken from the body", knownUser, `{"user_id":"` + unknownUser + `","item":"book","amount_cents":1}`, http.StatusBadRequest, "invalid_input"},
+		{"empty item", knownUser, `{"item":"","amount_cents":1}`, http.StatusBadRequest, "invalid_input"},
+		{"blank item", knownUser, `{"item":"   ","amount_cents":1}`, http.StatusBadRequest, "invalid_input"},
+		{"negative amount", knownUser, `{"item":"x","amount_cents":-1}`, http.StatusBadRequest, "invalid_input"},
 		{"not json", knownUser, `nope`, http.StatusBadRequest, "bad_request"},
 	}
 	for _, c := range cases {
@@ -148,20 +148,22 @@ func TestUsersServiceDown(t *testing.T) {
 func TestIdempotency(t *testing.T) {
 	url := newServer(t, fakeUsers{}) + "/v1/orders"
 	body := `{"item":"book","amount_cents":1}`
-	if code, _ := send(t, url, knownUser, body, "k1"); code != http.StatusCreated {
+	code, first := send(t, url, knownUser, body, "k1")
+	if code != http.StatusOK {
 		t.Fatalf("first status %d", code)
 	}
-	if code, _ := send(t, url, knownUser, body, "k1"); code != http.StatusOK {
-		t.Fatalf("second status %d", code)
+	code, replay := send(t, url, knownUser, body, "k1")
+	if code != http.StatusOK || replay["id"] != first["id"] {
+		t.Fatalf("a replay must return the first order: status %d, %v and %v", code, first, replay)
 	}
 }
 
 func TestIdempotencyKeyReuseWithDifferentBody(t *testing.T) {
 	url := newServer(t, fakeUsers{}) + "/v1/orders"
-	if code, _ := send(t, url, knownUser, `{"item":"book","amount_cents":1}`, "k2"); code != http.StatusCreated {
+	if code, _ := send(t, url, knownUser, `{"item":"book","amount_cents":1}`, "k2"); code != http.StatusOK {
 		t.Fatalf("first status %d", code)
 	}
-	if code, out := send(t, url, knownUser, `{"item":"book","amount_cents":2}`, "k2"); code != http.StatusUnprocessableEntity || out["code"] != "idempotency_key_reused" {
+	if code, out := send(t, url, knownUser, `{"item":"book","amount_cents":2}`, "k2"); code != http.StatusBadRequest || out["code"] != "idempotency_key_reused" {
 		t.Fatalf("status %d body %v", code, out)
 	}
 }

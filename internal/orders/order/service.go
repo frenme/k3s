@@ -57,21 +57,21 @@ func (s *Service) Get(ctx context.Context, userID, id string) (model.Order, erro
 	return o, nil
 }
 
-func (s *Service) Create(ctx context.Context, o model.Order, idem idempotency.Request) (model.Order, bool, error) {
+func (s *Service) Create(ctx context.Context, o model.Order, idem idempotency.Request) (model.Order, error) {
 	o.Item = strings.TrimSpace(o.Item)
 	if _, err := s.users.Get(ctx, o.UserID); errors.Is(err, users.ErrNotFound) {
-		return model.Order{}, false, model.ErrUnknownUser
+		return model.Order{}, model.ErrUnknownUser
 	} else if err != nil {
-		return model.Order{}, false, err
+		return model.Order{}, err
 	}
 	created, isNew, err := s.store.Create(ctx, o, idem)
 	if err != nil {
-		return model.Order{}, false, err
+		return model.Order{}, err
 	}
 	if isNew {
 		ordersTotal.WithLabelValues("created").Inc()
 	} else {
 		ordersTotal.WithLabelValues("replayed").Inc()
 	}
-	return created, isNew, nil
+	return created, nil
 }

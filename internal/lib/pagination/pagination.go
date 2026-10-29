@@ -20,6 +20,16 @@ func (c Cursor) Encode() string {
 	return base64.RawURLEncoding.EncodeToString([]byte(raw))
 }
 
+type Params struct {
+	Limit  int    `query:"limit" default:"50" minimum:"1" maximum:"500"`
+	Cursor string `query:"cursor" maxLength:"200"`
+}
+
+type Page[T any] struct {
+	Items []T    `json:"items"`
+	Next  string `json:"next_cursor,omitempty"`
+}
+
 func Decode(s string) (*Cursor, error) {
 	if s == "" {
 		return nil, nil
@@ -37,16 +47,6 @@ func Decode(s string) (*Cursor, error) {
 		return nil, httpx.ErrInvalidCursor
 	}
 	return &Cursor{CreatedAt: time.UnixMicro(n).UTC(), ID: id}, nil
-}
-
-type Params struct {
-	Limit  int    `query:"limit" default:"50" minimum:"1" maximum:"500"`
-	Cursor string `query:"cursor" maxLength:"200"`
-}
-
-type Page[T any] struct {
-	Items []T    `json:"items"`
-	Next  string `json:"next_cursor,omitempty"`
 }
 
 func Fetch[T any](ctx context.Context, p Params, find func(ctx context.Context, limit int, after *Cursor) ([]T, error), cursorOf func(T) Cursor) (Page[T], error) {
