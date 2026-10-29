@@ -1,8 +1,6 @@
 namespace: app-dev
 kubeContext: k3s-dev
-domain: api.dev.example.com
-acmeEmail: REPLACE_WITH_ACME_EMAIL
-clusterIssuer: letsencrypt-staging
+subdomain: dev
 backups: false
 
 appDefaults:

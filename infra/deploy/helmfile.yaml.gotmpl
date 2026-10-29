@@ -113,6 +113,7 @@ releases:
     version: 110.0.0
 
   - name: cert-manager
+    installed: {{ $backups }}
     namespace: cert-manager
     inherit:
       - template: layered
@@ -165,9 +166,6 @@ releases:
     {{- end }}
     needs:
       - monitoring/monitoring
-      {{- if dig "gateway" false $app }}
-      - cert-manager/cert-manager
-      {{- end }}
       {{- if dig "database" false $app }}
       - postgres
       {{- end }}
@@ -182,6 +180,5 @@ releases:
       - template: layered
     chart: ./helm/platform
     needs:
-      - cert-manager/cert-manager
       - monitoring/monitoring
       - cattle-system/system-upgrade-controller

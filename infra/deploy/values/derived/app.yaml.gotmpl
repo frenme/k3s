@@ -40,11 +40,9 @@
 {{- end }}
 {{- $_ := set $env "ROUTES" (join "," $routes) }}
 {{- $_ := set $secret "JWT_SECRET" (required "secrets.jwt must be set (add it to the environment secrets file with sops)" (dig "jwt" "" .Values.secrets)) }}
-{{- with dig "domain" "" $.Values }}
-{{- $ingress := dict "host" . "tlsSecretName" (printf "%s-tls" (replace "." "-" .)) }}
-{{- with dig "clusterIssuer" "" $.Values }}
-{{- $_ := set $ingress "clusterIssuer" . }}
-{{- end }}
+{{- with dig "subdomain" "" $.Values }}
+{{- $ingress := dict "host" (printf "%s.%s" . (required "domain must be set" (dig "domain" "" $.Values))) }}
+{{- $_ := set $ingress "clientIPDepth" 1 }}
 {{- $_ := set $out "ingress" $ingress }}
 {{- end }}
 {{- end }}

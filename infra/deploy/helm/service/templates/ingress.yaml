@@ -15,6 +15,12 @@ spec:
     average: {{ $r.rateLimit.average }}
     period: {{ default "1s" $r.rateLimit.period }}
     burst: {{ default $r.rateLimit.average $r.rateLimit.burst }}
+    {{- with $ingress.clientIPDepth }}
+    sourceCriterion:
+      ipStrategy:
+        depth: {{ . }}
+        ipv6Subnet: 64
+    {{- end }}
 ---
 {{- end }}
 apiVersion: networking.k8s.io/v1
@@ -29,12 +35,6 @@ metadata:
   {{- end }}
 spec:
   ingressClassName: traefik
-  {{- if and $ingress.tlsSecretName $ingress.host }}
-  tls:
-    - secretName: {{ $ingress.tlsSecretName }}
-      hosts:
-        - {{ $ingress.host | quote }}
-  {{- end }}
   rules:
     - {{- with $ingress.host }}
       host: {{ . | quote }}

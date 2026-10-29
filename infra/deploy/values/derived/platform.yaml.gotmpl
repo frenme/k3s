@@ -1,9 +1,9 @@
-acme:
-  email: {{ dig "acmeEmail" "" .Values | quote }}
+{{- if ne .Environment.Name "local" }}
+trustedProxies: {{ concat .Values.cloudflare.ipv4 .Values.cloudflare.ipv6 | toJson }}
+{{- end }}
 appNamespace: {{ .Values.namespace }}
 apps: {{ keys .Values.apps | sortAlpha | toJson }}
 backups: {{ dig "backups" false .Values }}
 {{- if ne .Environment.Name "local" }}
 k3sVersion: {{ .Values.k3sVersion | quote }}
 {{- end }}
-httpsRedirect: {{ ne (dig "clusterIssuer" "" .Values) "" }}

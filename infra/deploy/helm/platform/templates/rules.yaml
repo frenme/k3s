@@ -90,28 +90,3 @@ spec:
             severity: warning
           annotations:
             summary: Redis cache is down, services fall back to the database
-{{- if .Values.acme.email }}
-    - name: certificates
-      rules:
-        - alert: CertificateExpiringSoon
-          expr: min by (name, namespace) (certmanager_certificate_expiration_timestamp_seconds - time()) < {{ mul .Values.thresholds.certificateExpiryDays 86400 }}
-          for: 1h
-          labels:
-            severity: critical
-          annotations:
-            summary: "Certificate {{`{{ $labels.name }}`}} expires in {{`{{ $value | humanizeDuration }}`}}, renewal is not working"
-        - alert: CertificateNotReady
-          expr: max by (name, namespace) (certmanager_certificate_ready_status{condition="False"}) == 1
-          for: 30m
-          labels:
-            severity: warning
-          annotations:
-            summary: "Certificate {{`{{ $labels.name }}`}} is not ready"
-        - alert: CertManagerDown
-          expr: absent(up{namespace="cert-manager", job="cert-manager"} == 1)
-          for: 10m
-          labels:
-            severity: warning
-          annotations:
-            summary: cert-manager metrics are missing, certificate renewal is not monitored
-{{- end }}

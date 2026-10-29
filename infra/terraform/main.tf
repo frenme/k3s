@@ -8,10 +8,11 @@ locals {
     yamldecode(file("${path.module}/../deploy/environments/common.yaml")),
     yamldecode(file("${path.module}/../deploy/environments/${var.environment}.yaml")),
   )
-  etcd_s3  = try(local.deploy.backups, false)
-  secrets  = yamldecode(data.sops_file.secrets.raw).secrets
-  registry = try(local.secrets.registry, null)
-  labels   = { cluster = local.name }
+  etcd_s3     = try(local.deploy.backups, false)
+  web_sources = try(local.deploy.cloudflareOnly, false) ? concat(local.deploy.cloudflare.ipv4, local.deploy.cloudflare.ipv6) : ["0.0.0.0/0", "::/0"]
+  secrets     = yamldecode(data.sops_file.secrets.raw).secrets
+  registry    = try(local.secrets.registry, null)
+  labels      = { cluster = local.name }
 }
 
 provider "hcloud" {
@@ -68,14 +69,14 @@ resource "hcloud_firewall" "web" {
     direction  = "in"
     protocol   = "tcp"
     port       = "80"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    source_ips = local.web_sources
   }
 
   rule {
     direction  = "in"
     protocol   = "tcp"
     port       = "443"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    source_ips = local.web_sources
   }
 }
 

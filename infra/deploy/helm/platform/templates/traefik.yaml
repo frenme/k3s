@@ -19,13 +19,12 @@ spec:
         operator: Equal
         value: edge
         effect: NoSchedule
-    {{- if .Values.httpsRedirect }}
+    {{- if .Values.trustedProxies }}
     ports:
       web:
-        http:
-          redirections:
-            entryPoint:
-              to: websecure
-              scheme: https
-              permanent: true
+        forwardedHeaders:
+          trustedIPs: {{ toJson .Values.trustedProxies }}
+      websecure:
+        forwardedHeaders:
+          trustedIPs: {{ toJson .Values.trustedProxies }}
     {{- end }}

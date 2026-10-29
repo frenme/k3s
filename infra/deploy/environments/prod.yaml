@@ -1,8 +1,6 @@
 namespace: app-prod
 kubeContext: k3s-prod
-domain: api.example.com
-acmeEmail: REPLACE_WITH_ACME_EMAIL
-clusterIssuer: letsencrypt-prod
+subdomain: prod
 backups: true
 
 appDefaults:

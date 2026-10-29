@@ -6,7 +6,6 @@ kind: Deployment
 
 singleton: false
 
-# 0 включает HPA, больше нуля фиксирует число реплик без автоскейлинга
 replicas: 0
 
 imagePullSecrets: []
@@ -44,8 +43,6 @@ pdb:
 ingress:
   enabled: false
   host: ""
-  tlsSecretName: ""
-  clusterIssuer: ""
   routes: {}
 
 networkPolicy:

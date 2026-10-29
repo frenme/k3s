@@ -1,5 +1,4 @@
-acme:
-  email: ""
+trustedProxies: []
 
 appNamespace: app
 
@@ -7,15 +6,12 @@ apps: []
 
 backups: true
 
-httpsRedirect: false
-
 thresholds:
   errorRatio: 0.05
   latencyP95Seconds: 0.5
   replicationLagSeconds: 30
   walArchiveBacklog: 10
   backupAgeHours: 26
-  certificateExpiryDays: 14
 
 k3sVersion: ""
 
