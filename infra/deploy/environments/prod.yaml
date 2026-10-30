@@ -1,7 +1,6 @@
 namespace: app-prod
 kubeContext: k3s-prod
 subdomain: prod
-backups: true
 
 appDefaults:
   resources:

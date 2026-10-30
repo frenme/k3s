@@ -1,7 +1,7 @@
 environment = "prod"
 
 ssh_public_keys = [
-  "ssh-ed25519 REPLACE_WITH_YOUR_PUBLIC_KEY",
+  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINO9QrhDNKwmSNXLzq7gnpfV4XtgRM+X2YnbR6QFnwid frenman@icloud.com",
 ]
 
 server = {

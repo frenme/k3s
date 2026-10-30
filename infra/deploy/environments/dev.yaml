@@ -1,7 +1,6 @@
 namespace: app-dev
 kubeContext: k3s-dev
 subdomain: dev
-backups: false
 
 appDefaults:
   autoscaling:

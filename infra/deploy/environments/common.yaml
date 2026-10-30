@@ -78,6 +78,8 @@ cloudflare:
 
 k3sVersion: v1.35.9+k3s1
 
+backups: false
+
 s3:
   endpoint: s3.example.com
   bucket: k3s-backups
