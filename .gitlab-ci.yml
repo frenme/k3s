@@ -11,6 +11,7 @@ go:
   stage: test
   image: golang:1.26
   script:
+    - cd app
     - test -z "$(gofmt -l .)"
     - go vet ./...
     - go vet -tags e2e ./e2e
@@ -20,12 +21,14 @@ golangci-lint:
   stage: test
   image: golangci/golangci-lint:v2.15.0
   script:
+    - cd app
     - golangci-lint run ./...
 
 openapi:
   stage: test
   image: golang:1.26
   script:
+    - cd app
     - go run ./openapi
     - git diff --exit-code -- openapi internal/gateway
 
@@ -39,6 +42,7 @@ integration:
     DOCKER_TLS_CERTDIR: ""
     TESTCONTAINERS_HOST_OVERRIDE: docker
   script:
+    - cd app
     - go test -tags integration -count=1 ./...
 
 helm:
@@ -85,7 +89,7 @@ images:
       --build-arg COMMIT=$CI_COMMIT_SHA
       --provenance=mode=max
       --sbom=true
-      --tag $REGISTRY/$SERVICE:$CI_COMMIT_TAG .
+      --tag $REGISTRY/$SERVICE:$CI_COMMIT_TAG app
 
 scan:
   stage: build

@@ -7,7 +7,8 @@ REGISTRY ?= k3s-base
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 export REGISTRY TAG
 
-GO_SERVICES := $(notdir $(wildcard cmd/*))
+APP := app
+GO_SERVICES := $(notdir $(wildcard $(APP)/cmd/*))
 ENV_FILE := infra/deploy/environments/$(ENV).yaml
 NAMESPACE := $(shell sed -n 's/^namespace: *//p' $(ENV_FILE))
 CONTEXT := $(shell sed -n 's/^kubeContext: *//p' $(ENV_FILE))
@@ -45,27 +46,27 @@ remote-only:
 	@[ "$(ENV)" != local ] || { echo "this target needs ENV=dev or ENV=prod"; exit 1; }
 
 fmt: ## format go code
-	golangci-lint fmt ./...
+	cd $(APP) && golangci-lint fmt ./...
 
 lint: ## formatting, golangci-lint and lint every release of ENV
-	golangci-lint fmt --diff ./...
-	golangci-lint run ./...
+	cd $(APP) && golangci-lint fmt --diff ./...
+	cd $(APP) && golangci-lint run ./...
 	$(if $(filter local,$(ENV)),,REGISTRY=lint.invalid TAG=lint) $(HELMFILE) lint
 
 openapi: ## regenerate openapi/*.yaml from the code
-	go run ./openapi
+	go -C $(APP) run ./openapi
 
 test: ## unit tests
-	go test -race -count=1 ./...
+	go -C $(APP) test -race -count=1 ./...
 
 test-integration: ## tests against a real postgres and redis (needs docker)
-	go test -tags integration -count=1 ./...
+	go -C $(APP) test -tags integration -count=1 ./...
 
 e2e: local-only ## end to end tests against the local ingress
-	go test -tags e2e -count=1 ./e2e
+	go -C $(APP) test -tags e2e -count=1 ./e2e
 
 images: ## build container images tagged REGISTRY/<service>:TAG
-	@for s in $(GO_SERVICES); do docker build -q --build-arg SERVICE=$$s --build-arg VERSION=$(TAG) --build-arg COMMIT=$(COMMIT) -t $(REGISTRY)/$$s:$(TAG) . || exit 1; done
+	@for s in $(GO_SERVICES); do docker build -q --build-arg SERVICE=$$s --build-arg VERSION=$(TAG) --build-arg COMMIT=$(COMMIT) -t $(REGISTRY)/$$s:$(TAG) $(APP) || exit 1; done
 
 up: local-only images ## build, create the local cluster if needed, load images and deploy
 	k3d cluster get $(CLUSTER) >/dev/null 2>&1 || k3d cluster create --config infra/k3d/cluster.yaml --volume "$(CURDIR)/infra/k3s/coredns.yaml:/var/lib/rancher/k3s/server/manifests/coredns-core.yaml@server:0" --wait
