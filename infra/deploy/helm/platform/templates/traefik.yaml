@@ -12,6 +12,17 @@ spec:
         externalTrafficPolicy: Local
     deployment:
       kind: DaemonSet
+    resources:
+      requests:
+        memory: 128Mi
+      limits:
+        memory: 1536Mi
+    livenessProbe:
+      timeoutSeconds: 10
+      failureThreshold: 6
+    readinessProbe:
+      timeoutSeconds: 10
+      failureThreshold: 3
     nodeSelector:
       role: edge
     tolerations:

@@ -179,6 +179,13 @@ resource "hcloud_firewall" "nodes" {
 
   rule {
     direction  = "in"
+    protocol   = "tcp"
+    port       = "9100"
+    source_ips = local.node_cidrs
+  }
+
+  rule {
+    direction  = "in"
     protocol   = "udp"
     port       = "51820-51821"
     source_ips = local.node_cidrs

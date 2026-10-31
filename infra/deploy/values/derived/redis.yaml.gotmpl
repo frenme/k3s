@@ -1,2 +1,9 @@
 auth:
   password: {{ .Values.secrets.redis | quote }}
+
+services:
+  {{- range $name, $app := .Values.apps }}
+  {{- if dig "redis" false $app }}
+  - {{ $name }}
+  {{- end }}
+  {{- end }}

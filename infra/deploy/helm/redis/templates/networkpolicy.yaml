@@ -12,9 +12,15 @@ spec:
       app.kubernetes.io/instance: {{ .Release.Name }}
   policyTypes:
     - Ingress
+  {{- with .Values.services }}
   ingress:
     - from:
-        - podSelector: {}
+        {{- range . }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ . }}
+        {{- end }}
       ports:
         - port: 6379
           protocol: TCP
+  {{- end }}

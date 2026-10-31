@@ -2,6 +2,8 @@ image:
   repository: redis
   tag: 7-alpine
 
+services: []
+
 auth:
   password: ""
 

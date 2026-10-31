@@ -6,13 +6,13 @@ ssh_public_keys = [
 
 server = {
   location    = "fsn1"
-  server_type = "cpx21"
+  server_type = "cpx22"
   protected   = false
 }
 
 nodes = {
   edge = {
     location    = "nbg1"
-    server_type = "cpx11"
+    server_type = "cx23"
   }
 }
