@@ -3,6 +3,7 @@ package httpx
 import (
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -22,6 +23,8 @@ var (
 	}, []string{"client", "method"})
 )
 
+const rotateEvery = 100
+
 type metricsTransport struct {
 	client string
 	next   http.RoundTripper
@@ -37,6 +40,19 @@ func (t metricsTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	clientRequests.WithLabelValues(t.client, r.Method, code).Inc()
 	clientDuration.WithLabelValues(t.client, r.Method).Observe(time.Since(start).Seconds())
 	return resp, err
+}
+
+type rotatingTransport struct {
+	next  http.RoundTripper
+	calls atomic.Uint64
+}
+
+func (t *rotatingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if t.calls.Add(1)%rotateEvery == 0 {
+		r = r.Clone(r.Context())
+		r.Close = true
+	}
+	return t.next.RoundTrip(r)
 }
 
 type clientConfig struct {
@@ -58,7 +74,7 @@ func NewTransport(name string, opts ...ClientOption) http.RoundTripper {
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	var transport http.RoundTripper = metricsTransport{client: name, next: tunedTransport()}
+	var transport http.RoundTripper = metricsTransport{client: name, next: &rotatingTransport{next: tunedTransport()}}
 	if cfg.retries > 0 {
 		transport = newRetryTransport(name, transport, cfg.retries)
 	}

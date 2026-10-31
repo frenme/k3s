@@ -1,8 +1,11 @@
 package httpx
 
 import (
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -41,5 +44,29 @@ func TestTransportKeepsConnectionsForOneHost(t *testing.T) {
 	}
 	if a == b {
 		t.Fatal("clients must not share a transport")
+	}
+}
+
+func TestRotatingTransportClosesEveryNthConnection(t *testing.T) {
+	var conns atomic.Int32
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	srv.Start()
+	defer srv.Close()
+	c := &http.Client{Transport: &rotatingTransport{next: tunedTransport()}}
+	for range rotateEvery * 3 {
+		resp, err := c.Get(srv.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}
+	if got := conns.Load(); got != 3 {
+		t.Fatalf("connections %d", got)
 	}
 }
