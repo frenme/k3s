@@ -23,6 +23,7 @@ secrets:
     orders: dev-orders-password
     admin: dev-admin-password
     common: dev-common-password
+    scheduler: dev-scheduler-password
   redis: dev-redis-password
   jwt: dev-jwt-secret
   grafana: dev-grafana-password
