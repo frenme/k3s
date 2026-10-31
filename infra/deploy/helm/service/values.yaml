@@ -4,8 +4,6 @@ image:
 
 kind: Deployment
 
-singleton: false
-
 replicas: 0
 
 imagePullSecrets: []

@@ -13,7 +13,7 @@
 {{- $_ := set $tracing "endpoint" "http://tempo.monitoring:4318" }}
 {{- end }}
 {{- $_ := set $out "tracing" $tracing }}
-{{- if dig "database" false $app }}
+{{- if and (not $isGateway) (dig "database" true $app) }}
 {{- $password := required (printf "secrets.postgres.%s must be set" $name) (dig $name "" .Values.secrets.postgres) }}
 {{- $_ := set $secret "PGPASSWORD" $password }}
 {{- $pooled := .Values.postgres.pooler.enabled }}
@@ -27,14 +27,14 @@
 {{- $_ := set $env "DATABASE_READ_URL" (printf "postgres://%s_svc@%s:5432/app?sslmode=require" $name $ro) }}
 {{- end }}
 {{- end }}
-{{- if dig "redis" false $app }}
+{{- if and (not $isGateway) (dig "redis" true $app) }}
 {{- $_ := set $env "REDIS_ADDR" "redis:6379" }}
 {{- $_ := set $secret "REDIS_PASSWORD" .Values.secrets.redis }}
 {{- end }}
 {{- if $isGateway }}
 {{- $routes := list }}
 {{- range $route, $cfg := $apps }}
-{{- if dig "route" false $cfg }}
+{{- if and (not (dig "gateway" false $cfg)) (dig "route" true $cfg) }}
 {{- $routes = append $routes (printf "%s=http://%s:8080" $route $route) }}
 {{- end }}
 {{- end }}
@@ -58,7 +58,7 @@
 {{- $public := list }}
 {{- $internal := list }}
 {{- range $caller, $cfg := $apps }}
-{{- if and (dig "gateway" false $cfg) (dig "route" false $app) }}
+{{- if and (dig "gateway" false $cfg) (not $isGateway) (dig "route" true $app) }}
 {{- $public = append $public $caller }}
 {{- end }}
 {{- end }}
@@ -66,9 +66,9 @@
 {{- if and (dig "healthCheck" false $cfg) (ne $caller $name) (not $isGateway) }}
 {{- $public = append $public $caller }}
 {{- end }}
-{{- if has $name (dig "calls" (list) $cfg) }}
-{{- $internal = append $internal $caller }}
 {{- end }}
+{{- if not $isGateway }}
+{{- $internal = keys $apps | sortAlpha }}
 {{- end }}
 {{- $policy := $out | get "networkPolicy" dict }}
 {{- if $public }}

@@ -3,7 +3,7 @@ auth:
 
 services:
   {{- range $name, $app := .Values.apps }}
-  {{- if dig "redis" false $app }}
+  {{- if and (not (dig "gateway" false $app)) (dig "redis" true $app) }}
   - {{ $name }}
   {{- end }}
   {{- end }}

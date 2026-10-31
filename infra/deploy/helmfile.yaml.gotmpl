@@ -48,6 +48,21 @@ missingFileHandler: Debug
 {{- fail (printf "environment %s needs REGISTRY and TAG" .Environment.Name) }}
 {{- end }}
 
+{{- $appSchema := (readFile "environments/apps.schema.json" | fromJson).definitions.app.properties }}
+{{- range $name, $app := .Values.apps }}
+{{- if not (kindIs "map" $app) }}
+{{- fail (printf "apps.%s must be a map, write `%s: {}` for a service without settings" $name $name) }}
+{{- end }}
+{{- range $key, $value := $app }}
+{{- if not (hasKey $appSchema $key) }}
+{{- fail (printf "apps.%s: unknown key %q, allowed: %s (see environments/apps.schema.json)" $name $key (join ", " (keys $appSchema | sortAlpha))) }}
+{{- end }}
+{{- if and (eq (index (index $appSchema $key) "type") "boolean") (not (kindIs "bool" $value)) }}
+{{- fail (printf "apps.%s.%s must be true or false, got %v" $name $key $value) }}
+{{- end }}
+{{- end }}
+{{- end }}
+
 templates:
   layered:
     namespace: {{ .Values.namespace }}
@@ -166,10 +181,10 @@ releases:
     {{- end }}
     needs:
       - monitoring/monitoring
-      {{- if dig "database" false $app }}
+      {{- if and (not (dig "gateway" false $app)) (dig "database" true $app) }}
       - postgres
       {{- end }}
-      {{- if dig "redis" false $app }}
+      {{- if and (not (dig "gateway" false $app)) (dig "redis" true $app) }}
       - redis
       {{- end }}
 {{- end }}

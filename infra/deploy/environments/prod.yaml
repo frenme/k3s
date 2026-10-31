@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=apps.schema.json
 namespace: app-prod
 kubeContext: k3s-prod
 subdomain: prod

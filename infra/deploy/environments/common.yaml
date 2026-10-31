@@ -1,38 +1,24 @@
+# yaml-language-server: $schema=apps.schema.json
 apps:
-  users:
-    database: true
-    redis: true
-    route: true
-    calls: [common]
-  orders:
-    database: true
-    redis: true
-    route: true
-    calls: [users]
+  users: {}
+  orders: {}
   common:
-    database: true
-    redis: true
-    route: true
     healthCheck: true
     values:
       env:
         DB_MAX_CONNS: "5"
   admin:
-    database: true
     readAllSchemas: true
-    route: true
-    calls: [scheduler]
     values:
-      singleton: true
+      replicas: 1
       env:
         DB_MAX_CONNS: "5"
   scheduler:
-    redis: true
+    route: false
     values:
       replicas: 2
   gateway:
     gateway: true
-    calls: [users]
     values:
       kind: DaemonSet
       terminationGracePeriodSeconds: 90

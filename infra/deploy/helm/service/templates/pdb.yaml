@@ -1,4 +1,4 @@
-{{- if and .Values.pdb.enabled (eq .Values.kind "Deployment") (not .Values.singleton) }}
+{{- if and .Values.pdb.enabled (eq .Values.kind "Deployment") (ne (int .Values.replicas) 1) }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

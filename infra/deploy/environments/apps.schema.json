@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Service registry",
+  "type": "object",
+  "properties": {
+    "apps": {
+      "type": "object",
+      "description": "One entry per service, the name is the service name (cmd/<name>). Write `name: {}` for a typical service.",
+      "additionalProperties": { "$ref": "#/definitions/app" }
+    }
+  },
+  "definitions": {
+    "app": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gateway": {
+          "type": "boolean",
+          "default": false,
+          "description": "The single public entry point: runs on the edges, has no database and no redis."
+        },
+        "route": {
+          "type": "boolean",
+          "default": true,
+          "description": "Public: the gateway proxies /api/v1/<name> to the service. false for internal-only services."
+        },
+        "database": {
+          "type": "boolean",
+          "default": true,
+          "description": "Own Postgres schema, role and password (secrets.postgres.<name>)."
+        },
+        "redis": {
+          "type": "boolean",
+          "default": true,
+          "description": "Access to redis (REDIS_ADDR and REDIS_PASSWORD)."
+        },
+        "healthCheck": {
+          "type": "boolean",
+          "default": false,
+          "description": "The service polls /readyz of every other app, so port 8080 of the apps is opened to it (common)."
+        },
+        "readAllSchemas": {
+          "type": "boolean",
+          "default": false,
+          "description": "The Postgres role reads every schema (pg_read_all_data), read only (admin)."
+        },
+        "values": {
+          "type": "object",
+          "description": "Values of the service chart (replicas, resources, env, nodeSelector ...), merged over appDefaults."
+        }
+      }
+    }
+  }
+}

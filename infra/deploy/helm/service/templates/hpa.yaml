@@ -1,4 +1,4 @@
-{{- if and (eq .Values.kind "Deployment") (not .Values.singleton) (not .Values.replicas) }}
+{{- if and (eq .Values.kind "Deployment") (not .Values.replicas) }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

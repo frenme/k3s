@@ -5,11 +5,6 @@ metadata:
   labels:
     {{- include "service.labels" . | nindent 4 }}
 spec:
-  {{- if .Values.singleton }}
-  replicas: 1
-  strategy:
-    type: Recreate
-  {{- else }}
   {{- if .Values.replicas }}
   replicas: {{ .Values.replicas }}
   {{- end }}
@@ -22,7 +17,6 @@ spec:
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: {{ if eq .Values.kind "DaemonSet" }}"100%"{{ else }}1{{ end }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "service.selectorLabels" . | nindent 6 }}
