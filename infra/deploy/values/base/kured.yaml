@@ -8,5 +8,12 @@ configuration:
   prometheusUrl: http://monitoring-prometheus.monitoring:9090
   alertFilterRegexp: ^(Watchdog|InfoInhibitor)$
 
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 128Mi
+
 tolerations:
   - operator: Exists
