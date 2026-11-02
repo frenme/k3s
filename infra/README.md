@@ -34,6 +34,15 @@ Dev and prod are meant to sit behind Cloudflare. A host is `<subdomain>.<domain>
 
 Servers are billed by the hour. Core servers are protected from deletion: set `protected = false` in the tfvars and apply before `make infra-destroy ENV=<env>`.
 
+## CI deploy
+
+On a `v*` tag GitLab builds and scans the images, deploys dev and then prod (manual). The deploy job needs two CI/CD variables:
+
+- `KUBECONFIG` (type File): a kubeconfig that has the contexts `k3s-dev` and `k3s-prod` (`make kubeconfig ENV=<env> HOST=<core ip>` creates one per environment, merge them).
+- `SOPS_AGE_KEY` (masked): the private age key that decrypts `deploy/environments/*.secrets.yaml`. Without it the `helm` job lints only `local`.
+
+The registry login comes from GitLab itself.
+
 ## The service registry
 
 `deploy/environments/common.yaml` `apps` has one entry per service, `name: {}` for a typical one (database, redis and a public route are on by default). The allowed keys are described in `deploy/environments/apps.schema.json`; a new service also needs `secrets.postgres.<name>` in the secrets files.
