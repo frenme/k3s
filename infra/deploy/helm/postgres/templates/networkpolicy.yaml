@@ -32,7 +32,13 @@ spec:
       ports:
         - port: 5432
           protocol: TCP
-    - ports:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: [cnpg-system, monitoring]
+      ports:
         - port: 8000
           protocol: TCP
         - port: 9187

@@ -15,6 +15,7 @@ write_files:
       disable:
         - coredns
       write-kubeconfig-mode: "0600"
+      secrets-encryption: true
       node-label:
         - role=core
       etcd-snapshot-schedule-cron: "0 */6 * * *"

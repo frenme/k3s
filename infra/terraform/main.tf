@@ -117,7 +117,7 @@ resource "hcloud_server" "server" {
 
   public_net {
     ipv4_enabled = true
-    ipv6_enabled = true
+    ipv6_enabled = false
   }
 
   lifecycle {
@@ -151,7 +151,7 @@ resource "hcloud_server" "node" {
 
   public_net {
     ipv4_enabled = true
-    ipv6_enabled = true
+    ipv6_enabled = false
   }
 
   lifecycle {
