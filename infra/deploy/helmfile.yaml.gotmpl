@@ -42,6 +42,7 @@ missingFileHandler: Debug
 
 {{- $local := eq .Environment.Name "local" }}
 {{- $backups := dig "backups" false .Values }}
+{{- $metrics := .Values.telemetry.metrics }}
 {{- $registry := env "REGISTRY" | default "k3s-base" }}
 {{- $tag := env "TAG" | default "dev" }}
 {{- if and (not $local) (or (eq $registry "k3s-base") (eq $tag "dev")) }}
@@ -79,11 +80,20 @@ templates:
 
 releases:
   - name: monitoring
+    installed: {{ $metrics }}
     namespace: monitoring
     inherit:
       - template: layered
     chart: prometheus-community/kube-prometheus-stack
     version: 92.10.1
+
+  - name: grafana
+    installed: {{ not $metrics }}
+    namespace: monitoring
+    inherit:
+      - template: layered
+    chart: grafana-community/grafana
+    version: 14.1.0
 
   - name: loki
     namespace: monitoring

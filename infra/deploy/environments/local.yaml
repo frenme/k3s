@@ -8,6 +8,12 @@ appDefaults:
   pdb:
     enabled: false
 
+apps:
+  gateway:
+    values:
+      env:
+        CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+
 postgres:
   pooler:
     instances: 1

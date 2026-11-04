@@ -48,4 +48,3 @@ networkPolicy:
   allowFromPods: []
   allowFromNamespaces:
     - monitoring
-  internalFromPods: []

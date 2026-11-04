@@ -1,7 +1,7 @@
 instances: {{ .Values.postgres.instances }}
+podMonitor: {{ .Values.telemetry.metrics }}
 
 pooler:
-  enabled: {{ .Values.postgres.pooler.enabled }}
   instances: {{ .Values.postgres.pooler.instances }}
 
 services:

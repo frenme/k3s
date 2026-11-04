@@ -1,0 +1,25 @@
+fullnameOverride: monitoring-grafana
+adminPassword: {{ .Values.secrets.grafana | quote }}
+
+persistence:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        uid: loki
+        url: http://loki:3100
+        access: proxy
+        isDefault: true
+        jsonData:
+          maxLines: 1000

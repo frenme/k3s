@@ -1,6 +1,5 @@
-{{- if .Values.pooler.enabled }}
 {{- $clients := max 1 (len .Values.services) }}
-{{- $budget := sub (int .Values.parameters.max_connections) (int .Values.pooler.reservedConnections) }}
+{{- $budget := sub (int .Values.parameters.max_connections) 20 }}
 {{- $poolSize := max 2 (div $budget (mul (int .Values.pooler.instances) $clients)) }}
 {{- $types := list "rw" }}
 {{- if gt (int .Values.instances) 1 }}
@@ -21,7 +20,7 @@ spec:
   pgbouncer:
     poolMode: transaction
     parameters:
-      max_client_conn: {{ $.Values.pooler.maxClientConn | quote }}
+      max_client_conn: "1000"
       default_pool_size: {{ $poolSize | quote }}
   template:
     spec:
@@ -36,5 +35,4 @@ spec:
                   matchLabels:
                     cnpg.io/poolerName: postgres-pooler-{{ $type }}
 ---
-{{- end }}
 {{- end }}

@@ -26,15 +26,11 @@ spec:
       ports:
         - port: 8080
           protocol: TCP
-    {{- with .Values.networkPolicy.internalFromPods }}
     - from:
-        {{- range . }}
         - podSelector:
             matchLabels:
-              app.kubernetes.io/name: {{ . }}
-        {{- end }}
+              app.kubernetes.io/part-of: app
       ports:
         - port: 8081
           protocol: TCP
-    {{- end }}
 {{- end }}

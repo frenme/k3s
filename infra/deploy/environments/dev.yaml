@@ -9,6 +9,12 @@ appDefaults:
   pdb:
     enabled: false
 
+apps:
+  gateway:
+    values:
+      env:
+        CORS_ORIGINS: https://dev.example.com
+
 postgres:
   pooler:
     instances: 1

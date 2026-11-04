@@ -10,7 +10,10 @@ spec:
   version: {{ . }}
   serviceAccountName: system-upgrade-controller
   window:
-    {{- toYaml $.Values.upgradeWindow | nindent 4 }}
+    days: ["sunday"]
+    startTime: "03:00"
+    endTime: "06:00"
+    timeZone: UTC
   nodeSelector:
     matchExpressions:
       - key: node-role.kubernetes.io/control-plane
@@ -31,7 +34,10 @@ spec:
   version: {{ . }}
   serviceAccountName: system-upgrade-controller
   window:
-    {{- toYaml $.Values.upgradeWindow | nindent 4 }}
+    days: ["sunday"]
+    startTime: "03:00"
+    endTime: "06:00"
+    timeZone: UTC
   nodeSelector:
     matchExpressions:
       - key: node-role.kubernetes.io/control-plane

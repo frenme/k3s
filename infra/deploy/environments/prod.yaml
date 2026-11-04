@@ -14,6 +14,28 @@ appDefaults:
     scaleDownStabilizationSeconds: 300
 
 apps:
+  gateway:
+    values:
+      env:
+        CORS_ORIGINS: https://example.com
+      ingress:
+        routes:
+          users:
+            rateLimit:
+              average: 600
+              burst: 200
+          orders:
+            rateLimit:
+              average: 300
+              burst: 100
+          common:
+            rateLimit:
+              average: 1200
+              burst: 400
+          api:
+            rateLimit:
+              average: 1200
+              burst: 400
   users:
     values:
       env:

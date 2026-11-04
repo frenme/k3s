@@ -27,6 +27,7 @@ spec:
         checksum/env: {{ toYaml .Values.env | sha256sum }}
       labels:
         {{- include "service.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/part-of: app
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

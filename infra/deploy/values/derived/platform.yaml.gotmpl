@@ -1,6 +1,7 @@
 {{- if ne .Environment.Name "local" }}
-trustedProxies: {{ concat .Values.cloudflare.ipv4 .Values.cloudflare.ipv6 | toJson }}
+trustedProxies: {{ .Values.cloudflare | toJson }}
 {{- end }}
+metrics: {{ .Values.telemetry.metrics }}
 appNamespace: {{ .Values.namespace }}
 apps: {{ keys .Values.apps | sortAlpha | toJson }}
 backups: {{ dig "backups" false .Values }}

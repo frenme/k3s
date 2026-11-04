@@ -1,3 +1,4 @@
+{{- if .Values.podMonitor }}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
@@ -11,7 +12,6 @@ spec:
       cnpg.io/podRole: instance
   podMetricsEndpoints:
     - port: metrics
-{{- if .Values.pooler.enabled }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor

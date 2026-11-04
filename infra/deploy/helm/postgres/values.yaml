@@ -1,14 +1,4 @@
-instances: 1
-
 image: ghcr.io/cloudnative-pg/postgresql:17
-
-services: {}
-
-pooler:
-  enabled: true
-  instances: 2
-  maxClientConn: 1000
-  reservedConnections: 20
 
 storage:
   size: 5Gi
