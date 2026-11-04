@@ -8,8 +8,9 @@ locals {
     yamldecode(file("${path.module}/../deploy/environments/common.yaml")),
     yamldecode(file("${path.module}/../deploy/environments/${var.environment}.yaml")),
   )
+  image       = "ubuntu-24.04"
   etcd_s3     = try(local.deploy.backups, false)
-  web_sources = try(local.deploy.cloudflareOnly, false) ? concat(local.deploy.cloudflare.ipv4, local.deploy.cloudflare.ipv6) : ["0.0.0.0/0", "::/0"]
+  web_sources = try(local.deploy.cloudflareOnly, false) ? local.deploy.cloudflare : ["0.0.0.0/0"]
   secrets     = yamldecode(data.sops_file.secrets.raw).secrets
   registry    = try(local.secrets.registry, null)
   labels      = { cluster = local.name }
@@ -44,20 +45,20 @@ resource "hcloud_firewall" "base" {
     direction  = "in"
     protocol   = "tcp"
     port       = "22"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    source_ips = ["0.0.0.0/0"]
   }
 
   rule {
     direction  = "in"
     protocol   = "tcp"
     port       = "6443"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    source_ips = ["0.0.0.0/0"]
   }
 
   rule {
     direction  = "in"
     protocol   = "icmp"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    source_ips = ["0.0.0.0/0"]
   }
 }
 
@@ -90,7 +91,7 @@ resource "hcloud_server" "server" {
   name         = "${local.name}-server"
   location     = var.server.location
   server_type  = var.server.server_type
-  image        = var.image
+  image        = local.image
   ssh_keys     = [for key in hcloud_ssh_key.admin : key.id]
   firewall_ids = [hcloud_firewall.base.id]
   labels       = merge(local.labels, { role = "core" })
@@ -98,21 +99,21 @@ resource "hcloud_server" "server" {
   ignore_remote_firewall_ids = true
   placement_group_id         = hcloud_placement_group.core.id
   backups                    = var.server.backups
-  delete_protection          = var.server.protected
-  rebuild_protection         = var.server.protected
+  delete_protection          = var.protected
+  rebuild_protection         = var.protected
 
   user_data = templatefile("${path.module}/templates/server.yaml.tftpl", {
-    token         = random_password.token.result
-    agent_token   = random_password.agent_token.result
-    k3s_version   = local.deploy.k3sVersion
-    etcd_s3       = local.etcd_s3
-    etcd_endpoint = try(local.deploy.s3.endpoint, "")
-    etcd_bucket   = try(local.deploy.s3.bucket, "")
-    etcd_folder   = "${local.name}/etcd"
-    s3_access_key = try(local.secrets.s3.accessKeyId, "")
-    s3_secret_key = try(local.secrets.s3.secretAccessKey, "")
-    registry      = local.registry
-    coredns       = file("${path.module}/../k3s/coredns.yaml")
+    token       = random_password.token.result
+    agent_token = random_password.agent_token.result
+    k3s_version = local.deploy.k3sVersion
+    s3 = local.etcd_s3 ? {
+      endpoint   = local.deploy.s3.endpoint
+      bucket     = local.deploy.s3.bucket
+      folder     = "${local.name}/etcd"
+      access_key = local.secrets.s3.accessKeyId
+      secret_key = local.secrets.s3.secretAccessKey
+    } : null
+    registry = local.registry
   })
 
   public_net {
@@ -130,16 +131,15 @@ resource "hcloud_server" "node" {
   name         = "${local.name}-${each.key}"
   location     = each.value.location
   server_type  = each.value.server_type
-  image        = var.image
+  image        = local.image
   ssh_keys     = [for key in hcloud_ssh_key.admin : key.id]
   firewall_ids = each.value.role == "edge" ? [hcloud_firewall.base.id, hcloud_firewall.web.id] : [hcloud_firewall.base.id]
   labels       = merge(local.labels, { role = each.value.role })
 
   ignore_remote_firewall_ids = true
   placement_group_id         = each.value.role == "core" ? hcloud_placement_group.core.id : null
-  backups                    = each.value.backups
-  delete_protection          = coalesce(each.value.protected, each.value.role == "core")
-  rebuild_protection         = coalesce(each.value.protected, each.value.role == "core")
+  delete_protection          = var.protected && each.value.role == "core"
+  rebuild_protection         = var.protected && each.value.role == "core"
 
   user_data = templatefile("${path.module}/templates/agent.yaml.tftpl", {
     token       = random_password.agent_token.result
@@ -187,7 +187,7 @@ resource "hcloud_firewall" "nodes" {
   rule {
     direction  = "in"
     protocol   = "udp"
-    port       = "51820-51821"
+    port       = "51820"
     source_ips = local.node_cidrs
   }
 }

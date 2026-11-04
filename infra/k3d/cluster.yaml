@@ -14,9 +14,6 @@ ports:
 options:
   k3s:
     extraArgs:
-      - arg: --disable=coredns
-        nodeFilters:
-          - server:*
       - arg: --node-taint=role=edge:NoSchedule
         nodeFilters:
           - agent:*

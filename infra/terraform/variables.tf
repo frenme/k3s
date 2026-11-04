@@ -6,16 +6,15 @@ variable "ssh_public_keys" {
   type = list(string)
 }
 
-variable "image" {
-  type    = string
-  default = "ubuntu-24.04"
+variable "protected" {
+  type    = bool
+  default = true
 }
 
 variable "server" {
   type = object({
     location    = string
     server_type = string
-    protected   = optional(bool, true)
     backups     = optional(bool, false)
   })
 }
@@ -25,8 +24,6 @@ variable "nodes" {
     location    = string
     server_type = string
     role        = optional(string, "edge")
-    protected   = optional(bool)
-    backups     = optional(bool, false)
   }))
 
   validation {

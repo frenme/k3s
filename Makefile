@@ -69,7 +69,7 @@ images: ## build container images tagged REGISTRY/<service>:TAG
 	@for s in $(GO_SERVICES); do docker build -q --build-arg SERVICE=$$s --build-arg VERSION=$(TAG) --build-arg COMMIT=$(COMMIT) -t $(REGISTRY)/$$s:$(TAG) $(APP) || exit 1; done
 
 up: local-only images ## build, create the local cluster if needed, load images and deploy
-	k3d cluster get $(CLUSTER) >/dev/null 2>&1 || k3d cluster create --config infra/k3d/cluster.yaml --volume "$(CURDIR)/infra/k3s/coredns.yaml:/var/lib/rancher/k3s/server/manifests/coredns-core.yaml@server:0" --wait
+	k3d cluster get $(CLUSTER) >/dev/null 2>&1 || k3d cluster create --config infra/k3d/cluster.yaml --wait
 	k3d image import -c $(CLUSTER) $(addprefix $(REGISTRY)/,$(addsuffix :$(TAG),$(GO_SERVICES)))
 	$(HELMFILE) sync
 
