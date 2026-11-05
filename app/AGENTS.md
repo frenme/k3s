@@ -53,7 +53,7 @@ internal/<service>/
 - Policy lives next to the handler: `httpx.Register(api, op, httpx.AccessPublic|AccessUser|AccessAdmin, handler, options...)` with `WithTimeout`, `WithMaxBody`, `WithCache`. `make openapi` turns it into the generated gateway files. An operation without access fails the generator.
 - Non-public routes need `Authorization: Bearer <jwt>` (key from `JWT_SECRET`, `JWT_PUBLIC_KEY` or `JWT_JWKS_URL`; `exp` and `sub` required). Nothing here issues tokens.
 - Roles live in `users` (`user` for everyone, `admin` granted explicitly). `/api/v1/admin/**` always needs the admin role. The gateway strips `Authorization` and any client `X-User-ID` and `X-User-Roles`, then sets `X-User-ID`; services trust it only because the NetworkPolicy lets nothing but the gateway reach `:8080`.
-- Rate limits per route are not in Go: `infra/deploy/values/base/gateway.yaml` (Traefik).
+- Rate limits per route are not in Go: `apps.gateway.values.ingress.routes` in `infra/deploy/environments/common.yaml` (Traefik).
 
 ## Other services
 

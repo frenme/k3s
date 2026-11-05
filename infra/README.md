@@ -5,7 +5,6 @@ Paths are relative to `infra/`; commands run from the repository root.
 ```
 terraform/   Hetzner servers, firewalls, k3s cloud-init
 k3d/         the local cluster
-k3s/         own k3s manifests (CoreDNS)
 deploy/      Helmfile, own charts, settings per environment
 ```
 
@@ -17,11 +16,11 @@ deploy/      Helmfile, own charts, settings per environment
 
 ## Defaults
 
-- Postgres: **one instance, no replica**. A pooler (PgBouncer) sits in front.
+- Postgres: **one instance, no replica**. PgBouncer is always in front.
 - Backups (etcd snapshots and Postgres) are **off**: `backups: false`.
 - The cluster issues **no certificates**: HTTPS is Cloudflare's, SSL mode Full.
 - Ports 80 and 443 of the edges are open to everyone (`cloudflareOnly: false`).
-- `dev` runs without metrics and traces, only services and logs.
+- `dev` runs without metrics and traces: services, logs and a plain Grafana.
 - One core server (control plane, databases, services) and one or more edge servers (Traefik and the gateway only).
 
 ## Local
@@ -56,7 +55,7 @@ make down
    make kubeconfig ENV=<env> HOST=<core ip>
    REGISTRY=<registry> TAG=<tag> make deploy ENV=<env>
    ```
-7. Remove everything: set `protected = false` in `server` of the tfvars, `make infra-apply ENV=<env>`, then `make infra-destroy ENV=<env>`. Servers are billed by the hour.
+7. Remove everything: set `protected = false` at the top of the tfvars, `make infra-apply ENV=<env>`, then `make infra-destroy ENV=<env>`. Servers are billed by the hour.
 
 In Cloudflare: proxy the domain and set SSL/TLS to Full.
 
@@ -74,7 +73,7 @@ Failover to a replica needs the Kubernetes API, which lives on the core server: 
 
 ## The service registry
 
-`deploy/environments/common.yaml` `apps` has one entry per service. `<name>: {}` is a typical service: its own database schema, redis and a public route `/api/v1/<name>` through the gateway. Everything else is derived. Options and their meaning: `deploy/environments/apps.schema.json` (a typo or a wrong type fails the render). A new service needs, besides the entry, `secrets.postgres.<name>` (plain in `local.yaml`, `sops` in dev and prod) and its name in `.gitlab-ci.yml` (`images` and `scan`).
+`deploy/environments/common.yaml` `apps` has one entry per service. `<name>: {}` is a typical service: its own database schema, redis and a public route `/api/v1/<name>` through the gateway. Everything else is derived. Options and their meaning: `deploy/environments/apps.schema.json` (a typo or a wrong type fails the render). A new service needs, besides the entry, `secrets.postgres.<name>` (plain in `local.yaml`, `sops` in dev and prod) and its name in `.gitlab-ci.yml` (`images` and `scan`). Its own rate limit is a route in `apps.gateway.values.ingress.routes` of the same file.
 
 ## CI
 

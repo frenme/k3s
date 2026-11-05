@@ -4,8 +4,8 @@ Rules for the infrastructure and for investigating the clusters. Paths are relat
 
 ## Layout
 
-- `deploy/helmfile.yaml.gotmpl` every release; `deploy/environments/{common,local,dev,prod}.yaml` settings (`common.yaml` has the `apps` registry and the defaults, an env file only what differs); `deploy/values/{base,<env>,derived}` values of vendor charts and of the gateway ingress; `deploy/helm/*` own charts.
-- `terraform` Hetzner servers, `k3d` the local cluster, `k3s` own k3s manifests (CoreDNS).
+- `deploy/helmfile.yaml.gotmpl` every release; `deploy/environments/{common,local,dev,prod}.yaml` settings (`common.yaml` has the `apps` registry and the defaults, an env file only what differs); `deploy/values/{base,<env>,derived}` values of vendor charts and of the Postgres and Redis charts; `deploy/helm/*` own charts.
+- `terraform` Hetzner servers, `k3d` the local cluster.
 
 | ENV | kube context | namespace |
 |---|---|---|
@@ -19,27 +19,26 @@ Platform namespaces: `monitoring`, `cnpg-system`, `cert-manager` (only with `bac
 
 - `terraform/envs/<env>.tfvars`: `server` is the core (k3s control plane, databases, services), `nodes` is a map of extra servers with `location`, `server_type` and `role` (`edge` by default, `core` for more capacity). `make infra-apply ENV=<env>`.
 - Nodes are labeled `role=core` or `role=edge`. Edges carry the taint `role=edge:NoSchedule`: only Traefik, the gateway (a DaemonSet) and DaemonSets that tolerate everything run there; everything else lands on core without any placement setting.
-- Core servers are protected from deletion (`protected`, true by default): set `protected = false` and apply before `make infra-destroy`. `backups = true` adds Hetzner snapshots.
+- Core servers (`server` and `core` nodes) are protected from deletion: set `protected = false` at the top of the tfvars and apply before `make infra-destroy`. `server.backups = true` adds Hetzner snapshots.
 - Edges join with a separate agent token, so a compromised edge cannot join as a control-plane server. The servers have no IPv6, k3s encrypts Secrets in etcd, SSH (22) and the API (6443) are open to the internet (SSH accepts keys only).
-- The agent token, the edge taint and the CoreDNS manifest come from cloud-init, so they reach only servers created after the change; on an existing server edit `/etc/rancher/k3s/config.yaml` by hand.
-- CoreDNS is our own `k3s/coredns.yaml` (the k3s one is disabled), pinned to core by the edge taint.
+- The agent token and the edge taint come from cloud-init, so they reach only servers created after the change; on an existing server edit `/etc/rancher/k3s/config.yaml` by hand.
 
 ## Defaults
 
-- Postgres: one instance, no replica, PgBouncer in front. A replica is a `core` node plus `postgres.instances: 2`; its failover needs the Kubernetes API, which lives on the core server.
+- Postgres: one instance, no replica; PgBouncer is always in front (`DATABASE_URL` goes through it, migrations use `DATABASE_DIRECT_URL`). A replica is a `core` node plus `postgres.instances: 2`; its failover needs the Kubernetes API, which lives on the core server.
 - `backups: false` in `common.yaml`. `backups: true` turns on etcd snapshots to S3 (`s3` section, keys in the secrets), the barman plugin, WAL archiving and a daily Postgres backup. After a restore change `postgres.backupServerName`.
 - The cluster issues no certificates: HTTPS is Cloudflare's (SSL mode Full), the edge answers with Traefik's default certificate, there is no HTTP to HTTPS redirect on the edge.
 - Host of an env: `<subdomain>.<domain>`; `domain` is in `common.yaml`, `subdomain` (`dev`, `prod`) in the env file, local has none.
-- Dev and prod expect Cloudflare: Traefik trusts `X-Forwarded-For` from the ranges in `cloudflare` of `common.yaml` (refresh them from cloudflare.com/ips) and rate limits count the real client IP. Ports 80 and 443 of the edges are open to everyone; `cloudflareOnly: true` opens them only to those ranges.
-- `telemetry.metrics`, `telemetry.traces`, `telemetry.retention` are the only monitoring switches; `dev` runs with metrics and traces off (services, Loki, Alloy, Grafana).
+- Dev and prod expect Cloudflare: Traefik trusts `X-Forwarded-For` from the ranges in `cloudflare` of `common.yaml` (IPv4 only, refresh them from cloudflare.com/ips-v4) and rate limits count the real client IP. Ports 80 and 443 of the edges are open to everyone; `cloudflareOnly: true` opens them only to those ranges.
+- `telemetry.metrics`, `telemetry.traces`, `telemetry.retention` are the only monitoring switches; `dev` runs with metrics and traces off: services, Loki, Alloy and a plain Grafana with Loki only (no Prometheus stack, no monitoring CRDs, no ServiceMonitor or PodMonitor).
 
 ## Service registry
 
 - `deploy/environments/common.yaml` `apps`: one entry per service. Every app except the gateway gets a database (own schema and role), redis and a public route `/api/v1/<name>` by default, so a typical service is `<name>: {}`.
 - Keys, types and meaning are in `deploy/environments/apps.schema.json`; Helmfile rejects an unknown key or a flag that is not `true` or `false`. A new flag goes to that file first. Special keys: `gateway`, `readAllSchemas` (admin), `healthCheck` (`common`), `values` (chart values of the service, merged over `appDefaults` and the env's own `apps.<name>.values`).
-- Derived in `values/derived/app.yaml.gotmpl`: database and redis settings, `ROUTES`, `HEALTH_TARGETS` and the NetworkPolicy (`:8080` only from the gateway and the `healthCheck` app, `:8081` from every app).
-- A new service also needs `secrets.postgres.<name>` (plain in `local.yaml`, sops in `dev.secrets.yaml` and `prod.secrets.yaml`), its name in `.gitlab-ci.yml` (`images` and `scan`) and, for its own rate limit, a route in `values/base/gateway.yaml`.
-- `values/{base,<env>}/<release>.yaml` are for vendor charts and the gateway ingress; a missing file is ignored on purpose.
+- Derived in `values/derived/app.yaml.gotmpl`: database and redis settings, `ROUTES`, `HEALTH_TARGETS` and the NetworkPolicy (`:8080` only from the gateway and the `healthCheck` app, `:8081` from every pod labeled `app.kubernetes.io/part-of: app`, which is every app).
+- A new service also needs `secrets.postgres.<name>` (plain in `local.yaml`, sops in `dev.secrets.yaml` and `prod.secrets.yaml`), its name in `.gitlab-ci.yml` (`images` and `scan`) and, for its own rate limit, a route in `apps.gateway.values.ingress.routes` of `common.yaml` (the gateway settings, CORS origins included, are `apps.gateway.values` there and in the env files).
+- `values/{base,<env>}/<release>.yaml` are for vendor charts and the Postgres and Redis sizes; a missing file is ignored on purpose.
 
 ## Connecting
 
