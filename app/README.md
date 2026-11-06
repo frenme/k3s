@@ -42,10 +42,7 @@ Before handing over: `make lint test test-integration openapi`, and `make up e2e
 ## Adding a service
 
 1. Code: `cmd/<name>/main.go` and `internal/<name>/`, copy the structure of `internal/users`.
-2. Infra, otherwise the service is built but never deployed:
-   - one line in `infra/deploy/environments/common.yaml`: `<name>: {}` (database, redis and a public route are on by default);
-   - the database password `secrets.postgres.<name>`: plain in `infra/deploy/environments/local.yaml`, with `sops` in `dev.secrets.yaml` and `prod.secrets.yaml`;
-   - the name in the `SERVICE: [...]` list of `images` and `scan` in `.gitlab-ci.yml`.
+2. Infra, otherwise the service is built but never deployed: one line in `infra/deploy/environments/common.yaml`: `<name>: {}` (database, redis and a public route are on by default). The database password is derived and CI builds every folder of `cmd`, so nothing else is needed.
 3. `make openapi`, then `make up` and `make e2e`.
 
 The coding rules (errors, validation, pagination, migrations, gateway policy) are in [AGENTS.md](AGENTS.md).
