@@ -28,10 +28,10 @@ define terraform
 endef
 
 .PHONY: help doctor local-only remote-only
-.PHONY: fmt lint openapi test test-integration e2e images
+.PHONY: fmt lint openapi test test-integration e2e images push
 .PHONY: up down deploy template status logs restart grafana
 .PHONY: db-status db-promote psql backup-now
-.PHONY: infra-plan infra-apply infra-destroy kubeconfig agent-kubeconfig mcp
+.PHONY: infra-plan infra-apply infra-destroy kubeconfig wait-nodes bootstrap secrets install-host agent-kubeconfig mcp
 
 help:
 	@grep -hE '^[a-z0-9-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-18s %s\n", $$1, $$2}'
@@ -44,6 +44,9 @@ local-only:
 
 remote-only:
 	@[ "$(ENV)" != local ] || { echo "this target needs ENV=dev or ENV=prod"; exit 1; }
+
+registry-set:
+	@[ "$(REGISTRY)" != k3s-base ] && [ "$(TAG)" != dev ] || { echo "set REGISTRY and TAG, for example REGISTRY=ghcr.io/me/app TAG=v1"; exit 1; }
 
 fmt: ## format go code
 	cd $(APP) && golangci-lint fmt ./...
@@ -67,6 +70,9 @@ e2e: local-only ## end to end tests against the local ingress
 
 images: ## build container images tagged REGISTRY/<service>:TAG
 	@for s in $(GO_SERVICES); do docker build -q --build-arg SERVICE=$$s --build-arg VERSION=$(TAG) --build-arg COMMIT=$(COMMIT) -t $(REGISTRY)/$$s:$(TAG) $(APP) || exit 1; done
+
+push: registry-set ## build for linux/amd64 and push every image: make push REGISTRY=ghcr.io/me/app TAG=v1
+	@for s in $(GO_SERVICES); do docker buildx build --platform linux/amd64 --build-arg SERVICE=$$s --build-arg VERSION=$(TAG) --build-arg COMMIT=$(COMMIT) -t $(REGISTRY)/$$s:$(TAG) --push $(APP) || exit 1; done
 
 up: local-only images ## build, create the local cluster if needed, load images and deploy
 	k3d cluster get $(CLUSTER) >/dev/null 2>&1 || k3d cluster create --config infra/k3d/cluster.yaml --wait
@@ -116,9 +122,42 @@ infra-apply: remote-only ## create or update servers of ENV
 infra-destroy: remote-only ## destroy servers of ENV
 	$(call terraform,destroy)
 
-kubeconfig: remote-only ## fetch kubeconfig of a server: make kubeconfig ENV=prod HOST=1.2.3.4
-	set -o pipefail; ssh $(SSH_USER)@$(HOST) cat /etc/rancher/k3s/k3s.yaml | sed -e "s/127.0.0.1/$(HOST)/" -e "s/: default$$/: $(CONTEXT)/" > kubeconfig-$(ENV).yaml
-	@echo "KUBECONFIG=$$PWD/kubeconfig-$(ENV).yaml"
+kubeconfig: remote-only ## kubeconfig of the core server, waits for k3s: make kubeconfig ENV=prod [HOST=1.2.3.4]
+	@set -euo pipefail; \
+	host="$(HOST)"; \
+	[ -n "$$host" ] || host=$$($(TERRAFORM) init -input=false >/dev/null && $(TERRAFORM) workspace select $(ENV) >/dev/null && $(TERRAFORM) output -raw server_ip); \
+	raw=""; \
+	for _ in $$(seq 120); do \
+		raw=$$(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 $(SSH_USER)@$$host cat /etc/rancher/k3s/k3s.yaml 2>/dev/null) && break; \
+		raw=""; echo "waiting for k3s on $$host"; sleep 5; \
+	done; \
+	[ -n "$$raw" ] || { echo "k3s did not come up on $$host"; exit 1; }; \
+	echo "$$raw" | sed -e "s/127.0.0.1/$$host/" -e "s/: default$$/: $(CONTEXT)/" > kubeconfig-$(ENV).yaml; \
+	echo "KUBECONFIG=$$PWD/kubeconfig-$(ENV).yaml"
+
+wait-nodes: remote-only ## wait until every server of ENV is Ready (uses kubeconfig-ENV.yaml)
+	@set -euo pipefail; \
+	want=$$($(TERRAFORM) workspace select $(ENV) >/dev/null && $(TERRAFORM) output -raw node_count); \
+	for _ in $$(seq 180); do \
+		have=$$(kubectl --kubeconfig kubeconfig-$(ENV).yaml get nodes --no-headers 2>/dev/null | awk '$$2=="Ready"' | wc -l | tr -d ' '); \
+		echo "$$have of $$want nodes are Ready"; \
+		[ "$$have" = "$$want" ] && exit 0; \
+		sleep 5; \
+	done; \
+	echo "not every node became Ready"; exit 1
+
+bootstrap: remote-only registry-set ## servers, kubeconfig and deploy in one go (images must be pushed): make bootstrap ENV=prod REGISTRY=... TAG=...
+	$(MAKE) infra-apply ENV=$(ENV)
+	$(MAKE) kubeconfig ENV=$(ENV)
+	$(MAKE) wait-nodes ENV=$(ENV)
+	KUBECONFIG=$(CURDIR)/kubeconfig-$(ENV).yaml $(MAKE) deploy ENV=$(ENV)
+
+secrets: remote-only ## create and encrypt the secrets of ENV, asks for the Hetzner token: make secrets ENV=prod
+	@infra/scripts/secrets.sh $(ENV)
+
+install-host: ## k3s on your own Ubuntu server: make install-host ROLE=server|single|edge|core HOST=1.2.3.4 [SERVER=core ip]
+	@[ -n "$(ROLE)" ] && [ -n "$(HOST)" ] || { echo "usage: make install-host ROLE=server|single|edge|core HOST=<ip> [SERVER=<core ip>]"; exit 1; }
+	@infra/scripts/install-host.sh $(ROLE) $(HOST) $(SERVER)
 
 agent-kubeconfig: ## read-only kubeconfig for AI agents: make agent-kubeconfig ENV=prod
 	@set -euo pipefail; umask 077; out=kubeconfig-agent-$(ENV).yaml; \
