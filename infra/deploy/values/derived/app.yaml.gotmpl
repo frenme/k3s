@@ -15,8 +15,7 @@
 {{- $_ := set $out "tracing" $tracing }}
 {{- $_ := set $out "serviceMonitor" .Values.telemetry.metrics }}
 {{- if and (not $isGateway) (dig "database" true $app) }}
-{{- $password := required (printf "secrets.postgres.%s must be set" $name) (dig $name "" .Values.secrets.postgres) }}
-{{- $_ := set $secret "PGPASSWORD" $password }}
+{{- $_ := set $secret "PGPASSWORD" (printf "%s/%s" (required "secrets.dbSecret must be set" .Values.secrets.dbSecret) $name | sha256sum) }}
 {{- $_ := set $env "DATABASE_URL" (printf "postgres://%s_svc@postgres-pooler-rw:5432/app?sslmode=require" $name) }}
 {{- $_ := set $env "DATABASE_DIRECT_URL" (printf "postgres://%s_svc@postgres-rw:5432/app?sslmode=require" $name) }}
 {{- if gt (int .Values.postgres.instances) 1 }}

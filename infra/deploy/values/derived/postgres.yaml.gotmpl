@@ -8,7 +8,7 @@ services:
   {{- range $name, $app := .Values.apps }}
   {{- if and (not (dig "gateway" false $app)) (dig "database" true $app) }}
   {{ $name }}:
-    password: {{ required (printf "secrets.postgres.%s must be set" $name) (dig $name "" $.Values.secrets.postgres) | quote }}
+    password: {{ printf "%s/%s" (required "secrets.dbSecret must be set" $.Values.secrets.dbSecret) $name | sha256sum | quote }}
     readAllSchemas: {{ dig "readAllSchemas" false $app }}
   {{- end }}
   {{- end }}

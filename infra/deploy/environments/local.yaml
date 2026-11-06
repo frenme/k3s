@@ -24,12 +24,7 @@ telemetry:
     logs: 48h
 
 secrets:
-  postgres:
-    users: dev-users-password
-    orders: dev-orders-password
-    admin: dev-admin-password
-    common: dev-common-password
-    scheduler: dev-scheduler-password
+  dbSecret: dev-db-secret
   redis: dev-redis-password
   jwt: dev-jwt-secret
   grafana: dev-grafana-password

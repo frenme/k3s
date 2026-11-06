@@ -27,7 +27,7 @@
         "database": {
           "type": "boolean",
           "default": true,
-          "description": "Own Postgres schema, role and password (secrets.postgres.<name>)."
+          "description": "Own Postgres schema and role; the password is derived from secrets.dbSecret and the service name."
         },
         "redis": {
           "type": "boolean",

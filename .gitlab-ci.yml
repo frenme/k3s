@@ -75,21 +75,20 @@ images:
     - docker:28-dind
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/
-  parallel:
-    matrix:
-      - SERVICE: [gateway, users, orders, admin, common, scheduler]
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx create --use
-    - >-
-      docker buildx build --push
-      --platform linux/amd64,linux/arm64
-      --build-arg SERVICE=$SERVICE
-      --build-arg VERSION=$CI_COMMIT_TAG
-      --build-arg COMMIT=$CI_COMMIT_SHA
-      --provenance=mode=max
-      --sbom=true
-      --tag $REGISTRY/$SERVICE:$CI_COMMIT_TAG app
+    - |
+      for service in $(ls app/cmd); do
+        docker buildx build --push \
+          --platform linux/amd64,linux/arm64 \
+          --build-arg SERVICE=$service \
+          --build-arg VERSION=$CI_COMMIT_TAG \
+          --build-arg COMMIT=$CI_COMMIT_SHA \
+          --provenance=mode=max \
+          --sbom=true \
+          --tag $REGISTRY/$service:$CI_COMMIT_TAG app || exit 1
+      done
 
 scan:
   stage: build
@@ -99,14 +98,14 @@ scan:
     entrypoint: [""]
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/
-  parallel:
-    matrix:
-      - SERVICE: [gateway, users, orders, admin, common, scheduler]
   variables:
     TRIVY_USERNAME: $CI_REGISTRY_USER
     TRIVY_PASSWORD: $CI_REGISTRY_PASSWORD
   script:
-    - trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 $REGISTRY/$SERVICE:$CI_COMMIT_TAG
+    - |
+      for service in $(ls app/cmd); do
+        trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 $REGISTRY/$service:$CI_COMMIT_TAG || exit 1
+      done
 
 .deploy:
   stage: deploy
