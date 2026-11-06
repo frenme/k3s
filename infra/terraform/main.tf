@@ -66,6 +66,13 @@ resource "hcloud_firewall" "web" {
   name   = "${local.name}-web"
   labels = local.labels
 
+  lifecycle {
+    precondition {
+      condition     = var.server.edge || anytrue([for node in var.nodes : node.role == "edge"])
+      error_message = "an edge is required to serve ingress: set server.edge = true or add a node with role edge"
+    }
+  }
+
   rule {
     direction  = "in"
     protocol   = "tcp"
@@ -93,8 +100,8 @@ resource "hcloud_server" "server" {
   server_type  = var.server.server_type
   image        = local.image
   ssh_keys     = [for key in hcloud_ssh_key.admin : key.id]
-  firewall_ids = [hcloud_firewall.base.id]
-  labels       = merge(local.labels, { role = "core" })
+  firewall_ids = var.server.edge ? [hcloud_firewall.base.id, hcloud_firewall.web.id] : [hcloud_firewall.base.id]
+  labels       = merge(local.labels, { role = var.server.edge ? "edge" : "core" })
 
   ignore_remote_firewall_ids = true
   placement_group_id         = hcloud_placement_group.core.id
@@ -106,6 +113,7 @@ resource "hcloud_server" "server" {
     token       = random_password.token.result
     agent_token = random_password.agent_token.result
     k3s_version = local.deploy.k3sVersion
+    edge        = var.server.edge
     s3 = local.etcd_s3 ? {
       endpoint   = local.deploy.s3.endpoint
       bucket     = local.deploy.s3.bucket

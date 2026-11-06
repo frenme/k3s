@@ -15,6 +15,7 @@ variable "server" {
   type = object({
     location    = string
     server_type = string
+    edge        = optional(bool, false)
     backups     = optional(bool, false)
   })
 }
@@ -25,14 +26,10 @@ variable "nodes" {
     server_type = string
     role        = optional(string, "edge")
   }))
+  default = {}
 
   validation {
     condition     = alltrue([for node in var.nodes : contains(["core", "edge"], node.role)])
     error_message = "node role must be core or edge"
-  }
-
-  validation {
-    condition     = anytrue([for node in var.nodes : node.role == "edge"])
-    error_message = "at least one edge node is required to serve ingress"
   }
 }

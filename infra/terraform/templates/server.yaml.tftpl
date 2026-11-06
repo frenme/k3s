@@ -15,7 +15,12 @@ write_files:
       write-kubeconfig-mode: "0600"
       secrets-encryption: true
       node-label:
+%{ if edge ~}
+        - role=edge
+        - svccontroller.k3s.cattle.io/enablelb=true
+%{ else ~}
         - role=core
+%{ endif ~}
       etcd-snapshot-schedule-cron: "0 */6 * * *"
       etcd-snapshot-retention: 28
 %{ if s3 != null ~}
