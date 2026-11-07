@@ -27,7 +27,7 @@ define terraform
 	$(TERRAFORM) $(1) -var-file=envs/$(ENV).tfvars
 endef
 
-.PHONY: help doctor local-only remote-only
+.PHONY: help doctor init local-only remote-only
 .PHONY: fmt lint openapi test test-integration e2e images push
 .PHONY: up down deploy template status logs restart grafana
 .PHONY: db-status db-promote psql backup-now
@@ -38,6 +38,9 @@ help:
 
 doctor: ## check that every required tool is installed
 	@missing=0; for t in $(TOOLS); do command -v $$t >/dev/null && echo "ok      $$t" || { echo "missing $$t"; missing=1; }; done; exit $$missing
+
+init: ## first setup: your age key for sops, your domain, your SSH key in the tfvars
+	@infra/scripts/init.sh
 
 local-only:
 	@[ "$(ENV)" = local ] || { echo "this target works only with ENV=local"; exit 1; }
