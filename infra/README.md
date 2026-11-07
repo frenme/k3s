@@ -37,8 +37,12 @@ make down
 
 ## Dev or prod
 
-1. `terraform/envs/<env>.tfvars`: your SSH public key and the servers (`server` is the core, `nodes` are edges; `edge = true` inside `server` and no `nodes` is one server for everything).
-2. `deploy/environments/common.yaml`: your `domain` (the host is `<subdomain>.<domain>`, `dev.` or `prod.`).
+1. First setup, once per project:
+   ```bash
+   make init
+   ```
+   It creates your age key for sops (back it up) and puts it in `.sops.yaml`, asks for your `domain` in `deploy/environments/common.yaml` (the host is `<subdomain>.<domain>`, `dev.` or `prod.`) and puts your SSH public key into the tfvars. `DOMAIN`, `SSH_KEY_FILE` and `YES=1` make it non-interactive. Secrets encrypted for the old key become unreadable: recreate them with step 3.
+2. `terraform/envs/<env>.tfvars`: the servers (`server` is the core, `nodes` are edges; `edge = true` inside `server` and no `nodes` is one server for everything).
 3. Secrets (asks for the Hetzner token, makes `dbSecret`, `redis`, `jwt`, `grafana` and encrypts them with the age key of `.sops.yaml`):
    ```bash
    make secrets ENV=<env>
@@ -68,7 +72,7 @@ make kubeconfig ENV=<env> HOST=<core ip>
 REGISTRY=<registry> TAG=<tag> make deploy ENV=<env>
 ```
 
-It installs k3s of the version from `common.yaml` with the same settings as the Terraform cloud-init. It does not set up firewalls: open 22, 80 and 443 to the world yourself, and let the servers reach each other (6443 of the core, UDP 8472 and 10250 between all).
+It installs k3s of the version from `common.yaml` with the same settings as the Terraform cloud-init. It does not set up firewalls: open 22, 80 and 443 to the world yourself, and let the servers reach each other (6443 of the core, UDP 51820 and TCP 10250 between all).
 
 ## Changing the setup
 
