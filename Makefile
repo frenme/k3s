@@ -27,7 +27,7 @@ define terraform
 	$(TERRAFORM) $(1) -var-file=envs/$(ENV).tfvars
 endef
 
-.PHONY: help doctor init local-only remote-only
+.PHONY: help doctor init cloudflare-ips local-only remote-only
 .PHONY: fmt lint openapi test test-integration e2e images push
 .PHONY: up down deploy template status logs restart grafana
 .PHONY: db-status db-promote psql backup-now
@@ -42,6 +42,9 @@ doctor: ## check that every required tool is installed
 init: ## first setup: your age key for sops, your domain, your SSH key in the tfvars
 	@infra/scripts/init.sh
 
+cloudflare-ips: ## refresh the Cloudflare ranges in infra/deploy/environments/cloudflare.yaml
+	@set -o pipefail; f=infra/deploy/environments/cloudflare.yaml; { echo "cloudflare:"; curl -fsSL https://www.cloudflare.com/ips-v4 | grep -E '^[0-9.]+/[0-9]+$$' | sed 's/^/  - /'; } > $$f.new && mv $$f.new $$f && git diff --stat -- $$f
+
 local-only:
 	@[ "$(ENV)" = local ] || { echo "this target works only with ENV=local"; exit 1; }
 
@@ -54,9 +57,10 @@ registry-set:
 fmt: ## format go code
 	cd $(APP) && golangci-lint fmt ./...
 
-lint: ## formatting, golangci-lint and lint every release of ENV
+lint: ## formatting, golangci-lint, the k3s config check and lint every release of ENV
 	cd $(APP) && golangci-lint fmt --diff ./...
 	cd $(APP) && golangci-lint run ./...
+	infra/scripts/check-k3s.sh
 	$(if $(filter local,$(ENV)),,REGISTRY=lint.invalid TAG=lint) $(HELMFILE) lint
 
 openapi: ## regenerate openapi/*.yaml from the code

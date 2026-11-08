@@ -5,6 +5,6 @@ metrics: {{ .Values.telemetry.metrics }}
 appNamespace: {{ .Values.namespace }}
 apps: {{ keys .Values.apps | sortAlpha | toJson }}
 backups: {{ dig "backups" false .Values }}
-{{- if ne .Environment.Name "local" }}
+{{- if .Values.autoUpdates }}
 k3sVersion: {{ .Values.k3sVersion | quote }}
 {{- end }}

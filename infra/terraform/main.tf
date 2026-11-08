@@ -6,6 +6,7 @@ locals {
   name = "k3s-${var.environment}"
   deploy = merge(
     yamldecode(file("${path.module}/../deploy/environments/common.yaml")),
+    yamldecode(file("${path.module}/../deploy/environments/cloudflare.yaml")),
     yamldecode(file("${path.module}/../deploy/environments/${var.environment}.yaml")),
   )
   image       = "ubuntu-24.04"

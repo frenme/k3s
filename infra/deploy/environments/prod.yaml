@@ -2,6 +2,7 @@
 namespace: app-prod
 kubeContext: k3s-prod
 subdomain: prod
+autoUpdates: true
 
 appDefaults:
   resources:
@@ -53,3 +54,26 @@ telemetry:
   retention:
     metrics: 30d
     logs: 336h
+
+releaseValues:
+  monitoring:
+    prometheus:
+      prometheusSpec:
+        storageSpec: {volumeClaimTemplate: {spec: {resources: {requests: {storage: 30Gi}}}}}
+  postgres:
+    storage: {size: 50Gi}
+    resources:
+      requests: {cpu: 500m, memory: 1Gi}
+      limits: {memory: 4Gi}
+    parameters:
+      max_connections: "300"
+      shared_buffers: 1GB
+      effective_cache_size: 3GB
+      max_wal_size: 4GB
+      max_slot_wal_keep_size: 10GB
+    backup: {retention: 30d}
+  redis:
+    maxmemory: 512mb
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {memory: 640Mi}

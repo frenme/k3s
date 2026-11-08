@@ -6,11 +6,13 @@ environments:
   dev:
     values:
       - environments/common.yaml
+      - environments/cloudflare.yaml
       - environments/dev.yaml
       - environments/secrets.yaml.gotmpl
   prod:
     values:
       - environments/common.yaml
+      - environments/cloudflare.yaml
       - environments/prod.yaml
       - environments/secrets.yaml.gotmpl
 
@@ -69,7 +71,7 @@ templates:
     namespace: {{ .Values.namespace }}
     values:
       - values/base/{{`{{ .Release.Name }}`}}.yaml
-      - values/{{`{{ .Environment.Name }}`}}/{{`{{ .Release.Name }}`}}.yaml
+      - values/env.yaml.gotmpl
       - values/derived/{{`{{ .Release.Name }}`}}.yaml.gotmpl
   app:
     inherit:
@@ -124,6 +126,7 @@ releases:
       - monitoring/loki
 
   - name: kured
+    installed: {{ .Values.autoUpdates }}
     namespace: kube-system
     inherit:
       - template: layered
@@ -131,6 +134,7 @@ releases:
     version: 6.1.0
 
   - name: system-upgrade-controller
+    installed: {{ .Values.autoUpdates }}
     namespace: cattle-system
     inherit:
       - template: layered

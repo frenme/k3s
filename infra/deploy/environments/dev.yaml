@@ -22,3 +22,9 @@ postgres:
 telemetry:
   metrics: false
   traces: false
+
+releaseValues:
+  postgres:
+    storage: {size: 10Gi}
+  redis:
+    maxmemory: 128mb
