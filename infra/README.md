@@ -23,6 +23,7 @@ deploy/      Helmfile, own charts, settings per environment
 - `dev` runs without metrics and traces: services, logs and a plain Grafana.
 - One core server (control plane, databases, services) and one or more edge servers (Traefik and the gateway only). Or **one server for everything**: `edge = true` inside `server` and no `nodes`.
 - Database passwords are not stored: each is derived from `secrets.dbSecret` and the service name.
+- Automatic node reboots and k3s upgrades (`autoUpdates`) are **on in prod only**.
 
 ## Local
 
@@ -82,7 +83,8 @@ It installs k3s of the version from `common.yaml` with the same settings as the 
 | an edge in another region | add an entry to `nodes` in the tfvars, `make infra-apply` |
 | a Postgres replica | a `nodes` entry with `role = "core"` and `postgres.instances: 2` in `deploy/environments/<env>.yaml` |
 | backups | a real S3 in `s3` of `common.yaml`, keys in the secrets, `backups: true` |
-| origin reachable only through Cloudflare | `cloudflareOnly: true` |
+| origin reachable only through Cloudflare | `cloudflareOnly: true`; refresh the ranges now and then with `make cloudflare-ips` |
+| automatic reboots and k3s upgrades | `autoUpdates: true` in the env file |
 
 Failover to a replica needs the Kubernetes API, which lives on the core server: if that server dies, the replica is not promoted.
 

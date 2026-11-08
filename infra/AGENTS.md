@@ -4,7 +4,7 @@ Rules for the infrastructure and for investigating the clusters. Paths are relat
 
 ## Layout
 
-- `deploy/helmfile.yaml.gotmpl` every release; `deploy/environments/{common,local,dev,prod}.yaml` settings (`common.yaml` has the `apps` registry and the defaults, an env file only what differs); `deploy/values/{base,<env>,derived}` values of vendor charts and of the Postgres and Redis charts; `deploy/helm/*` own charts.
+- `deploy/helmfile.yaml.gotmpl` every release; `deploy/environments/{common,local,dev,prod}.yaml` settings (`common.yaml` has the `apps` registry and the defaults, an env file only what differs); `deploy/values/{base,derived}` values of vendor charts and of the Postgres and Redis charts; `deploy/helm/*` own charts. What differs per env for a release (sizes, retention) is `releaseValues.<release>` in the env file, merged between `base` and `derived` by `values/env.yaml.gotmpl`.
 - `terraform` Hetzner servers, `k3d` the local cluster.
 
 | ENV | kube context | namespace |
@@ -33,7 +33,7 @@ Platform namespaces: `monitoring`, `cnpg-system`, `cert-manager` (only with `bac
 - `backups: false` in `common.yaml`. `backups: true` turns on etcd snapshots to S3 (`s3` section, keys in the secrets), the barman plugin, WAL archiving and a daily Postgres backup. After a restore change `postgres.backupServerName`.
 - The cluster issues no certificates: HTTPS is Cloudflare's (SSL mode Full), the edge answers with Traefik's default certificate, there is no HTTP to HTTPS redirect on the edge.
 - Host of an env: `<subdomain>.<domain>`; `domain` is in `common.yaml`, `subdomain` (`dev`, `prod`) in the env file, local has none.
-- Dev and prod expect Cloudflare: Traefik trusts `X-Forwarded-For` from the ranges in `cloudflare` of `common.yaml` (IPv4 only, refresh them from cloudflare.com/ips-v4) and rate limits count the real client IP. Ports 80 and 443 of the edges are open to everyone; `cloudflareOnly: true` opens them only to those ranges.
+- Dev and prod expect Cloudflare: Traefik trusts `X-Forwarded-For` from the ranges in `environments/cloudflare.yaml` (IPv4 only, generated: `make cloudflare-ips`, never edit by hand) and rate limits count the real client IP. Ports 80 and 443 of the edges are open to everyone; `cloudflareOnly: true` opens them only to those ranges.
 - `telemetry.metrics`, `telemetry.traces`, `telemetry.retention` are the only monitoring switches; `dev` runs with metrics and traces off: services, Loki, Alloy and a plain Grafana with Loki only (no Prometheus stack, no monitoring CRDs, no ServiceMonitor or PodMonitor).
 
 ## Service registry
@@ -42,7 +42,9 @@ Platform namespaces: `monitoring`, `cnpg-system`, `cert-manager` (only with `bac
 - Keys, types and meaning are in `deploy/environments/apps.schema.json`; Helmfile rejects an unknown key or a flag that is not `true` or `false`. A new flag goes to that file first. Special keys: `gateway`, `readAllSchemas` (admin), `healthCheck` (`common`), `values` (chart values of the service, merged over `appDefaults` and the env's own `apps.<name>.values`).
 - Derived in `values/derived/app.yaml.gotmpl`: database and redis settings, `ROUTES`, `HEALTH_TARGETS` and the NetworkPolicy (`:8080` only from the gateway and the `healthCheck` app, `:8081` from every pod labeled `app.kubernetes.io/part-of: app`, which is every app).
 - The database password of a service is `sha256sum(secrets.dbSecret + "/" + <name>)`, computed in `values/derived/app.yaml.gotmpl` and `values/derived/postgres.yaml.gotmpl`; there is no per-service secret. Changing `dbSecret` changes every password at once: CNPG updates the roles and the pods roll on the secret checksum, expect a short burst of auth errors. CI `images` and `scan` loop over `app/cmd`. A new service needs only its registry line and, for its own rate limit, a route in `apps.gateway.values.ingress.routes` of `common.yaml` (the gateway settings, CORS origins included, are `apps.gateway.values` there and in the env files).
-- `values/{base,<env>}/<release>.yaml` are for vendor charts and the Postgres and Redis sizes; a missing file is ignored on purpose.
+- `values/base/<release>.yaml` is for vendor charts; a missing file is ignored on purpose.
+- `autoUpdates` (`false` in `common.yaml`, `true` in prod) installs kured (reboots a node after OS updates in the 02:00-05:00 UTC window) and system-upgrade-controller (upgrades k3s to `k3sVersion` on Sundays). On a single server a reboot is an outage, so keep it off there or accept the window.
+- `make lint` also runs `scripts/check-k3s.sh`: the k3s config of `terraform/templates/*.tftpl` and `scripts/install-host.sh` must stay the same; change both.
 
 ## Connecting
 
