@@ -13,7 +13,7 @@ services:
   {{- end }}
   {{- end }}
 
-{{- if dig "backups" false .Values }}
+{{- if .Values.backups }}
 
 backup:
   enabled: true

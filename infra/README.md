@@ -85,6 +85,8 @@ It installs k3s of the version from `common.yaml` with the same settings as the 
 | backups | a real S3 in `s3` of `common.yaml`, keys in the secrets, `backups: true` |
 | origin reachable only through Cloudflare | `cloudflareOnly: true`; refresh the ranges now and then with `make cloudflare-ips` |
 | automatic reboots and k3s upgrades | `autoUpdates: true` in the env file |
+| images from a private registry | `registry: {host, username, password}` in the secrets of the env (`sops`), only for servers created after the change |
+| restore Postgres from a backup | with `backups: true`: `releaseValues.postgres.restore: {enabled: true, serverName: <old name>}` in the env file and a new `postgres.backupServerName` |
 
 Failover to a replica needs the Kubernetes API, which lives on the core server: if that server dies, the replica is not promoted.
 

@@ -43,7 +43,7 @@ helmDefaults:
 missingFileHandler: Debug
 
 {{- $local := eq .Environment.Name "local" }}
-{{- $backups := dig "backups" false .Values }}
+{{- $backups := .Values.backups }}
 {{- $metrics := .Values.telemetry.metrics }}
 {{- $registry := env "REGISTRY" | default "k3s-base" }}
 {{- $tag := env "TAG" | default "dev" }}

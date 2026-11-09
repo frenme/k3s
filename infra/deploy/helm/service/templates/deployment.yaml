@@ -29,10 +29,6 @@ spec:
         {{- include "service.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/part-of: app
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       securityContext:

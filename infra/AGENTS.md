@@ -24,7 +24,7 @@ Platform namespaces: `monitoring`, `cnpg-system`, `cert-manager` (only with `bac
 - `edge = true` inside `server` with no `nodes`: the server is labeled `role=edge` (no taint) and gets the web firewall, so everything runs on it. Terraform refuses a setup with no edge at all.
 - `make init` (`scripts/init.sh`) is the one-time setup: age key (macOS `~/Library/Application Support/sops/age/keys.txt`, else `~/.config/sops/age/keys.txt`, or `SOPS_AGE_KEY_FILE`), the recipient in `.sops.yaml`, `domain` in `common.yaml`, the `REPLACE_WITH_YOUR_PUBLIC_KEY` placeholder in the tfvars. It changes `.sops.yaml` only after a yes (or `YES=1`) and is safe to run again.
 - `make secrets ENV=<env>` (`scripts/secrets.sh`) writes `dbSecret`, `redis`, `jwt`, `grafana` and encrypts the file; it never overwrites an existing one without `FORCE=1`. `make bootstrap` = `infra-apply`, `kubeconfig`, `wait-nodes`, `deploy`; images come first from `make push`.
-- `make install-host` (`scripts/install-host.sh`) installs k3s on an existing Ubuntu with the same config as cloud-init; it does not touch firewalls. Outputs `server_ip`, `node_ips`, `node_count` feed the Makefile.
+- `make install-host` (`scripts/install-host.sh`) installs k3s on an existing Ubuntu with the same config as cloud-init; it does not touch firewalls. Terraform outputs: `server_ip` and `node_count` feed the Makefile, `node_ips` is for your DNS.
 - The agent token and the edge taint come from cloud-init, so they reach only servers created after the change; on an existing server edit `/etc/rancher/k3s/config.yaml` by hand.
 
 ## Defaults

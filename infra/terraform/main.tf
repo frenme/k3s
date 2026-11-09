@@ -10,8 +10,8 @@ locals {
     yamldecode(file("${path.module}/../deploy/environments/${var.environment}.yaml")),
   )
   image       = "ubuntu-24.04"
-  etcd_s3     = try(local.deploy.backups, false)
-  web_sources = try(local.deploy.cloudflareOnly, false) ? local.deploy.cloudflare : ["0.0.0.0/0"]
+  etcd_s3     = local.deploy.backups
+  web_sources = local.deploy.cloudflareOnly ? local.deploy.cloudflare : ["0.0.0.0/0"]
   secrets     = yamldecode(data.sops_file.secrets.raw).secrets
   registry    = try(local.secrets.registry, null)
   labels      = { cluster = local.name }

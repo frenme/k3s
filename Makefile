@@ -27,7 +27,7 @@ define terraform
 	$(TERRAFORM) $(1) -var-file=envs/$(ENV).tfvars
 endef
 
-.PHONY: help doctor init cloudflare-ips local-only remote-only
+.PHONY: help doctor init cloudflare-ips local-only remote-only registry-set
 .PHONY: fmt lint openapi test test-integration e2e images push
 .PHONY: up down deploy template status logs restart grafana
 .PHONY: db-status db-promote psql backup-now

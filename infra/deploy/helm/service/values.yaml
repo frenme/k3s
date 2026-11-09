@@ -6,8 +6,6 @@ kind: Deployment
 
 replicas: 0
 
-imagePullSecrets: []
-
 env: {}
 
 secretEnv: {}
