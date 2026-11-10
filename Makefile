@@ -153,7 +153,7 @@ wait-nodes: remote-only ## wait until every server of ENV is Ready (uses kubecon
 	done; \
 	echo "not every node became Ready"; exit 1
 
-bootstrap: remote-only registry-set ## servers, kubeconfig and deploy in one go (images must be pushed): make bootstrap ENV=prod REGISTRY=... TAG=...
+bootstrap: registry-set ## servers, kubeconfig and deploy in one go (images must be pushed): make bootstrap ENV=prod REGISTRY=... TAG=...
 	$(MAKE) infra-apply ENV=$(ENV)
 	$(MAKE) kubeconfig ENV=$(ENV)
 	$(MAKE) wait-nodes ENV=$(ENV)

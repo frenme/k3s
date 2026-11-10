@@ -5,7 +5,6 @@
 {{- /* приоритет: appDefaults окружения, затем apps.<name>.values, затем всё, что выводится ниже */ -}}
 {{- $out := mergeOverwrite (deepCopy (.Values | get "appDefaults" dict)) (deepCopy ($app | get "values" dict)) }}
 {{- $env := deepCopy ($out | get "env" dict) }}
-{{- $_ := unset $out "env" }}
 {{- $secret := dict }}
 {{- $_ := set $out "image" (dict "repository" (printf "%s/%s" (env "REGISTRY" | default "k3s-base") $name) "tag" (env "TAG" | default "dev")) }}
 {{- $tracing := dict "environment" .Environment.Name }}
@@ -66,13 +65,7 @@
 {{- if $public }}
 {{- $_ := set $policy "allowFromPods" $public }}
 {{- end }}
-{{- if $policy }}
 {{- $_ := set $out "networkPolicy" $policy }}
-{{- end }}
-{{- if $env }}
 {{- $_ := set $out "env" $env }}
-{{- end }}
-{{- if $secret }}
 {{- $_ := set $out "secretEnv" $secret }}
-{{- end }}
 {{ toYaml $out }}
