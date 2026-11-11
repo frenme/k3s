@@ -80,7 +80,8 @@ It installs k3s of the version from `common.yaml` with the same settings as the 
 | I want | Do |
 |---|---|
 | a new service | one line in `deploy/environments/common.yaml` `apps`, see below |
-| an edge in another region | add an entry to `nodes` in the tfvars, `make infra-apply` |
+| an edge in another region | add an entry to `nodes` in the tfvars, `make infra-apply` (its gateway and Traefik start on their own) |
+| remove a node | delete its entry from `nodes`, `make infra-apply`, then `kubectl delete node k3s-<env>-<name>` (Terraform leaves the Node object as NotReady) |
 | a Postgres replica | a `nodes` entry with `role = "core"` and `postgres.instances: 2` in `deploy/environments/<env>.yaml` |
 | backups | a real S3 in `s3` of `common.yaml`, keys in the secrets, `backups: true` |
 | origin reachable only through Cloudflare | `cloudflareOnly: true`; refresh the ranges now and then with `make cloudflare-ips` |
