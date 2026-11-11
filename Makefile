@@ -146,7 +146,7 @@ wait-nodes: remote-only ## wait until every server of ENV is Ready (uses kubecon
 	@set -euo pipefail; \
 	want=$$($(TERRAFORM) workspace select $(ENV) >/dev/null && $(TERRAFORM) output -raw node_count); \
 	for _ in $$(seq 180); do \
-		have=$$(kubectl --kubeconfig kubeconfig-$(ENV).yaml get nodes --no-headers 2>/dev/null | awk '$$2=="Ready"' | wc -l | tr -d ' '); \
+		have=$$(kubectl --kubeconfig kubeconfig-$(ENV).yaml get nodes --no-headers 2>/dev/null | awk '$$2=="Ready"' | wc -l | tr -d ' ') || true; \
 		echo "$$have of $$want nodes are Ready"; \
 		[ "$$have" = "$$want" ] && exit 0; \
 		sleep 5; \
