@@ -75,6 +75,15 @@ REGISTRY=<registry> TAG=<tag> make deploy ENV=<env>
 
 It installs k3s of the version from `common.yaml` with the same settings as the Terraform cloud-init. It does not set up firewalls: open 22, 80 and 443 to the world yourself, and let the servers reach each other (6443 of the core, UDP 51820 and TCP 10250 between all).
 
+## dev and prod on one domain
+
+Every environment is its own cluster: `dev.<domain>` and `prod.<domain>` point to different servers, have their own Terraform workspace, secrets and kube context. They can share one Hetzner project (the same SSH key is reused), but never deploy two environments to **the same cluster**: they share the platform releases (Traefik, monitoring, kured, cnpg) and a deploy of one removes what the other installed (for example kured when `autoUpdates` differs).
+
+- Apply environments one after another: the Terraform workspace is global to the `infra/terraform` directory.
+- A prod with edges around the world: put every edge IP into `prod.<domain>` as proxied A records. Cloudflare keeps sending a client to one of them and switches to another within seconds when it dies; it does not pick the nearest one (that needs Cloudflare Load Balancing).
+- A gateway far from the core pays about two round trips to the core on every authenticated call (role lookup and the call itself): 2 ms from an edge next to the core, 100 ms from the US and 180 ms from Singapore means roughly +0.2 s and +0.35 s per call.
+- The Ingress serves only `<subdomain>.<domain>`; any other hostname (for example one per region) answers 404 until it is added.
+
 ## Changing the setup
 
 | I want | Do |
