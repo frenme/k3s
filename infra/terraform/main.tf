@@ -31,11 +31,25 @@ resource "random_password" "agent_token" {
   special = false
 }
 
+data "hcloud_ssh_keys" "existing" {}
+
+locals {
+  ssh_keys = { for i, key in var.ssh_public_keys : tostring(i) => join(" ", slice(split(" ", trimspace(key)), 0, 2)) }
+  other_ssh_keys = {
+    for k in data.hcloud_ssh_keys.existing.ssh_keys :
+    join(" ", slice(split(" ", trimspace(k.public_key)), 0, 2)) => k.id if !startswith(k.name, "${local.name}-")
+  }
+}
+
 resource "hcloud_ssh_key" "admin" {
-  for_each   = { for i, key in var.ssh_public_keys : tostring(i) => key }
+  for_each   = { for i, key in var.ssh_public_keys : tostring(i) => key if !contains(keys(local.other_ssh_keys), local.ssh_keys[tostring(i)]) }
   name       = "${local.name}-${each.key}"
   public_key = each.value
   labels     = local.labels
+}
+
+locals {
+  ssh_key_ids = [for i, key in local.ssh_keys : try(hcloud_ssh_key.admin[i].id, local.other_ssh_keys[key])]
 }
 
 resource "hcloud_firewall" "base" {
@@ -100,7 +114,7 @@ resource "hcloud_server" "server" {
   location     = var.server.location
   server_type  = var.server.server_type
   image        = local.image
-  ssh_keys     = [for key in hcloud_ssh_key.admin : key.id]
+  ssh_keys     = local.ssh_key_ids
   firewall_ids = var.server.edge ? [hcloud_firewall.base.id, hcloud_firewall.web.id] : [hcloud_firewall.base.id]
   labels       = merge(local.labels, { role = var.server.edge ? "edge" : "core" })
 
@@ -141,7 +155,7 @@ resource "hcloud_server" "node" {
   location     = each.value.location
   server_type  = each.value.server_type
   image        = local.image
-  ssh_keys     = [for key in hcloud_ssh_key.admin : key.id]
+  ssh_keys     = local.ssh_key_ids
   firewall_ids = each.value.role == "edge" ? [hcloud_firewall.base.id, hcloud_firewall.web.id] : [hcloud_firewall.base.id]
   labels       = merge(local.labels, { role = each.value.role })
 
