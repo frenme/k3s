@@ -34,6 +34,9 @@
 {{- end }}
 {{- $_ := set $env "ROUTES" (join "," $routes) }}
 {{- $_ := set $secret "JWT_SECRET" (required "secrets.jwt must be set (add it to the environment secrets file with sops)" (dig "jwt" "" .Values.secrets)) }}
+{{- with .Values | get "cloudflare" list }}
+{{- $_ := set $env "EXTRA_TRUSTED_PROXIES" (join "," .) }}
+{{- end }}
 {{- with dig "subdomain" "" $.Values }}
 {{- $ingress := $out | get "ingress" dict }}
 {{- $_ := set $ingress "host" (printf "%s.%s" . (required "domain must be set" (dig "domain" "" $.Values))) }}
