@@ -34,6 +34,23 @@ func TestResolveClientIP(t *testing.T) {
 	}
 }
 
+func TestResolveClientIPBehindCloudflare(t *testing.T) {
+	c, err := NewClientIP([]string{"10.0.0.0/8", "172.64.0.0/13"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "10.42.1.4:51096"
+	req.Header.Set("X-Forwarded-For", "6.6.6.6,185.26.173.198, 172.68.152.136")
+	if got := c.Resolve(req); got != "185.26.173.198" {
+		t.Fatalf("got %s, want the address Cloudflare saw", got)
+	}
+	without, _ := NewClientIP([]string{"10.0.0.0/8"})
+	if got := without.Resolve(req); got != "172.68.152.136" {
+		t.Fatalf("without the Cloudflare ranges the proxy itself is taken for the client: got %s", got)
+	}
+}
+
 func TestMiddlewareExposesTheIP(t *testing.T) {
 	c, _ := NewClientIP([]string{"10.0.0.0/8"})
 	var got string

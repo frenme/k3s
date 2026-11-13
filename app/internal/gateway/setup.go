@@ -24,6 +24,7 @@ type EnvConfig struct {
 	UsersURL          string        `env:"USERS_URL" default:"http://users:8081"`
 	CORSOrigins       []string      `env:"CORS_ORIGINS"`
 	TrustedProxies    []string      `env:"TRUSTED_PROXIES" default:"10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,fc00::/7,::1/128"`
+	ExtraProxies      []string      `env:"EXTRA_TRUSTED_PROXIES"`
 	UpstreamTimeout   time.Duration `env:"UPSTREAM_TIMEOUT" default:"10s"`
 	UpstreamFailures  int           `env:"UPSTREAM_FAILURE_THRESHOLD" default:"5"`
 	UpstreamCooldown  time.Duration `env:"UPSTREAM_COOLDOWN" default:"10s"`
@@ -62,7 +63,7 @@ func Setup(ctx context.Context, s *app.Service) error {
 		return err
 	}
 	verifier.Start(ctx)
-	clientIP, err := edge.NewClientIP(env.TrustedProxies)
+	clientIP, err := edge.NewClientIP(append(env.TrustedProxies, env.ExtraProxies...))
 	if err != nil {
 		return err
 	}
