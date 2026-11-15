@@ -54,7 +54,6 @@ telemetry:
   retention:
     metrics: 30d
     logs: 336h
-    traces: 168h
 
 releaseValues:
   monitoring:
