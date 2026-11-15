@@ -18,7 +18,7 @@ apps:
   gateway:
     values:
       env:
-        CORS_ORIGINS: https://example.com
+        CORS_ORIGINS: https://{domain}
       ingress:
         routes:
           users:
@@ -54,12 +54,19 @@ telemetry:
   retention:
     metrics: 30d
     logs: 336h
+    traces: 168h
 
 releaseValues:
   monitoring:
     prometheus:
       prometheusSpec:
+        retentionSize: 25GB
         storageSpec: {volumeClaimTemplate: {spec: {resources: {requests: {storage: 30Gi}}}}}
+  loki:
+    singleBinary:
+      persistence: {size: 20Gi}
+  tempo:
+    persistence: {size: 20Gi}
   postgres:
     storage: {size: 50Gi}
     resources:

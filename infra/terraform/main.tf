@@ -67,7 +67,7 @@ resource "hcloud_firewall" "base" {
     direction  = "in"
     protocol   = "tcp"
     port       = "6443"
-    source_ips = ["0.0.0.0/0"]
+    source_ips = var.api_sources
   }
 
   rule {
@@ -192,6 +192,13 @@ locals {
 resource "hcloud_firewall" "nodes" {
   name   = "${local.name}-nodes"
   labels = local.labels
+
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "6443"
+    source_ips = local.node_cidrs
+  }
 
   rule {
     direction  = "in"

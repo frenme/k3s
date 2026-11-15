@@ -16,6 +16,14 @@ parameters:
   effective_cache_size: 384MB
   max_slot_wal_keep_size: 2GB
 
+pooler:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
 backup:
   enabled: false
   serverName: postgres

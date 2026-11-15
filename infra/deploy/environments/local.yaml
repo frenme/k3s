@@ -22,6 +22,7 @@ telemetry:
   retention:
     metrics: 2d
     logs: 48h
+    traces: 48h
 
 secrets:
   dbSecret: dev-db-secret
@@ -37,6 +38,7 @@ releaseValues:
   monitoring:
     prometheus:
       prometheusSpec:
+        retentionSize: 1500MB
         resources: {requests: {cpu: 100m, memory: 256Mi}}
         storageSpec: {volumeClaimTemplate: {spec: {resources: {requests: {storage: 2Gi}}}}}
     alertmanager: {enabled: false}

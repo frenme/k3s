@@ -11,6 +11,12 @@ variable "protected" {
   default = true
 }
 
+variable "api_sources" {
+  description = "who may reach the Kubernetes API (6443); the nodes always may. Put your own address and the CI runner here to close the port to the world"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
 variable "server" {
   type = object({
     location    = string

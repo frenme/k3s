@@ -24,7 +24,10 @@ spec:
       default_pool_size: {{ $poolSize | quote }}
   template:
     spec:
-      containers: []
+      containers:
+        - name: pgbouncer
+          resources:
+            {{- toYaml $.Values.pooler.resources | nindent 12 }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

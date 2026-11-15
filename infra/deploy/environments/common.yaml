@@ -97,3 +97,4 @@ telemetry:
   retention:
     metrics: 15d
     logs: 168h
+    traces: 168h

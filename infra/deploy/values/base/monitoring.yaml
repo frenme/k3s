@@ -19,6 +19,7 @@ kubeEtcd:
 
 prometheus:
   prometheusSpec:
+    retentionSize: 8GB
     enableFeatures:
       - exemplar-storage
     serviceMonitorSelectorNilUsesHelmValues: false

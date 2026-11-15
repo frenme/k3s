@@ -13,7 +13,7 @@ apps:
   gateway:
     values:
       env:
-        CORS_ORIGINS: https://dev.example.com
+        CORS_ORIGINS: https://dev.{domain}
 
 postgres:
   pooler:

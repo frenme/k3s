@@ -34,6 +34,9 @@
 {{- end }}
 {{- $_ := set $env "ROUTES" (join "," $routes) }}
 {{- $_ := set $secret "JWT_SECRET" (required "secrets.jwt must be set (add it to the environment secrets file with sops)" (dig "jwt" "" .Values.secrets)) }}
+{{- with $env | get "CORS_ORIGINS" "" }}
+{{- $_ := set $env "CORS_ORIGINS" (replace "{domain}" (dig "domain" "" $.Values) .) }}
+{{- end }}
 {{- with .Values | get "cloudflare" list }}
 {{- $_ := set $env "EXTRA_TRUSTED_PROXIES" (join "," .) }}
 {{- end }}
