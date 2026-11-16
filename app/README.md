@@ -25,19 +25,7 @@ Dockerfile              builds one service: --build-arg SERVICE=<name>, build co
 
 ## Commands
 
-Run from the repository root.
-
-```bash
-make test               # unit tests
-make test-integration   # real Postgres and Redis in docker
-make lint               # golangci-lint and helmfile lint
-make openapi            # regenerate openapi/ and the gateway rules
-make up                 # build images, create the local k3d cluster, deploy
-make e2e                # end to end tests against the local cluster
-make down               # delete the local cluster
-```
-
-Before handing over: `make lint test test-integration openapi`, and `make up e2e` when a service changed.
+From the repository root (`make help` lists all): `make test`, `test-integration` (real Postgres and Redis in docker), `lint`, `openapi` (regenerates `openapi/` and the gateway rules), `up`, `e2e`, `down`. Before handing over: `make lint test test-integration openapi`, and `make up e2e` when a service changed.
 
 ## Adding a service
 

@@ -16,14 +16,14 @@ deploy/      Helmfile, own charts, settings per environment
 
 ## Defaults
 
-- Postgres: **one instance, no replica**. PgBouncer is always in front.
-- Backups (etcd snapshots and Postgres) are **off**: `backups: false`.
-- The cluster issues **no certificates**: HTTPS is Cloudflare's, SSL mode Full.
+- Postgres: one instance, no replica; PgBouncer in front.
+- Backups (etcd and Postgres) are off: `backups: false`.
+- No certificates in the cluster: HTTPS is Cloudflare's, SSL mode Full.
 - Ports 80 and 443 of the edges are open to everyone (`cloudflareOnly: false`).
 - `dev` runs without metrics and traces: services, logs and a plain Grafana.
-- One core server (control plane, databases, services) and one or more edge servers (Traefik and the gateway only). Or **one server for everything**: `edge = true` inside `server` and no `nodes`.
-- Database passwords are not stored: each is derived from `secrets.dbSecret` and the service name.
-- Automatic node reboots and k3s upgrades (`autoUpdates`) are **on in prod only**.
+- One core server (control plane, databases, services) and one or more edge servers (Traefik and the gateway only), or one server for everything: `edge = true` inside `server` and no `nodes`.
+- Database passwords are derived from `secrets.dbSecret` and the service name, not stored.
+- Automatic reboots and k3s upgrades (`autoUpdates`) are on in prod only.
 
 ## Local
 
@@ -38,74 +38,52 @@ make down
 
 ## Dev or prod
 
-1. First setup, once per project:
-   ```bash
-   make init
-   ```
-   It creates your age key for sops (back it up) and puts it in `.sops.yaml`, asks for your `domain` in `deploy/environments/common.yaml` (the host is `<subdomain>.<domain>`, `dev.` or `prod.`) and puts your SSH public key into the tfvars. `DOMAIN`, `SSH_KEY_FILE` and `YES=1` make it non-interactive. Secrets encrypted for the old key become unreadable: recreate them with step 3.
-2. `terraform/envs/<env>.tfvars`: the servers (`server` is the core, `nodes` are edges; `edge = true` inside `server` and no `nodes` is one server for everything).
-3. Secrets (asks for the Hetzner token, makes `dbSecret`, `redis`, `jwt`, `grafana` and encrypts them with the age key of `.sops.yaml`):
-   ```bash
-   make secrets ENV=<env>
-   ```
-4. Images in a registry the servers can pull (built for `linux/amd64`, every service of `app/cmd`):
-   ```bash
-   make push REGISTRY=<registry> TAG=<tag>
-   ```
-5. Everything else in one command: servers, kubeconfig, wait until every node is Ready, deploy:
-   ```bash
-   make bootstrap ENV=<env> REGISTRY=<registry> TAG=<tag>
-   ```
-   The steps are also separate: `make infra-plan`, `make infra-apply`, `make kubeconfig` (waits for k3s, takes the ip from Terraform; `HOST=<ip>` overrides it), `make wait-nodes`, `make deploy`.
-6. Remove everything: set `protected = false` at the top of the tfvars, `make infra-apply ENV=<env>`, then `make infra-destroy ENV=<env>`. Servers are billed by the hour.
+1. Once per project: `make init`. It creates your age key for sops (back it up), puts it in `.sops.yaml`, asks for your `domain` (hosts are `dev.<domain>` and `prod.<domain>`) and puts your SSH public key into the tfvars. `DOMAIN`, `SSH_KEY_FILE` and `YES=1` make it non-interactive. Secrets encrypted for the old key become unreadable: recreate them in step 3.
+2. Edit `terraform/envs/<env>.tfvars`: `server` is the core, `nodes` are edges.
+3. `make secrets ENV=<env>` asks for the Hetzner token, makes `dbSecret`, `redis`, `jwt`, `grafana` and encrypts them.
+4. `make push REGISTRY=<registry> TAG=<tag>` builds every service of `app/cmd` for `linux/amd64` into a registry the servers can pull.
+5. `make bootstrap ENV=<env> REGISTRY=<registry> TAG=<tag>`: servers, kubeconfig, wait until every node is Ready, deploy. The steps also run alone: `make infra-plan`, `infra-apply`, `kubeconfig` (`HOST=<ip>` overrides the Terraform ip), `wait-nodes`, `deploy`.
+6. Remove everything: `protected = false` in the tfvars, `make infra-apply ENV=<env>`, `make infra-destroy ENV=<env>`. Servers are billed by the hour.
 
 In Cloudflare: proxy the domain and set SSL/TLS to Full.
 
 ### Your own Ubuntu server instead of Hetzner
 
-On a clean Ubuntu with SSH access (no Terraform, no Hetzner token):
-
 ```bash
-make install-host ROLE=single HOST=<ip>            # one server for everything
-make install-host ROLE=server HOST=<core ip>       # core
+make install-host ROLE=single HOST=<ip>                  # one server for everything
+make install-host ROLE=server HOST=<core ip>             # core
 make install-host ROLE=edge HOST=<ip> SERVER=<core ip>   # edge (or ROLE=core)
 make kubeconfig ENV=<env> HOST=<core ip>
 REGISTRY=<registry> TAG=<tag> make deploy ENV=<env>
 ```
 
-It installs k3s of the version from `common.yaml` with the same settings as the Terraform cloud-init. It does not set up firewalls: open 22, 80 and 443 to the world yourself, and let the servers reach each other (6443 of the core, UDP 51820 and TCP 10250 between all).
+Same k3s version and settings as the cloud-init, but no firewalls: open 22, 80 and 443 to the world yourself, and let the servers reach each other (6443 of the core, UDP 51820 and TCP 10250 between all).
 
 ## dev and prod on one domain
 
-Every environment is its own cluster: `dev.<domain>` and `prod.<domain>` point to different servers, have their own Terraform workspace, secrets and kube context. They can share one Hetzner project (the same SSH key is reused), but never deploy two environments to **the same cluster**: they share the platform releases (Traefik, monitoring, kured, cnpg) and a deploy of one removes what the other installed (for example kured when `autoUpdates` differs).
+Every environment is its own cluster with its own Terraform workspace, secrets and kube context. They can share one Hetzner project, but never deploy two environments to the same cluster (see `AGENTS.md`).
 
-- Apply environments one after another: the Terraform workspace is global to the `infra/terraform` directory.
-- A prod with edges around the world: put every edge IP into `prod.<domain>` as proxied A records. Cloudflare keeps sending a client to one of them and switches to another within seconds when it dies; it does not pick the nearest one (that needs Cloudflare Load Balancing).
-- A gateway far from the core pays about two round trips to the core on every authenticated call (role lookup and the call itself): 2 ms from an edge next to the core, 100 ms from the US and 180 ms from Singapore means roughly +0.2 s and +0.35 s per call.
-- The Ingress serves only `<subdomain>.<domain>`; any other hostname (for example one per region) answers 404 until it is added.
+- Apply environments one after another: the Terraform workspace is global to `terraform/`.
+- Edges around the world: put every edge IP into `prod.<domain>` as proxied A records. Cloudflare keeps a client on one of them and switches within seconds when it dies; it does not pick the nearest (that needs Cloudflare Load Balancing).
+- A gateway far from the core pays about two round trips to the core per authenticated call: +0.2 s from the US, +0.35 s from Singapore (2 ms next to the core).
+- The Ingress serves only `<subdomain>.<domain>`; any other hostname answers 404.
 
 ## Changing the setup
 
 | I want | Do |
 |---|---|
-| a new service | one line in `deploy/environments/common.yaml` `apps`, see below |
-| an edge in another region | add an entry to `nodes` in the tfvars, `make infra-apply` (its gateway and Traefik start on their own) |
-| remove a node | delete its entry from `nodes`, `make infra-apply`, then `kubectl delete node k3s-<env>-<name>` (Terraform leaves the Node object as NotReady) |
-| a Postgres replica | a `nodes` entry with `role = "core"` and `postgres.instances: 2` in `deploy/environments/<env>.yaml` |
+| a new service | one line in `deploy/environments/common.yaml` `apps`: `<name>: {}` (options: `deploy/environments/apps.schema.json`) |
+| an edge in another region | add an entry to `nodes` in the tfvars, `make infra-apply` |
+| remove a node | delete its entry, `make infra-apply`, then `kubectl delete node k3s-<env>-<name>` |
+| a Postgres replica | a `nodes` entry with `role = "core"` and `postgres.instances: 2` in the env file (failover needs the API on the core server) |
 | backups | a real S3 in `s3` of `common.yaml`, keys in the secrets, `backups: true` |
-| origin reachable only through Cloudflare | `cloudflareOnly: true`; refresh the ranges now and then with `make cloudflare-ips` |
-| automatic reboots and k3s upgrades | `autoUpdates: true` in the env file |
-| images from a private registry | `registry: {host, username, password}` in the secrets of the env (`sops`), only for servers created after the change |
-| restore Postgres from a backup | with `backups: true`: `releaseValues.postgres.restore: {enabled: true, serverName: <old name>}` in the env file and a new `postgres.backupServerName` |
-
-Failover to a replica needs the Kubernetes API, which lives on the core server: if that server dies, the replica is not promoted.
-
-## The service registry
-
-`deploy/environments/common.yaml` `apps` has one entry per service. `<name>: {}` is a typical service: its own database schema, redis and a public route `/api/v1/<name>` through the gateway. Everything else is derived. Options and their meaning: `deploy/environments/apps.schema.json` (a typo or a wrong type fails the render). Nothing else is needed: the database password is derived from `secrets.dbSecret`, and CI builds and scans every folder of `app/cmd`. Its own rate limit is a route in `apps.gateway.values.ingress.routes` of the same file.
+| restore Postgres | with `backups: true`: `releaseValues.postgres.restore: {enabled: true, serverName: <old name>}` in the env file and a new `postgres.backupServerName` |
+| origin only through Cloudflare | `cloudflareOnly: true`; refresh the ranges with `make cloudflare-ips` |
+| automatic reboots and upgrades | `autoUpdates: true` in the env file |
+| a private registry | `registry: {host, username, password}` in the env secrets (`sops`), only for servers created after the change |
 
 ## CI
 
 A `v*` tag builds and scans the images, deploys dev, then prod by hand. The deploy job needs the CI/CD variables `KUBECONFIG` (File, with the contexts `k3s-dev` and `k3s-prod`) and `SOPS_AGE_KEY` (the private age key).
 
-Rules for agents and deeper details: [AGENTS.md](AGENTS.md).
+Rules for agents and details: [AGENTS.md](AGENTS.md).
